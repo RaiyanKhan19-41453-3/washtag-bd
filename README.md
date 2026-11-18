@@ -139,7 +139,7 @@ The dependency rule points inward: `Api → Infrastructure → Application → D
 - QR receipts generated server-side with QRCoder (data URL + printable PNG); they encode the real public `/track/{token}` URL of whatever host serves the app, so they work on localhost, a VPS IP or a custom domain
 - Real-time push to both the owner dashboard and the customer tracking page
 - Health-checked dependencies with automatic restarts
-- Swagger UI at `/swagger` (enabled by the demo compose file; set `ENABLE_SWAGGER=false` for real deployments)
+- Swagger UI at `/swagger` (disabled by default; set `ENABLE_SWAGGER=true` to explore the API)
 
 ---
 
@@ -279,7 +279,7 @@ AI_GATEWAY_CHAT_MODEL=gpt-4o-mini
 - Change `POSTGRES_PASSWORD`.
 - Set `SEED_DEMO_DATA=false` so known demo passwords are not created on a real deployment.
 - Set `PUBLIC_BASE_URL` to your public origin so QR codes never depend on request `Host` headers.
-- Replace `ALLOWED_ORIGINS=*` and set `ADMIN_EMAILS` to your own admin addresses.
+- Set `ALLOWED_ORIGINS` and `ADMIN_EMAILS` to your own values (defaults are localhost-only).
 - Browser camera and microphone access (Scan QR / Assistant voice input) require `localhost` or HTTPS in production.
 - Put TLS in front of nginx (a reverse proxy such as Caddy/Traefik or a cloud load balancer).
 - Back up the `pgdata` volume.
