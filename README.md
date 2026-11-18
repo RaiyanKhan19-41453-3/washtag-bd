@@ -180,6 +180,8 @@ dotnet test WashtagBD.sln          # 42 xUnit tests (use cases, billing, auth, a
 cd frontend && npm run build       # production bundle check
 ```
 
+For frontend-only development (`npm run dev`), Vite proxies `/api` and `/hubs` to `http://localhost:8080` by default; set `VITE_API_TARGET` to point at a different API origin. NuGet lock files are committed and CI restores with `--locked-mode`.
+
 Schema changes are managed with EF Core migrations in `backend/Washtag.Infrastructure/Data/Migrations`. The API applies pending migrations at startup (`db.Database.Migrate()`) and then seeds demo data. To create a new migration:
 
 ```bash
