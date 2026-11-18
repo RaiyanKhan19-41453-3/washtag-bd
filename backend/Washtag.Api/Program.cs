@@ -1,6 +1,7 @@
 using System.Security.Cryptography;
 using System.Text.Json.Serialization;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
@@ -21,6 +22,7 @@ builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<ITrackingUrlProvider, TrackingUrlProvider>();
 builder.Services.AddScoped<IJwtTokenGenerator, JwtTokenGenerator>();
 builder.Services.AddScoped<IRealtimeNotifier, SignalRNotifier>();
+builder.Services.AddSingleton<IAdminSettings, AdminSettings>();
 
 // Never run Production on the source-checked development secret: mint an
 // ephemeral one instead so tokens cannot be forged with a publicly known key.
@@ -95,8 +97,31 @@ builder.Services.AddSwaggerGen(c =>
 });
 
 builder.Services.AddSignalR();
-builder.Services.AddCors(options => options.AddPolicy("AllowAll", policy =>
-    policy.AllowAnyOrigin().AllowAnyHeader().AllowAnyMethod()));
+var allowedOrigins = (builder.Configuration["ALLOWED_ORIGINS"] ?? "*")
+    .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+builder.Services.AddCors(options => options.AddPolicy("App", policy =>
+{
+    if (allowedOrigins.Contains("*"))
+        policy.AllowAnyOrigin().AllowAnyHeader().AllowAnyMethod();
+    else
+        policy.WithOrigins(allowedOrigins).AllowAnyHeader().AllowAnyMethod();
+}));
+
+builder.Services.AddRateLimiter(options =>
+{
+    options.AddFixedWindowLimiter("auth", limiter =>
+    {
+        limiter.PermitLimit = 6;
+        limiter.Window = TimeSpan.FromMinutes(1);
+        limiter.QueueLimit = 0;
+    });
+    options.OnRejected = async (context, token) =>
+    {
+        context.HttpContext.Response.StatusCode = StatusCodes.Status429TooManyRequests;
+        await context.HttpContext.Response.WriteAsJsonAsync(
+            new { message = "Too many attempts. Please try again in a minute." }, token);
+    };
+});
 
 var app = builder.Build();
 
@@ -107,7 +132,8 @@ app.UseSwaggerUI(c =>
     c.SwaggerEndpoint("/swagger/v1/swagger.json", "WashTag BD API v1");
     c.RoutePrefix = "swagger";
 });
-app.UseCors("AllowAll");
+app.UseCors("App");
+app.UseRateLimiter();
 app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();

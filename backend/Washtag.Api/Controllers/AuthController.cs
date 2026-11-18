@@ -1,6 +1,7 @@
 using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using Washtag.Application.DTOs;
 using Washtag.Application.Interfaces;
 
@@ -14,6 +15,7 @@ public class AuthController : ControllerBase
 
     public AuthController(IAuthService auth) => _auth = auth;
 
+    [EnableRateLimiting("auth")]
     [HttpPost("register")]
     public async Task<IActionResult> Register([FromBody] RegisterRequest request)
     {
@@ -21,11 +23,31 @@ public class AuthController : ControllerBase
         return Ok(await _auth.RegisterAsync(request));
     }
 
+    [EnableRateLimiting("auth")]
     [HttpPost("login")]
     public async Task<IActionResult> Login([FromBody] LoginRequest request)
     {
         if (!ModelState.IsValid) return ValidationProblem(ModelState);
         return Ok(await _auth.LoginAsync(request));
+    }
+
+    [EnableRateLimiting("auth")]
+    [HttpPost("refresh")]
+    public async Task<IActionResult> Refresh([FromBody] RefreshRequest request)
+    {
+        if (!ModelState.IsValid) return ValidationProblem(ModelState);
+        return Ok(await _auth.RefreshAsync(request.RefreshToken));
+    }
+
+    [Authorize]
+    [HttpPost("change-password")]
+    public async Task<IActionResult> ChangePassword([FromBody] ChangePasswordRequest request)
+    {
+        if (!ModelState.IsValid) return ValidationProblem(ModelState);
+        var raw = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? User.FindFirstValue("sub");
+        if (!Guid.TryParse(raw, out var userId)) return Unauthorized(new { message = "Invalid token." });
+        await _auth.ChangePasswordAsync(userId, request);
+        return Ok(new { message = "Password changed successfully." });
     }
 
     [Authorize]

@@ -10,8 +10,13 @@ namespace Washtag.Api.Services;
 public class JwtTokenGenerator : IJwtTokenGenerator
 {
     private readonly IConfiguration _configuration;
+    private readonly IAdminSettings _admin;
 
-    public JwtTokenGenerator(IConfiguration configuration) => _configuration = configuration;
+    public JwtTokenGenerator(IConfiguration configuration, IAdminSettings admin)
+    {
+        _configuration = configuration;
+        _admin = admin;
+    }
 
     public string Generate(AppUser user, Shop shop)
     {
@@ -28,14 +33,15 @@ public class JwtTokenGenerator : IJwtTokenGenerator
             new Claim(ClaimTypes.Name, user.Name),
             new Claim(ClaimTypes.Email, user.Email),
             new Claim("role", user.Role.ToString()),
-            new Claim(ClaimTypes.Role, user.Role.ToString())
+            new Claim(ClaimTypes.Role, user.Role.ToString()),
+            new Claim("isAdmin", _admin.IsAdmin(user.Email) ? "true" : "false")
         };
 
         var token = new JwtSecurityToken(
             issuer: _configuration["JWT_ISSUER"] ?? "WashtagBD",
             audience: _configuration["JWT_AUDIENCE"] ?? "WashtagBDClient",
             claims: claims,
-            expires: DateTime.UtcNow.AddDays(30),
+            expires: DateTime.UtcNow.AddMinutes(15),
             signingCredentials: credentials);
 
         return new JwtSecurityTokenHandler().WriteToken(token);

@@ -59,6 +59,8 @@ services:
       OPENAI_EMBEDDING_MODEL: ${OPENAI_EMBEDDING_MODEL:-text-embedding-3-small}
       OPENAI_CHAT_MODEL: ${OPENAI_CHAT_MODEL:-gpt-4o-mini}
       PUBLIC_BASE_URL: ${PUBLIC_BASE_URL:-}
+      ALLOWED_ORIGINS: ${ALLOWED_ORIGINS:-*}
+      ADMIN_EMAILS: ${ADMIN_EMAILS:-demo@washtagbd.com}
     expose:
       - "8080"
     networks:
