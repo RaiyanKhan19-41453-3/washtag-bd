@@ -96,7 +96,7 @@ public class DocumentIndexer : IDocumentIndexer
     {
         var items = string.Join(", ", order.Items.Select(item =>
             $"{item.Quantity}x {item.Name} ({item.Service}) at ৳{item.UnitPrice} each"));
-        var due = order.TotalAmount - order.PaidAmount;
+        var due = order.Status == OrderStatus.Cancelled ? 0 : order.TotalAmount - order.PaidAmount;
         return $"Order #{order.OrderNumber} for customer {order.CustomerName}, phone {order.CustomerPhone}. " +
                $"Status: {order.Status}. Payment status: {order.PaymentStatus}. " +
                $"Total ৳{order.TotalAmount:0}, paid ৳{order.PaidAmount:0}, due ৳{due:0}. " +

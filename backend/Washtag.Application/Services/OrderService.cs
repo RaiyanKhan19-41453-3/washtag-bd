@@ -158,6 +158,8 @@ public class OrderService : IOrderService
             throw new AppException("This order is already completed and cannot be changed.");
         if (request.Status == order.Status)
             throw new AppException("The order is already at this status.");
+        if (request.Status != OrderStatus.Cancelled && (int)request.Status <= (int)order.Status)
+            throw new AppException("Orders can only move forward in the workflow.");
         if (request.Status == OrderStatus.Delivered && order.PaidAmount < order.TotalAmount)
             throw new AppException("Settle the remaining balance before marking this order delivered.");
         if (request.Status == OrderStatus.Cancelled)
@@ -357,6 +359,13 @@ public class OrderService : IOrderService
         shop.LogoUrl = string.IsNullOrWhiteSpace(request.LogoUrl) ? null : request.LogoUrl.Trim();
 
         await _db.SaveChangesAsync();
+        var tokens = await _db.Orders.AsNoTracking()
+            .Where(o => o.ShopId == shopId).Select(o => o.PublicToken).ToListAsync();
+        foreach (var token in tokens)
+        {
+            try { await _cache.RemoveAsync($"track:{token}"); }
+            catch { /* cache is best-effort */ }
+        }
         return AuthService.MapShop(shop);
     }
 

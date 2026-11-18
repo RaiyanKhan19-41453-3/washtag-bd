@@ -14,7 +14,7 @@ const PLANS = [
 ];
 
 export default function Billing() {
-  const { user } = useAuth();
+  const { user, setShop } = useAuth();
   const toast = useToast();
   const [data, setData] = useState(null);
   const [loadError, setLoadError] = useState('');
@@ -33,11 +33,17 @@ export default function Billing() {
 
   useEffect(() => { load(); }, [load]);
 
+  const refreshShop = useCallback(async () => {
+    try { const { data } = await api.get('/auth/me'); setShop(data.shop); }
+    catch { /* keep the previous shop state */ }
+  }, [setShop]);
+
   const changePlan = async () => {
     setBusy(true);
     try {
       const { data: result } = await api.put('/billing/plan', { plan });
       setData(result);
+      await refreshShop();
       toast.success(`Plan changed to ${result.plan}.`);
     } catch (error) { toast.error(error.message); }
     finally { setBusy(false); }
@@ -51,6 +57,7 @@ export default function Billing() {
       toast.success('Invoice marked as paid.');
       setPaying(null);
       setReference('');
+      await refreshShop();
       load();
     } catch (error) { toast.error(error.message); }
     finally { setBusy(false); }
@@ -87,7 +94,7 @@ export default function Billing() {
           <div className="plan-meta">
             <div><CalendarDays size={16} /><span>Started {formatDate(data.startedAt)}</span></div>
             <div><BadgeCheck size={16} /><span>Renews {formatDate(data.renewalDate)}</span></div>
-            <div><ReceiptText size={16} /><span>Outstanding: <strong>{money(data.outstanding)}</strong></span></div>
+            <div><ReceiptText size={16} /><span>Subscription due: <strong>{money(data.outstanding)}</strong></span></div>
           </div>
           {isOwner && (
             <div className="plan-change">

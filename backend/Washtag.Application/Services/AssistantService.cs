@@ -239,7 +239,6 @@ public class AssistantService : IAssistantService
             {
                 var orders = await _db.Orders.AsNoTracking()
                     .Where(o => o.ShopId == shopId && o.Status != OrderStatus.Cancelled).ToListAsync(ct);
-                orders = InRange(orders);
                 orders = Filter(orders, plan.CustomerName);
                 var orderIds = orders.Select(o => o.Id).ToList();
                 var payments = await _db.Payments.AsNoTracking()
@@ -248,25 +247,28 @@ public class AssistantService : IAssistantService
                                 (!plan.ToUtc.HasValue || p.CreatedAt < plan.ToUtc.Value))
                     .ToListAsync(ct);
                 var collected = payments.Sum(p => p.Amount);
+                var paidOrderIds = payments.Select(p => p.OrderId).ToHashSet();
+                var count = orders.Count(o => paidOrderIds.Contains(o.Id));
                 var outstanding = orders.Sum(o => o.TotalAmount - o.PaidAmount);
                 return new FactSet(
-                    $"Amount collected {period} is ৳{collected:0} across {orders.Count} order(s). Outstanding balance: ৳{outstanding:0}.",
+                    $"Amount collected {period} is ৳{collected:0} across {count} order(s). Outstanding balance: ৳{outstanding:0}.",
                     orders);
             }
 
             case "count":
             case "active":
             {
-                var orders = await _db.Orders.AsNoTracking()
-                    .Where(o => o.ShopId == shopId && o.Status != OrderStatus.Cancelled).ToListAsync(ct);
-                orders = InRange(orders);
+                var allOrders = await _db.Orders.AsNoTracking()
+                    .Where(o => o.ShopId == shopId).ToListAsync(ct);
+                var totalCount = InRange(allOrders).Count;
+                var orders = InRange(allOrders.Where(o => o.Status != OrderStatus.Cancelled).ToList());
                 var active = orders.Count(o => o.Status is OrderStatus.Received or OrderStatus.Washing
                     or OrderStatus.Ironing or OrderStatus.ReadyForPickup);
                 var ready = orders.Count(o => o.Status == OrderStatus.ReadyForPickup);
                 var delivered = orders.Count(o => o.Status == OrderStatus.Delivered);
                 var text = plan.Intent == "active"
                     ? $"There are {active} active order(s), including {ready} ready for pickup. Delivered so far: {delivered}."
-                    : $"The shop has {orders.Count} total order(s): {active} active and {delivered} delivered.";
+                    : $"The shop has {totalCount} total order(s): {active} active and {delivered} delivered.";
                 return new FactSet(text, orders.Where(o => o.Status != OrderStatus.Delivered).ToList());
             }
 

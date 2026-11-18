@@ -39,7 +39,7 @@ export default function Customers() {
 
       <div className="stat-grid stat-grid-three">
         <StatCard icon={Users} label="Customers" value={customers.length} hint="Unique phone numbers" tone="teal" />
-        <StatCard icon={Wallet} label="Total business" value={money(totalSpent)} hint="Across all orders" tone="emerald" />
+        <StatCard icon={Wallet} label="Total billed" value={money(totalSpent)} hint="Across all orders" tone="emerald" />
         <StatCard icon={AlertCircle} label="Outstanding" value={money(outstanding)} hint="Yet to be collected" tone="amber" />
       </div>
 
@@ -59,7 +59,7 @@ export default function Customers() {
               <thead>
                 <tr>
                   <th>Customer</th><th>Phone</th><th className="align-right">Orders</th>
-                  <th className="align-right">Total spent</th><th className="align-right">Due</th><th>Last order</th>
+                  <th className="align-right">Total billed</th><th className="align-right">Due</th><th>Last order</th>
                 </tr>
               </thead>
               <tbody>

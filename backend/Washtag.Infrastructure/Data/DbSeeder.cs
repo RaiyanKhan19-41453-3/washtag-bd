@@ -147,7 +147,7 @@ public static class DbSeeder
             }
 
             decimal paid = 0;
-            if (status == OrderStatus.Delivered) paid = i == 4 ? total * 0.5m : total;
+            if (status == OrderStatus.Delivered) paid = total;
             else if (status == OrderStatus.ReadyForPickup && i % 2 == 1) paid = total * 0.5m;
             else if (status == OrderStatus.Ironing && i % 3 == 0) paid = total * 0.4m;
 
