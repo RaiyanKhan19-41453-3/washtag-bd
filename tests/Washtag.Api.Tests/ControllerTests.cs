@@ -51,7 +51,7 @@ public class ControllerTests
         var shopId = Guid.NewGuid();
         var expected = new AssistantAnswerDto { Answer = "৳5410 unpaid", Intent = "unpaid" };
         var service = new Mock<IAssistantService>();
-        service.Setup(s => s.AskAsync(shopId, "baki taka koto?", It.IsAny<CancellationToken>()))
+        service.Setup(s => s.AskAsync(shopId, It.IsAny<Guid>(), "baki taka koto?", It.IsAny<CancellationToken>()))
             .ReturnsAsync(expected);
         var controller = new AssistantController(service.Object);
         Authenticate(controller, shopId);
@@ -72,7 +72,7 @@ public class ControllerTests
         var result = await controller.Ask(new AssistantAskRequest { Question = "   " });
 
         Assert.IsType<BadRequestObjectResult>(result);
-        service.Verify(s => s.AskAsync(It.IsAny<Guid>(), It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
+        service.Verify(s => s.AskAsync(It.IsAny<Guid>(), It.IsAny<Guid>(), It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 
     [Fact]

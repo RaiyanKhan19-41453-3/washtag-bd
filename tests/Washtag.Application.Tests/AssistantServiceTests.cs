@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Washtag.Application.DTOs;
 using Washtag.Application.Services;
 using Washtag.Domain.Entities;
 using Washtag.Domain.Enums;
@@ -11,6 +12,7 @@ public class AssistantServiceTests
     private sealed class Harness
     {
         public Guid ShopId { get; } = Guid.NewGuid();
+        public Guid UserId { get; } = Guid.NewGuid();
         public TestDbContext Db { get; }
         public AssistantService Service { get; }
 
@@ -48,7 +50,7 @@ public class AssistantServiceTests
         h.AddOrder("Mr. Rahman", OrderStatus.Washing, 500, 100, DateTime.UtcNow.AddDays(-2));
         h.AddOrder("Tasnim", OrderStatus.Ironing, 300, 300, DateTime.UtcNow.AddDays(-1));
 
-        var answer = await h.Service.AskAsync(h.ShopId, "What is the total unpaid bill for Mr. Rahman?");
+        var answer = await h.Service.AskAsync(h.ShopId, h.UserId,"What is the total unpaid bill for Mr. Rahman?");
 
         Assert.Equal("unpaid", answer.Intent);
         Assert.Contains("৳400", answer.Answer);
@@ -63,7 +65,7 @@ public class AssistantServiceTests
         h.AddOrder("Old Customer", OrderStatus.ReadyForPickup, 200, 0, DateTime.UtcNow.AddDays(-9));
         h.AddOrder("Fresh Customer", OrderStatus.ReadyForPickup, 200, 0, DateTime.UtcNow.AddDays(-1));
 
-        var answer = await h.Service.AskAsync(h.ShopId,
+        var answer = await h.Service.AskAsync(h.ShopId, h.UserId,
             "Show me all customers who haven't picked up their clothes in 5 days.");
 
         Assert.Equal("pickup", answer.Intent);
@@ -78,8 +80,8 @@ public class AssistantServiceTests
         var h = new Harness();
         h.AddOrder("Nadia", OrderStatus.ReadyForPickup, 200, 0, DateTime.UtcNow.AddDays(-8));
 
-        var english = await h.Service.AskAsync(h.ShopId, "orders waiting for pickup for 5 days");
-        var banglish = await h.Service.AskAsync(h.ShopId, "kapor 5 din dhore porchha?");
+        var english = await h.Service.AskAsync(h.ShopId, h.UserId,"orders waiting for pickup for 5 days");
+        var banglish = await h.Service.AskAsync(h.ShopId, h.UserId,"kapor 5 din dhore porchha?");
 
         Assert.Equal("pickup", english.Intent);
         Assert.Equal("pickup", banglish.Intent);
@@ -91,10 +93,33 @@ public class AssistantServiceTests
     {
         var h = new Harness();
 
-        var answer = await h.Service.AskAsync(h.ShopId, "baki taka koto?");
+        var answer = await h.Service.AskAsync(h.ShopId, h.UserId,"baki taka koto?");
 
         Assert.Equal("unpaid", answer.Intent);
         Assert.Contains("no unpaid balances", answer.Answer, StringComparison.OrdinalIgnoreCase);
         Assert.Empty(answer.Sources);
+    }
+
+    [Fact]
+    public async Task Ask_PersistsConversationAndFeedback()
+    {
+        var h = new Harness();
+        var answer = await h.Service.AskAsync(h.ShopId, h.UserId, "baki taka koto?");
+
+        var history = await h.Service.GetHistoryAsync(h.ShopId, h.UserId, 50);
+
+        Assert.NotEqual(Guid.Empty, answer.Id);
+        Assert.Equal(2, history.Count);
+        Assert.Equal("user", history[0].Role);
+        Assert.Equal("assistant", history[1].Role);
+        Assert.Equal(answer.Id, history[1].Id);
+
+        await h.Service.SubmitFeedbackAsync(h.ShopId, h.UserId,
+            new AssistantFeedbackRequest { MessageId = answer.Id, Rating = 1 });
+        var rated = await h.Service.GetHistoryAsync(h.ShopId, h.UserId, 50);
+        Assert.Equal(1, rated[1].Rating);
+
+        await h.Service.ClearHistoryAsync(h.ShopId, h.UserId);
+        Assert.Empty(await h.Service.GetHistoryAsync(h.ShopId, h.UserId, 50));
     }
 }
