@@ -6,6 +6,37 @@ A QR-code based order tracking platform built for laundry, dry-cleaning and tail
 
 Everything runs in Docker. You do **not** need Node, .NET, Postgres or Redis installed locally.
 
+## See it in action
+
+![WashTag BD demo — dashboard to AI assistant](docs/demo.gif)
+
+| Owner dashboard | Customer tracking (mobile) | AI Shop Assistant |
+| --- | --- | --- |
+| ![Owner dashboard](docs/screenshots/dashboard.png) | ![Customer tracking page](docs/screenshots/customer-tracking.png) | ![AI assistant](docs/screenshots/assistant.png) |
+
+### Architecture
+
+```mermaid
+flowchart LR
+    C[Customer phone camera] -->|scans QR| W
+    O[Shop owner / staff] --> W
+
+    subgraph Frontend
+        W[React SPA + nginx :8081]
+    end
+
+    subgraph Backend
+        A[ASP.NET Core 9 API]
+        H[SignalR hub]
+    end
+
+    W -->|/api REST| A
+    W <-->|/hubs/orders realtime| H
+    A --> H
+    A --> D[(PostgreSQL 16 + pgvector)]
+    A --> R[(Redis cache)]
+```
+
 ---
 
 ## Quick start
@@ -73,6 +104,7 @@ The dependency rule points inward: `Api → Infrastructure → Application → D
 - Auto-generated order number and unique QR receipt
 - Status workflow: `Received → Washing → Ironing → Ready for Pickup → Delivered`
 - Camera QR scanning with manual token fallback
+- One-click 80mm thermal receipt with the QR at `/print/{token}` (print button uses the browser print dialog)
 - Partial/full payment recording (Cash, Card, bKash, Nagad, Bank Transfer)
 - Customer directory with totals and unpaid balances
 - Shop profile settings
@@ -115,6 +147,17 @@ Rebuild after changing code:
 ```bash
 docker compose up --build -d
 ```
+
+### Backup and restore
+
+```bash
+./scripts/backup.sh                              # gzip dump in backups/ (keeps newest 7)
+./scripts/restore.sh backups/washtag_....sql.gz  # DESTRUCTIVE: asks for confirmation
+```
+
+Both scripts read `POSTGRES_USER` / `POSTGRES_DB` from `.env` (with the compose defaults as fallback). Schedule `backup.sh` with cron on the host for real deployments, and store the dumps off-server.
+
+`GET /health` returns `200 {"status":"healthy"}` when the API can reach the database, or `503` otherwise — useful for monitoring and load balancers.
 
 ### Tests and migrations
 
@@ -160,6 +203,7 @@ GitHub Actions runs build + tests + both Docker image builds on every push and P
 | POST | `/api/assistant/ask` | JWT | Ask the RAG assistant a question |
 | GET | `/api/assistant/status` | JWT | Vector index/engine status |
 | POST | `/api/assistant/reindex` | JWT | Rebuild the shop's vector index |
+| GET | `/health` | public | API + database health check (503 when DB is down) |
 | WS | `/hubs/orders` | optional | SignalR realtime updates |
 
 Full interactive docs: **http://localhost:8081/swagger**
