@@ -16,9 +16,20 @@ public class AssistantSourceDto
     public double Similarity { get; set; }
 }
 
+public class AssistantFeedbackRequest
+{
+    public Guid MessageId { get; set; }
+    public int Rating { get; set; }
+    public string? Comment { get; set; }
+}
+
 public class AssistantAnswerDto
 {
+    public Guid Id { get; set; }
+    public string Role { get; set; } = "assistant";
     public string Answer { get; set; } = string.Empty;
+    public string Text { get; set; } = string.Empty;
+    public int? Rating { get; set; }
     public string Intent { get; set; } = string.Empty;
     public bool AiPhrased { get; set; }
     public string Provider { get; set; } = string.Empty;

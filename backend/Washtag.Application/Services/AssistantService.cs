@@ -1,10 +1,12 @@
 using System.Text;
+using System.Text.Json;
 using System.Text.RegularExpressions;
 using Microsoft.EntityFrameworkCore;
 using Washtag.Application.DTOs;
 using Washtag.Application.Interfaces;
 using Washtag.Domain.Entities;
 using Washtag.Domain.Enums;
+using Washtag.Domain.Exceptions;
 
 namespace Washtag.Application.Services;
 
@@ -31,9 +33,15 @@ public class AssistantService : IAssistantService
         _indexer = indexer;
     }
 
-    public async Task<AssistantAnswerDto> AskAsync(Guid shopId, string question, CancellationToken cancellationToken = default)
+    public async Task<AssistantAnswerDto> AskAsync(Guid shopId, Guid userId, string question, CancellationToken cancellationToken = default)
     {
         var query = question.Trim();
+        _db.AssistantMessages.Add(new AssistantMessage
+        {
+            ShopId = shopId, UserId = userId, Role = "user", Text = query
+        });
+        await _db.SaveChangesAsync(cancellationToken);
+
         var plan = ParseIntent(query);
 
         var matches = new List<DocumentMatch>();
@@ -55,16 +63,72 @@ public class AssistantService : IAssistantService
             ? ComposeLocalAnswer(facts, matches, plan)
             : phrased.Trim();
 
-        return new AssistantAnswerDto
+        var sources = BuildSources(matches);
+        var result = new AssistantAnswerDto
         {
             Answer = answer,
             Intent = plan.Intent,
             AiPhrased = !string.IsNullOrWhiteSpace(phrased),
             Provider = _ai.Name,
-            Sources = BuildSources(matches),
+            Sources = sources,
             Suggestions = Suggestions,
             AnsweredAt = DateTime.UtcNow
         };
+
+        var record = new AssistantMessage
+        {
+            ShopId = shopId,
+            UserId = userId,
+            Role = "assistant",
+            Text = answer,
+            SourcesJson = sources.Count > 0 ? JsonSerializer.Serialize(sources) : null
+        };
+        _db.AssistantMessages.Add(record);
+        await _db.SaveChangesAsync(cancellationToken);
+        result.Id = record.Id;
+        return result;
+    }
+
+    public async Task<List<AssistantAnswerDto>> GetHistoryAsync(Guid shopId, Guid userId, int limit,
+        CancellationToken cancellationToken = default)
+    {
+        var messages = await _db.AssistantMessages.AsNoTracking()
+            .Where(m => m.ShopId == shopId && m.UserId == userId)
+            .OrderByDescending(m => m.CreatedAt)
+            .Take(Math.Clamp(limit, 1, 200))
+            .ToListAsync(cancellationToken);
+
+        return messages.Select(m => new AssistantAnswerDto
+        {
+            Id = m.Id,
+            Role = m.Role,
+            Answer = m.Text,
+            Text = m.Text,
+            Rating = m.Rating,
+            Sources = string.IsNullOrEmpty(m.SourcesJson)
+                ? new List<AssistantSourceDto>()
+                : JsonSerializer.Deserialize<List<AssistantSourceDto>>(m.SourcesJson) ?? new List<AssistantSourceDto>(),
+            AnsweredAt = m.CreatedAt
+        }).OrderBy(m => m.AnsweredAt).ToList();
+    }
+
+    public async Task ClearHistoryAsync(Guid shopId, Guid userId, CancellationToken cancellationToken = default)
+    {
+        var messages = await _db.AssistantMessages
+            .Where(m => m.ShopId == shopId && m.UserId == userId).ToListAsync(cancellationToken);
+        _db.AssistantMessages.RemoveRange(messages);
+        await _db.SaveChangesAsync(cancellationToken);
+    }
+
+    public async Task SubmitFeedbackAsync(Guid shopId, Guid userId, AssistantFeedbackRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        var message = await _db.AssistantMessages.FirstOrDefaultAsync(
+            m => m.Id == request.MessageId && m.ShopId == shopId && m.UserId == userId, cancellationToken)
+            ?? throw new AppException("Message not found.");
+        message.Rating = Math.Clamp(request.Rating, -1, 1);
+        message.FeedbackComment = string.IsNullOrWhiteSpace(request.Comment) ? null : request.Comment.Trim();
+        await _db.SaveChangesAsync(cancellationToken);
     }
 
     public async Task<AssistantStatusDto> GetStatusAsync(Guid shopId, CancellationToken cancellationToken = default)

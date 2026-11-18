@@ -35,7 +35,10 @@ public interface IDocumentIndexer
 
 public interface IAssistantService
 {
-    Task<AssistantAnswerDto> AskAsync(Guid shopId, string question, CancellationToken cancellationToken = default);
+    Task<AssistantAnswerDto> AskAsync(Guid shopId, Guid userId, string question, CancellationToken cancellationToken = default);
+    Task<List<AssistantAnswerDto>> GetHistoryAsync(Guid shopId, Guid userId, int limit, CancellationToken cancellationToken = default);
+    Task ClearHistoryAsync(Guid shopId, Guid userId, CancellationToken cancellationToken = default);
+    Task SubmitFeedbackAsync(Guid shopId, Guid userId, AssistantFeedbackRequest request, CancellationToken cancellationToken = default);
     Task<AssistantStatusDto> GetStatusAsync(Guid shopId, CancellationToken cancellationToken = default);
     Task<int> ReindexAsync(Guid shopId, CancellationToken cancellationToken = default);
 }

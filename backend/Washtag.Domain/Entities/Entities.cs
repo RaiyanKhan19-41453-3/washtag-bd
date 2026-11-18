@@ -121,6 +121,19 @@ public class Invoice
     public Shop Shop { get; set; } = null!;
 }
 
+public class AssistantMessage
+{
+    public Guid Id { get; set; } = Guid.NewGuid();
+    public Guid ShopId { get; set; }
+    public Guid UserId { get; set; }
+    public string Role { get; set; } = "user";
+    public string Text { get; set; } = string.Empty;
+    public string? SourcesJson { get; set; }
+    public int? Rating { get; set; }
+    public string? FeedbackComment { get; set; }
+    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+}
+
 public class RefreshToken
 {
     public Guid Id { get; set; } = Guid.NewGuid();

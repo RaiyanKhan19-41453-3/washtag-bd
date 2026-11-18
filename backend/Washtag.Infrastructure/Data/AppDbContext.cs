@@ -17,6 +17,7 @@ public class AppDbContext : DbContext, IAppDbContext
     public DbSet<Payment> Payments => Set<Payment>();
     public DbSet<Invoice> Invoices => Set<Invoice>();
     public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
+    public DbSet<AssistantMessage> AssistantMessages => Set<AssistantMessage>();
 
     protected override void OnModelCreating(ModelBuilder mb)
     {
@@ -84,6 +85,11 @@ public class AppDbContext : DbContext, IAppDbContext
             e.HasIndex(x => x.TokenHash).IsUnique();
             e.HasIndex(x => x.UserId);
             e.HasOne(x => x.User).WithMany().HasForeignKey(x => x.UserId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        mb.Entity<AssistantMessage>(e =>
+        {
+            e.HasIndex(x => new { x.ShopId, x.UserId, x.CreatedAt });
         });
     }
 }
