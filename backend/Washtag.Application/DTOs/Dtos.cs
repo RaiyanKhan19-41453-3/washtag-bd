@@ -24,6 +24,7 @@ public class LoginRequest
 public class AuthResponse
 {
     public string Token { get; set; } = string.Empty;
+    public string RefreshToken { get; set; } = string.Empty;
     public UserDto User { get; set; } = new();
     public ShopDto Shop { get; set; } = new();
 }
@@ -36,6 +37,7 @@ public class UserDto
     public string Email { get; set; } = string.Empty;
     public string Phone { get; set; } = string.Empty;
     public UserRole Role { get; set; }
+    public bool IsAdmin { get; set; }
 }
 
 public class ShopDto

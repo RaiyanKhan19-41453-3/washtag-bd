@@ -15,6 +15,8 @@ public class AppDbContext : DbContext, IAppDbContext
     public DbSet<OrderItem> OrderItems => Set<OrderItem>();
     public DbSet<StatusEvent> StatusEvents => Set<StatusEvent>();
     public DbSet<Payment> Payments => Set<Payment>();
+    public DbSet<Invoice> Invoices => Set<Invoice>();
+    public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
 
     protected override void OnModelCreating(ModelBuilder mb)
     {
@@ -67,6 +69,21 @@ public class AppDbContext : DbContext, IAppDbContext
             e.HasIndex(x => x.OrderId);
             e.Property(x => x.Amount).HasPrecision(18, 2);
             e.HasOne(x => x.Order).WithMany(x => x.Payments).HasForeignKey(x => x.OrderId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        mb.Entity<Invoice>(e =>
+        {
+            e.HasIndex(x => x.InvoiceNumber).IsUnique();
+            e.HasIndex(x => x.ShopId);
+            e.Property(x => x.Amount).HasPrecision(18, 2);
+            e.HasOne(x => x.Shop).WithMany(x => x.Invoices).HasForeignKey(x => x.ShopId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        mb.Entity<RefreshToken>(e =>
+        {
+            e.HasIndex(x => x.TokenHash).IsUnique();
+            e.HasIndex(x => x.UserId);
+            e.HasOne(x => x.User).WithMany().HasForeignKey(x => x.UserId).OnDelete(DeleteBehavior.Cascade);
         });
     }
 }

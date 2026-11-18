@@ -97,6 +97,57 @@ namespace Washtag.Infrastructure.Data.Migrations
                     b.ToTable("Customers");
                 });
 
+            modelBuilder.Entity("Washtag.Domain.Entities.Invoice", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<decimal>("Amount")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("InvoiceNumber")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<int>("Method")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("Notes")
+                        .HasColumnType("text");
+
+                    b.Property<DateTime?>("PaidAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime>("PeriodFrom")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime>("PeriodTo")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Reference")
+                        .HasColumnType("text");
+
+                    b.Property<Guid>("ShopId")
+                        .HasColumnType("uuid");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("integer");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("InvoiceNumber")
+                        .IsUnique();
+
+                    b.HasIndex("ShopId");
+
+                    b.ToTable("Invoices");
+                });
+
             modelBuilder.Entity("Washtag.Domain.Entities.Order", b =>
                 {
                     b.Property<Guid>("Id")
@@ -232,6 +283,41 @@ namespace Washtag.Infrastructure.Data.Migrations
                     b.ToTable("Payments");
                 });
 
+            modelBuilder.Entity("Washtag.Domain.Entities.RefreshToken", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime>("ExpiresAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("ReplacedBy")
+                        .HasColumnType("text");
+
+                    b.Property<DateTime?>("RevokedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("TokenHash")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("TokenHash")
+                        .IsUnique();
+
+                    b.HasIndex("UserId");
+
+                    b.ToTable("RefreshTokens");
+                });
+
             modelBuilder.Entity("Washtag.Domain.Entities.Shop", b =>
                 {
                     b.Property<Guid>("Id")
@@ -282,6 +368,12 @@ namespace Washtag.Infrastructure.Data.Migrations
 
                     b.Property<DateTime>("SubscriptionEndsAt")
                         .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime>("SubscriptionStartedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("SubscriptionStatus")
+                        .HasColumnType("integer");
 
                     b.HasKey("Id");
 
@@ -345,6 +437,17 @@ namespace Washtag.Infrastructure.Data.Migrations
                     b.Navigation("Shop");
                 });
 
+            modelBuilder.Entity("Washtag.Domain.Entities.Invoice", b =>
+                {
+                    b.HasOne("Washtag.Domain.Entities.Shop", "Shop")
+                        .WithMany("Invoices")
+                        .HasForeignKey("ShopId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Shop");
+                });
+
             modelBuilder.Entity("Washtag.Domain.Entities.Order", b =>
                 {
                     b.HasOne("Washtag.Domain.Entities.Shop", "Shop")
@@ -378,6 +481,17 @@ namespace Washtag.Infrastructure.Data.Migrations
                     b.Navigation("Order");
                 });
 
+            modelBuilder.Entity("Washtag.Domain.Entities.RefreshToken", b =>
+                {
+                    b.HasOne("Washtag.Domain.Entities.AppUser", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("User");
+                });
+
             modelBuilder.Entity("Washtag.Domain.Entities.StatusEvent", b =>
                 {
                     b.HasOne("Washtag.Domain.Entities.Order", "Order")
@@ -401,6 +515,8 @@ namespace Washtag.Infrastructure.Data.Migrations
             modelBuilder.Entity("Washtag.Domain.Entities.Shop", b =>
                 {
                     b.Navigation("Customers");
+
+                    b.Navigation("Invoices");
 
                     b.Navigation("Orders");
 

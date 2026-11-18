@@ -32,3 +32,19 @@ public enum UserRole
     Owner,
     Staff
 }
+
+public enum InvoiceStatus
+{
+    Pending,
+    Paid,
+    Overdue,
+    Cancelled
+}
+
+public enum SubscriptionStatus
+{
+    Trial,
+    Active,
+    PastDue,
+    Cancelled
+}

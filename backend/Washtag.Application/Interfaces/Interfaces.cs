@@ -14,6 +14,8 @@ public interface IAppDbContext
     DbSet<OrderItem> OrderItems { get; }
     DbSet<StatusEvent> StatusEvents { get; }
     DbSet<Payment> Payments { get; }
+    DbSet<Invoice> Invoices { get; }
+    DbSet<RefreshToken> RefreshTokens { get; }
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
 }
 
@@ -22,6 +24,8 @@ public interface IAuthService
     Task<AuthResponse> RegisterAsync(RegisterRequest request);
     Task<AuthResponse> LoginAsync(LoginRequest request);
     Task<AuthResponse> GetProfileAsync(Guid userId);
+    Task<AuthResponse> RefreshAsync(string refreshToken);
+    Task ChangePasswordAsync(Guid userId, ChangePasswordRequest request);
 }
 
 public interface IOrderService

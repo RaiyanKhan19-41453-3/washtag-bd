@@ -15,12 +15,15 @@ public class Shop
     public string? LogoUrl { get; set; }
     public int OrderSequence { get; set; }
     public bool IsActive { get; set; } = true;
+    public SubscriptionStatus SubscriptionStatus { get; set; } = SubscriptionStatus.Trial;
+    public DateTime SubscriptionStartedAt { get; set; } = DateTime.UtcNow;
     public DateTime SubscriptionEndsAt { get; set; } = DateTime.UtcNow.AddYears(1);
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
     public ICollection<AppUser> Users { get; set; } = new List<AppUser>();
     public ICollection<Order> Orders { get; set; } = new List<Order>();
     public ICollection<Customer> Customers { get; set; } = new List<Customer>();
+    public ICollection<Invoice> Invoices { get; set; } = new List<Invoice>();
 }
 
 public class AppUser
@@ -98,6 +101,37 @@ public class StatusEvent
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
     public Order Order { get; set; } = null!;
+}
+
+public class Invoice
+{
+    public Guid Id { get; set; } = Guid.NewGuid();
+    public Guid ShopId { get; set; }
+    public string InvoiceNumber { get; set; } = string.Empty;
+    public DateTime PeriodFrom { get; set; }
+    public DateTime PeriodTo { get; set; }
+    public decimal Amount { get; set; }
+    public InvoiceStatus Status { get; set; } = InvoiceStatus.Pending;
+    public DateTime? PaidAt { get; set; }
+    public PaymentMethod Method { get; set; } = PaymentMethod.Cash;
+    public string? Reference { get; set; }
+    public string? Notes { get; set; }
+    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+
+    public Shop Shop { get; set; } = null!;
+}
+
+public class RefreshToken
+{
+    public Guid Id { get; set; } = Guid.NewGuid();
+    public Guid UserId { get; set; }
+    public string TokenHash { get; set; } = string.Empty;
+    public DateTime ExpiresAt { get; set; }
+    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+    public DateTime? RevokedAt { get; set; }
+    public string? ReplacedBy { get; set; }
+
+    public AppUser User { get; set; } = null!;
 }
 
 public class Payment

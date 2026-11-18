@@ -194,6 +194,7 @@ public static class DbInitializer
                 if (isProduction)
                     logger.LogWarning("Demo accounts are enabled in Production. Set SEED_DEMO_DATA=false for real deployments.");
                 await DbSeeder.SeedAsync(services);
+                await BillingSeeder.SeedAsync(services);
                 logger.LogInformation("Demo data check complete.");
             }
         }
