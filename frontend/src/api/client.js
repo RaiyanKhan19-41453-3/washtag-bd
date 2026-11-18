@@ -56,8 +56,14 @@ api.interceptors.response.use(
       const validation = data?.errors
         ? Object.values(data.errors).flat().join(', ')
         : null;
-      const message = data?.message || data?.title || validation || error.message || 'Something went wrong. Please try again.';
+      const message = data?.message || validation || data?.title || error.message || 'Something went wrong. Please try again.';
       return Promise.reject(new Error(message));
+    }
+
+    // Never replay a non-idempotent write after a 401 — it may have committed.
+    if (!['get', 'head', 'options'].includes((config.method || 'get').toLowerCase())) {
+      redirectToLogin();
+      return Promise.reject(new Error('Your session expired. Please log in again.'));
     }
 
     config._retry = true;

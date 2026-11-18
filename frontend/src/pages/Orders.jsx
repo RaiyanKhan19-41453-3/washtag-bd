@@ -57,6 +57,7 @@ export default function Orders() {
             <input
               value={search}
               onChange={(event) => { setSearch(event.target.value); setPage(1); }}
+              aria-label="Search orders"
               placeholder={t('Search by order no, customer or phone…')}
             />
           </div>
@@ -93,9 +94,9 @@ export default function Orders() {
             <div className="pagination">
               <span>Showing {orders.length} of {total} orders</span>
               <div>
-                <button className="btn btn-ghost btn-sm" disabled={page <= 1} onClick={() => setPage((p) => p - 1)}><ChevronLeft size={16} /></button>
+                <button aria-label="Previous page" className="btn btn-ghost btn-sm" disabled={page <= 1} onClick={() => setPage((p) => p - 1)}><ChevronLeft size={16} /></button>
                 <span className="page-indicator">Page {page} of {totalPages}</span>
-                <button className="btn btn-ghost btn-sm" disabled={page >= totalPages} onClick={() => setPage((p) => p + 1)}><ChevronRight size={16} /></button>
+                <button aria-label="Next page" className="btn btn-ghost btn-sm" disabled={page >= totalPages} onClick={() => setPage((p) => p + 1)}><ChevronRight size={16} /></button>
               </div>
             </div>
           </>

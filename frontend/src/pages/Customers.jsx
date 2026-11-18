@@ -46,7 +46,7 @@ export default function Customers() {
       <div className="card filter-card">
         <div className="search-box">
           <Search size={17} />
-          <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search by name or phone…" />
+          <input aria-label="Search customers" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search by name or phone…" />
         </div>
       </div>
 

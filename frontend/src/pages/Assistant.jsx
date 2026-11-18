@@ -253,6 +253,7 @@ export default function Assistant() {
             <input
               value={question}
               onChange={(event) => setQuestion(event.target.value)}
+              aria-label="Ask the assistant"
               placeholder={listening ? 'Listening…' : 'Ask about unpaid bills, pickups, customers…'}
             />
             <button type="submit" className="btn btn-primary" disabled={busy || !question.trim()}>

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { UserRound, Phone, CalendarDays, NotebookPen, Plus, Trash2, ArrowLeft, Shirt, Info } from 'lucide-react';
 import api from '../api/client';
@@ -15,6 +15,7 @@ export default function NewOrder() {
   const [busy, setBusy] = useState(false);
   const toast = useToast();
   const navigate = useNavigate();
+  const idempotencyKey = useRef(crypto.randomUUID());
 
   useEffect(() => {
     api.get('/customers').then(({ data }) => setCustomers(data)).catch(() => {});
@@ -55,7 +56,9 @@ export default function NewOrder() {
           notes: item.notes?.trim() || null
         }))
       };
-      const { data } = await api.post('/orders', payload);
+      const { data } = await api.post('/orders', payload, {
+        headers: { 'Idempotency-Key': idempotencyKey.current }
+      });
       toast.success('Order created! Show the QR receipt to your customer.');
       navigate(`/app/orders/${data.id}`, { replace: true });
     } catch (error) {
