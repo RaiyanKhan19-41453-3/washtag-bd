@@ -1,3 +1,5 @@
+using Washtag.Domain.Enums;
+
 namespace Washtag.Application.Interfaces;
 
 /// <summary>Atomic "insert if missing" for shop customers.</summary>
@@ -11,4 +13,11 @@ public interface IRefreshTokenStore
 {
     Task<Guid?> TryClaimAsync(string tokenHash, CancellationToken cancellationToken = default);
     Task SetReplacedByAsync(string oldHash, string newHash, CancellationToken cancellationToken = default);
+}
+
+/// <summary>Atomically records a payment without ever exceeding the order balance.</summary>
+public interface IPaymentStore
+{
+    Task<bool> RecordAsync(Guid shopId, Guid orderId, decimal amount, PaymentMethod method,
+        string? reference, string recordedBy, CancellationToken cancellationToken = default);
 }

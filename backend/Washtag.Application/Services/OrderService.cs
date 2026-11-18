@@ -19,6 +19,7 @@ public class OrderService : IOrderService
     private readonly IDocumentIndexer _indexer;
     private readonly IOrderNumberGenerator _numbers;
     private readonly ICustomerStore _customers;
+    private readonly IPaymentStore _payments;
 
     public OrderService(
         IAppDbContext db,
@@ -28,7 +29,8 @@ public class OrderService : IOrderService
         ITrackingUrlProvider urls,
         IDocumentIndexer indexer,
         IOrderNumberGenerator numbers,
-        ICustomerStore customers)
+        ICustomerStore customers,
+        IPaymentStore payments)
     {
         _db = db;
         _notifier = notifier;
@@ -38,6 +40,7 @@ public class OrderService : IOrderService
         _indexer = indexer;
         _numbers = numbers;
         _customers = customers;
+        _payments = payments;
     }
 
     public async Task<PagedResult<OrderListDto>> GetOrdersAsync(Guid shopId, string? status, string? search, int page, int pageSize)
@@ -198,27 +201,17 @@ public class OrderService : IOrderService
         if (request.Amount > balance)
             throw new AppException($"Payment exceeds the outstanding balance of ৳{balance:0}.");
 
-        order.PaidAmount += request.Amount;
-        order.PaymentStatus = order.PaidAmount <= 0 ? PaymentStatus.Unpaid
-            : order.PaidAmount >= order.TotalAmount ? PaymentStatus.Paid : PaymentStatus.Partial;
-        order.UpdatedAt = DateTime.UtcNow;
+        var reference = string.IsNullOrWhiteSpace(request.Reference) ? null : request.Reference.Trim();
+        var recorded = await _payments.RecordAsync(shopId, id, request.Amount, request.Method, reference, actor);
+        if (!recorded)
+            throw new AppException("The order balance changed. Reload the order and try again.");
 
-        var record = new Payment
-        {
-            Amount = request.Amount,
-            Method = request.Method,
-            Reference = string.IsNullOrWhiteSpace(request.Reference) ? null : request.Reference.Trim(),
-            RecordedBy = actor,
-            CreatedAt = DateTime.UtcNow
-        };
-        order.Payments.Add(record);
-        _db.Payments.Add(record);
-
-        await _db.SaveChangesAsync();
+        var fresh = await LoadOrderAsync(q => q.Id == id && q.ShopId == shopId)
+            ?? throw new AppException("Order not found.");
         await InvalidateCacheAsync(order.PublicToken);
-        await IndexAsync(order);
-        await NotifyAsync(order, MapDetail(order), BuildPublicTrack(order));
-        return MapDetail(order);
+        await IndexAsync(fresh);
+        await NotifyAsync(fresh, MapDetail(fresh), BuildPublicTrack(fresh));
+        return MapDetail(fresh);
     }
 
     public async Task CancelOrderAsync(Guid shopId, Guid id, string actor)
