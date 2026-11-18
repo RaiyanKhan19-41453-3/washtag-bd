@@ -36,8 +36,18 @@ public class StaffService : IStaffService
             throw new AppException("Only staff accounts can be created from the team page.");
 
         var email = request.Email.Trim().ToLowerInvariant();
-        if (await _db.Users.AnyAsync(u => u.Email.ToLower() == email, cancellationToken))
-            throw new AppException("That email address is already in use.");
+        var existing = await _db.Users.FirstOrDefaultAsync(u => u.Email.ToLower() == email, cancellationToken);
+        if (existing != null)
+        {
+            if (existing.IsActive || existing.Role != UserRole.Staff)
+                throw new AppException("That email address is already in use.");
+            existing.Name = request.Name.Trim();
+            existing.Phone = request.Phone.Trim();
+            existing.PasswordHash = BCrypt.Net.BCrypt.HashPassword(request.Password);
+            existing.IsActive = true;
+            await _db.SaveChangesAsync(cancellationToken);
+            return Map(existing);
+        }
 
         var user = new AppUser
         {
@@ -62,6 +72,12 @@ public class StaffService : IStaffService
 
         user.Name = request.Name.Trim();
         user.Phone = request.Phone.Trim();
+        if (user.IsActive && !request.IsActive)
+        {
+            var tokens = await _db.RefreshTokens
+                .Where(t => t.UserId == userId && t.RevokedAt == null).ToListAsync(cancellationToken);
+            foreach (var token in tokens) token.RevokedAt = DateTime.UtcNow;
+        }
         user.IsActive = request.IsActive;
         await _db.SaveChangesAsync(cancellationToken);
         return Map(user);

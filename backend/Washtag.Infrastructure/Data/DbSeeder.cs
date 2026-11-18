@@ -177,6 +177,8 @@ public static class DbSeeder
 
 public static class DbInitializer
 {
+    public static bool InitializationSucceeded { get; private set; }
+
     public static async Task InitializeAsync(IServiceProvider services, bool seedDemo, bool isProduction)
     {
         using var scope = services.CreateScope();
@@ -189,6 +191,7 @@ public static class DbInitializer
                 logger.LogInformation("Applying {Count} database migration(s): {Migrations}", pending.Count, string.Join(", ", pending));
             db.Database.Migrate();
             logger.LogInformation("Database migrations applied.");
+            InitializationSucceeded = true;
             if (seedDemo)
             {
                 if (isProduction)

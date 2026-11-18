@@ -150,12 +150,16 @@ var app = builder.Build();
 
 app.UseForwardedHeaders();
 app.UseMiddleware<ExceptionMiddleware>();
-app.UseSwagger();
-app.UseSwaggerUI(c =>
+// Swagger is opt-in in production; the demo compose file enables it by default.
+if (builder.Configuration.GetValue("ENABLE_SWAGGER", builder.Environment.IsDevelopment()))
 {
-    c.SwaggerEndpoint("/swagger/v1/swagger.json", "WashTag BD API v1");
-    c.RoutePrefix = "swagger";
-});
+    app.UseSwagger();
+    app.UseSwaggerUI(c =>
+    {
+        c.SwaggerEndpoint("/swagger/v1/swagger.json", "WashTag BD API v1");
+        c.RoutePrefix = "swagger";
+    });
+}
 app.UseCors("App");
 app.UseRateLimiter();
 app.UseAuthentication();
@@ -164,6 +168,8 @@ app.MapControllers();
 app.MapHub<OrdersHub>("/hubs/orders");
 app.MapGet("/health", async (IServiceProvider services) =>
 {
+    if (!DbInitializer.InitializationSucceeded)
+        return Results.Json(new { status = "unhealthy", reason = "database initialization failed" }, statusCode: 503);
     try
     {
         using var scope = services.CreateScope();

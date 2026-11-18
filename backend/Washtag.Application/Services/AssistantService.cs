@@ -40,6 +40,10 @@ public class AssistantService : IAssistantService
         {
             ShopId = shopId, UserId = userId, Role = "user", Text = query
         });
+        var cutoff = DateTime.UtcNow.AddDays(-90);
+        var stale = await _db.AssistantMessages
+            .Where(m => m.CreatedAt < cutoff).ToListAsync(cancellationToken);
+        _db.AssistantMessages.RemoveRange(stale);
         await _db.SaveChangesAsync(cancellationToken);
 
         var plan = ParseIntent(query);
@@ -248,7 +252,8 @@ public class AssistantService : IAssistantService
                 var customers = await _db.Customers.AsNoTracking().Where(c => c.ShopId == shopId).ToListAsync(ct);
                 if (!string.IsNullOrEmpty(plan.CustomerName))
                     customers = customers.Where(c => c.Name.ToLower().Contains(plan.CustomerName.ToLower())).ToList();
-                var orders = await _db.Orders.AsNoTracking().Where(o => o.ShopId == shopId).ToListAsync(ct);
+                var orders = await _db.Orders.AsNoTracking()
+                    .Where(o => o.ShopId == shopId && o.Status != OrderStatus.Cancelled).ToListAsync(ct);
                 orders = Filter(orders, plan.CustomerName);
                 var text = customers.Count == 0
                     ? $"No customer found matching '{plan.CustomerName ?? "that name"}'."

@@ -61,4 +61,13 @@ public class RefreshTokenStore : IRefreshTokenStore
         command.Parameters.AddWithValue("old", oldHash);
         await command.ExecuteNonQueryAsync(cancellationToken);
     }
+
+    public async Task PurgeExpiredAsync(CancellationToken cancellationToken = default)
+    {
+        await using var connection = new NpgsqlConnection(_connectionString);
+        await connection.OpenAsync(cancellationToken);
+        await using var command = new NpgsqlCommand(
+            "DELETE FROM \"RefreshTokens\" WHERE \"ExpiresAt\" < now() - interval '30 days'", connection);
+        await command.ExecuteNonQueryAsync(cancellationToken);
+    }
 }

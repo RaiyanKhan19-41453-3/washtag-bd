@@ -18,6 +18,20 @@ public class BillingService : IBillingService
     {
         var shop = await _db.Shops.FirstOrDefaultAsync(s => s.Id == shopId, cancellationToken)
             ?? throw new AppException("Shop not found.");
+
+        // Lazily transition invoices whose billing period has ended.
+        var now = DateTime.UtcNow;
+        var overdue = await _db.Invoices
+            .Where(i => i.ShopId == shopId && i.Status == InvoiceStatus.Pending && i.PeriodTo < now)
+            .ToListAsync(cancellationToken);
+        if (overdue.Count > 0)
+        {
+            foreach (var invoice in overdue) invoice.Status = InvoiceStatus.Overdue;
+            if (shop.SubscriptionStatus is SubscriptionStatus.Trial or SubscriptionStatus.Active)
+                shop.SubscriptionStatus = SubscriptionStatus.PastDue;
+            await _db.SaveChangesAsync(cancellationToken);
+        }
+
         var invoices = await _db.Invoices.AsNoTracking()
             .Where(i => i.ShopId == shopId)
             .OrderByDescending(i => i.PeriodTo)
@@ -42,6 +56,8 @@ public class BillingService : IBillingService
             ?? throw new AppException("Invoice not found.");
         if (invoice.Status == InvoiceStatus.Paid)
             throw new AppException("This invoice is already paid.");
+        if (invoice.Status == InvoiceStatus.Cancelled)
+            throw new AppException("This invoice was cancelled.");
 
         invoice.Status = InvoiceStatus.Paid;
         invoice.PaidAt = DateTime.UtcNow;
@@ -54,7 +70,23 @@ public class BillingService : IBillingService
         if (remaining == 0)
         {
             var shop = await _db.Shops.FirstOrDefaultAsync(s => s.Id == shopId, cancellationToken);
-            if (shop != null) shop.SubscriptionStatus = SubscriptionStatus.Active;
+            if (shop != null)
+            {
+                shop.SubscriptionStatus = SubscriptionStatus.Active;
+                var now = DateTime.UtcNow;
+                shop.SubscriptionStartedAt = now;
+                shop.SubscriptionEndsAt = now.AddMonths(1);
+                var periodStart = shop.SubscriptionEndsAt.AddMonths(-1);
+                _db.Invoices.Add(new Invoice
+                {
+                    ShopId = shopId,
+                    InvoiceNumber = $"INV-{periodStart:yyyyMM}-{Guid.NewGuid().ToString("N")[..8].ToUpperInvariant()}",
+                    PeriodFrom = periodStart,
+                    PeriodTo = shop.SubscriptionEndsAt,
+                    Amount = Plans.MonthlyPrice(shop.Plan),
+                    Status = InvoiceStatus.Pending
+                });
+            }
         }
 
         await _db.SaveChangesAsync(cancellationToken);

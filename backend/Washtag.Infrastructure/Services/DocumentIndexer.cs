@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Washtag.Application.Interfaces;
 using Washtag.Domain.Entities;
+using Washtag.Domain.Enums;
 
 namespace Washtag.Infrastructure.Services;
 
@@ -43,7 +44,8 @@ public class DocumentIndexer : IDocumentIndexer
 
         var customers = await _db.Customers.AsNoTracking()
             .Where(c => c.ShopId == shopId).ToListAsync(cancellationToken);
-        var shopOrders = orders.Select(o => new { o.CustomerPhone, o.TotalAmount, o.PaidAmount }).ToList();
+        var shopOrders = orders.Where(o => o.Status != OrderStatus.Cancelled)
+            .Select(o => new { o.CustomerPhone, o.TotalAmount, o.PaidAmount }).ToList();
 
         foreach (var customer in customers)
         {

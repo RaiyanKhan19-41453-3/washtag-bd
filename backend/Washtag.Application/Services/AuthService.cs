@@ -63,6 +63,7 @@ public class AuthService : IAuthService
 
     public async Task<AuthResponse> LoginAsync(LoginRequest request)
     {
+        try { await _refreshTokens.PurgeExpiredAsync(); } catch { /* best-effort cleanup */ }
         var email = request.Email.Trim().ToLowerInvariant();
         var user = await _db.Users.Include(u => u.Shop)
             .FirstOrDefaultAsync(u => u.Email.ToLower() == email);

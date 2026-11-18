@@ -13,6 +13,7 @@ public interface IRefreshTokenStore
 {
     Task<Guid?> TryClaimAsync(string tokenHash, CancellationToken cancellationToken = default);
     Task SetReplacedByAsync(string oldHash, string newHash, CancellationToken cancellationToken = default);
+    Task PurgeExpiredAsync(CancellationToken cancellationToken = default);
 }
 
 /// <summary>Atomically records a payment without ever exceeding the order balance.</summary>

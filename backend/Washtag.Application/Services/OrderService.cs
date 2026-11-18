@@ -222,13 +222,16 @@ public class OrderService : IOrderService
             throw new AppException("This order is already completed.");
 
         var previous = order.Status;
+        var refunded = order.PaidAmount;
         order.Status = OrderStatus.Cancelled;
+        order.PaidAmount = 0;
+        order.PaymentStatus = PaymentStatus.Unpaid;
         order.UpdatedAt = DateTime.UtcNow;
         var entry = new StatusEvent
         {
             FromStatus = previous,
             ToStatus = OrderStatus.Cancelled,
-            Note = "Order cancelled",
+            Note = refunded > 0 ? $"Order cancelled; ৳{refunded:0} refunded" : "Order cancelled",
             ActorName = actor,
             CreatedAt = DateTime.UtcNow
         };
@@ -333,8 +336,8 @@ public class OrderService : IOrderService
                 {
                     Name = latest.CustomerName,
                     Phone = group.Key,
-                    OrderCount = group.Count(),
-                    TotalSpent = group.Sum(o => o.TotalAmount),
+                    OrderCount = group.Count(o => o.Status != OrderStatus.Cancelled),
+                    TotalSpent = group.Where(o => o.Status != OrderStatus.Cancelled).Sum(o => o.TotalAmount),
                     UnpaidAmount = group.Sum(o => o.Status != OrderStatus.Cancelled ? o.TotalAmount - o.PaidAmount : 0),
                     LastOrderAt = group.Max(o => o.CreatedAt)
                 };
@@ -379,7 +382,8 @@ public class OrderService : IOrderService
 
     private async Task IndexAsync(Order order)
     {
-        try { await _indexer.IndexOrderAsync(order); }
+        // Rebuild both order and customer documents so aggregate facts stay current.
+        try { await _indexer.ReindexShopAsync(order.ShopId); }
         catch { /* vector indexing is best-effort */ }
     }
 

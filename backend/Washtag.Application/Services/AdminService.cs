@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Washtag.Application.DTOs;
 using Washtag.Application.Interfaces;
+using Washtag.Domain.Enums;
 
 namespace Washtag.Application.Services;
 
@@ -12,6 +13,20 @@ public class AdminService : IAdminService
 
     public async Task<AdminStatsDto> GetStatsAsync(CancellationToken cancellationToken = default)
     {
+        var now = DateTime.UtcNow;
+        var overdue = await _db.Invoices
+            .Where(i => i.Status == InvoiceStatus.Pending && i.PeriodTo < now).ToListAsync(cancellationToken);
+        if (overdue.Count > 0)
+        {
+            foreach (var invoice in overdue) invoice.Status = InvoiceStatus.Overdue;
+            var affectedIds = overdue.Select(i => i.ShopId).ToHashSet();
+            var affected = await _db.Shops.Where(s => affectedIds.Contains(s.Id)).ToListAsync(cancellationToken);
+            foreach (var shop in affected)
+                if (shop.SubscriptionStatus is SubscriptionStatus.Trial or SubscriptionStatus.Active)
+                    shop.SubscriptionStatus = SubscriptionStatus.PastDue;
+            await _db.SaveChangesAsync(cancellationToken);
+        }
+
         var shops = await _db.Shops.AsNoTracking().ToListAsync(cancellationToken);
         var users = await _db.Users.AsNoTracking().ToListAsync(cancellationToken);
         var orders = await _db.Orders.AsNoTracking().ToListAsync(cancellationToken);
