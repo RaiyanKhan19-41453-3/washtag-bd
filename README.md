@@ -98,7 +98,8 @@ The dependency rule points inward: `Api → Infrastructure → Application → D
 ## Features
 
 **Shop owner**
-- Register a shop, invite staff accounts, JWT login
+- Register a shop, JWT login with 15-minute access tokens and rotating refresh tokens
+- Invite/manage staff accounts with Owner/Staff roles and Owner-only guards
 - Dashboard with live counts, revenue, 7-day trend and recent orders
 - Create orders with multiple items, per-item service, quantity and price
 - Auto-generated order number and unique QR receipt
@@ -107,7 +108,13 @@ The dependency rule points inward: `Api → Infrastructure → Application → D
 - One-click 80mm thermal receipt with the QR at `/print/{token}` (print button uses the browser print dialog)
 - Partial/full payment recording (Cash, Card, bKash, Nagad, Bank Transfer)
 - Customer directory with totals and unpaid balances
-- Shop profile settings
+- Shop profile settings and self-service password change
+
+**Subscription & platform**
+- Subscription state (plan, status, renewal date) with monthly invoices for Starter/Growth/Pro
+- Owners can change plans and record manual invoice settlements (bKash/cash/card/bank); an online gateway can be added later
+- Platform admin view (`/app/admin`) listing every shop, its plan, subscription and revenue
+- CORS origin allowlist, auth rate limiting (6 attempts/minute) and secure refresh-token rotation
 
 **Customer**
 - Scan QR → instant mobile page at `/track/{orderToken}` showing shop branding, item list, expected pickup, a live progress bar and status timeline
@@ -164,7 +171,7 @@ Both scripts read `POSTGRES_USER` / `POSTGRES_DB` from `.env` (with the compose 
 Everything is in one solution; .NET and Node are only needed if you want to develop outside Docker.
 
 ```bash
-dotnet test WashtagBD.sln          # 18 xUnit tests (use cases + controllers)
+dotnet test WashtagBD.sln          # 28 xUnit tests (use cases, billing, auth + controllers)
 cd frontend && npm run build       # production bundle check
 ```
 
@@ -186,7 +193,9 @@ GitHub Actions runs build + tests + both Docker image builds on every push and P
 | Method | Endpoint | Auth | Description |
 | --- | --- | --- | --- |
 | POST | `/api/auth/register` | public | Create shop + owner account |
-| POST | `/api/auth/login` | public | Get JWT token |
+| POST | `/api/auth/login` | public | Get access + refresh tokens |
+| POST | `/api/auth/refresh` | public | Rotate refresh token for a new access token |
+| POST | `/api/auth/change-password` | JWT | Change password and revoke other sessions |
 | GET | `/api/auth/me` | JWT | Current user + shop |
 | GET | `/api/dashboard` | JWT | Dashboard aggregates |
 | GET | `/api/orders` | JWT | Paginated, filterable order list |
@@ -198,7 +207,14 @@ GitHub Actions runs build + tests + both Docker image builds on every push and P
 | POST | `/api/orders/{id}/payment` | JWT | Record a payment |
 | DELETE | `/api/orders/{id}` | JWT | Cancel an order |
 | GET | `/api/customers` | JWT | Customer directory |
-| GET/PUT | `/api/shop` | JWT | Shop profile |
+| GET/PUT | `/api/shop` | JWT | Shop profile (PUT: Owner only) |
+| GET | `/api/staff` | JWT | List team members |
+| POST | `/api/staff` | Owner | Invite a staff account |
+| PUT/DELETE | `/api/staff/{id}` | Owner | Edit or deactivate a team member |
+| GET | `/api/billing` | JWT | Plan, status, invoices and outstanding balance |
+| PUT | `/api/billing/plan` | Owner | Change subscription plan |
+| POST | `/api/billing/invoices/{id}/pay` | Owner | Record manual invoice settlement |
+| GET | `/api/admin/stats` | Platform admin | Cross-shop overview |
 | GET | `/api/public/track/{token}` | public | Customer-facing tracking payload |
 | POST | `/api/assistant/ask` | JWT | Ask the RAG assistant a question |
 | GET | `/api/assistant/status` | JWT | Vector index/engine status |
@@ -207,6 +223,20 @@ GitHub Actions runs build + tests + both Docker image builds on every push and P
 | WS | `/hubs/orders` | optional | SignalR realtime updates |
 
 Full interactive docs: **http://localhost:8081/swagger**
+
+---
+
+## Access & security configuration
+
+```env
+# Comma-separated origins allowed by CORS; use your real domain in production
+ALLOWED_ORIGINS=https://wash.example.com
+
+# Comma-separated emails with platform-admin access (the demo owner by default)
+ADMIN_EMAILS=demo@washtagbd.com
+```
+
+Access tokens live for 15 minutes; refresh tokens last 30 days, are stored hashed, and rotate on every use. The client refreshes transparently on a 401. Auth endpoints are rate-limited to 6 attempts per minute per IP. Team management, plan changes, invoice settlement and order cancellation require the Owner role; `/api/admin/*` requires the `isAdmin` claim.
 
 ---
 
@@ -231,6 +261,7 @@ The embedding dimension stays at 384 in both modes, so the pgvector column never
 - Change `POSTGRES_PASSWORD`.
 - Set `SEED_DEMO_DATA=false` so known demo passwords are not created on a real deployment.
 - Set `PUBLIC_BASE_URL` to your public origin so QR codes never depend on request `Host` headers.
+- Replace `ALLOWED_ORIGINS=*` and set `ADMIN_EMAILS` to your own admin addresses.
 - Browser camera and microphone access (Scan QR / Assistant voice input) require `localhost` or HTTPS in production.
 - Put TLS in front of nginx (a reverse proxy such as Caddy/Traefik or a cloud load balancer).
 - Back up the `pgdata` volume.
