@@ -24,7 +24,7 @@ function titleFor(pathname) {
   if (pathname === '/app') return 'Dashboard';
   if (pathname.startsWith('/app/assistant')) return 'AI Assistant';
   if (pathname.startsWith('/app/orders/new')) return 'New Order';
-  if (pathname.startsWith('/app/orders/')) return 'Order Details';
+  if (pathname.startsWith('/app/orders/')) return 'Order details';
   if (pathname.startsWith('/app/orders')) return 'Orders';
   if (pathname.startsWith('/app/scan')) return 'Scan QR';
   if (pathname.startsWith('/app/customers')) return 'Customers';
@@ -32,7 +32,7 @@ function titleFor(pathname) {
   if (pathname.startsWith('/app/billing')) return 'Billing';
   if (pathname.startsWith('/app/admin')) return 'Platform Admin';
   if (pathname.startsWith('/app/settings')) return 'Settings';
-  return 'Workspace';
+  return 'WORKSPACE';
 }
 
 export default function Layout() {
@@ -71,7 +71,7 @@ export default function Layout() {
         </div>
 
         <nav className="side-nav">
-          <span className="nav-caption">WORKSPACE</span>
+          <span className="nav-caption">{t('WORKSPACE')}</span>
           {navigation.map(({ to, label, icon: Icon, end }) => (
             <NavLink
               key={to}

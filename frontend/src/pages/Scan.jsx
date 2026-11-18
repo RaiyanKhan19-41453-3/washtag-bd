@@ -4,6 +4,7 @@ import { Html5Qrcode } from 'html5-qrcode';
 import { ScanLine, Camera, Keyboard, ArrowRight, CheckCircle2, Clock3, Package, UserRound } from 'lucide-react';
 import api from '../api/client';
 import { useToast } from '../context/ToastContext';
+import { useLanguage } from '../context/LanguageContext';
 import { StatusBadge, PaymentBadge } from '../components/StatusBadge';
 import { STATUS_LABELS, STATUS_ORDER, money, formatDateTime } from '../utils/helpers';
 
@@ -26,6 +27,7 @@ export default function Scan() {
   const [busy, setBusy] = useState(false);
   const [cameraError, setCameraError] = useState('');
   const toast = useToast();
+  const { t } = useLanguage();
 
   const lookup = useCallback(async (raw) => {
     const token = extractToken(raw);
@@ -87,23 +89,25 @@ export default function Scan() {
     }
   };
 
-  const remaining = order ? STATUS_ORDER.slice(STATUS_ORDER.indexOf(order.status) + 1) : [];
+  const remaining = order && order.status !== 'Cancelled'
+    ? STATUS_ORDER.slice(STATUS_ORDER.indexOf(order.status) + 1)
+    : [];
 
   return (
     <div className="page-stack scan-page">
       <div className="page-heading">
         <div>
-          <h2>Scan a QR receipt</h2>
-          <p>Point your camera at a customer's QR, or enter the code manually.</p>
+          <h2>{t('Scan a QR receipt')}</h2>
+          <p>{t("Point your camera at a customer's QR, or enter the code manually.")}</p>
         </div>
       </div>
 
       <div className="scan-tabs">
         <button className={`pill ${mode === 'camera' ? 'active' : ''}`} onClick={() => { setMode('camera'); setCameraError(''); }}>
-          <Camera size={16} /> Camera
+          <Camera size={16} /> {t('Camera')}
         </button>
         <button className={`pill ${mode === 'manual' ? 'active' : ''}`} onClick={() => { setMode('manual'); setScanning(false); }}>
-          <Keyboard size={16} /> Enter code
+          <Keyboard size={16} /> {t('Enter code')}
         </button>
       </div>
 

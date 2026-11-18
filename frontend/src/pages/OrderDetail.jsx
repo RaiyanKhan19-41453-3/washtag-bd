@@ -7,6 +7,7 @@ import {
 } from 'lucide-react';
 import api from '../api/client';
 import { useRealtime } from '../hooks/useRealtime';
+import { useLanguage } from '../context/LanguageContext';
 import { useToast } from '../context/ToastContext';
 import QRCode from '../components/QRCode';
 import Timeline from '../components/Timeline';
@@ -23,6 +24,7 @@ export default function OrderDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
   const toast = useToast();
+  const { t } = useLanguage();
   const [order, setOrder] = useState(null);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
@@ -107,35 +109,37 @@ export default function OrderDetail() {
     );
   }
 
-  const remaining = STATUS_ORDER.slice(STATUS_ORDER.indexOf(order.status) + 1);
+  const remaining = order.status === 'Cancelled'
+    ? []
+    : STATUS_ORDER.slice(STATUS_ORDER.indexOf(order.status) + 1);
   const balance = Math.max(0, order.totalAmount - order.paidAmount);
   const link = order.trackingUrl || trackingUrl(order.publicToken);
 
   return (
     <div className="page-stack">
       <button className="btn btn-ghost btn-sm back-link" onClick={() => navigate('/app/orders')}>
-        <ArrowLeft size={16} /> Back to orders
+        <ArrowLeft size={16} /> {t('Back to orders')}
       </button>
 
       <div className="detail-header">
         <div>
           <div className="detail-title-row">
-            <h2>Order #{order.orderNumber}</h2>
+            <h2>{t('Order')} #{order.orderNumber}</h2>
             <StatusBadge status={order.status} />
             <PaymentBadge status={order.paymentStatus} />
           </div>
           <p>Created {formatDateTime(order.createdAt)} · Last updated {formatDateTime(order.updatedAt)}</p>
         </div>
-        <button className="btn btn-outline btn-sm" onClick={load}><RefreshCw size={15} /> Refresh</button>
+        <button className="btn btn-outline btn-sm" onClick={load}><RefreshCw size={15} /> {t('Refresh')}</button>
       </div>
 
       <div className="detail-grid">
         <div className="detail-main">
           <section className="card">
-            <div className="card-head"><div><h3>Items</h3><p>{order.itemCount} piece(s) in this order</p></div></div>
+            <div className="card-head"><div><h3>{t('Items')}</h3><p>{order.itemCount} {t('Items').toLowerCase()}</p></div></div>
             <div className="table-scroll">
               <table className="data-table">
-                <thead><tr><th>Item</th><th>Service</th><th className="align-right">Qty</th><th className="align-right">Unit</th><th className="align-right">Total</th></tr></thead>
+                <thead><tr><th>{t('Item')}</th><th>{t('Service')}</th><th className="align-right">{t('Qty')}</th><th className="align-right">{t('Price')}</th><th className="align-right">{t('Total')}</th></tr></thead>
                 <tbody>
                   {order.items.map((item) => (
                     <tr key={item.id}>
@@ -148,19 +152,19 @@ export default function OrderDetail() {
                   ))}
                 </tbody>
                 <tfoot>
-                  <tr><td colSpan="4" className="align-right">Order total</td><td className="align-right strong">{money(order.totalAmount)}</td></tr>
+                  <tr><td colSpan="4" className="align-right">{t('Order total')}</td><td className="align-right strong">{money(order.totalAmount)}</td></tr>
                 </tfoot>
               </table>
             </div>
           </section>
 
           <section className="card">
-            <div className="card-head"><div><h3>Status timeline</h3><p>Every step, recorded</p></div></div>
+            <div className="card-head"><div><h3>{t('Status timeline')}</h3><p>{t('Every step, recorded')}</p></div></div>
             <Timeline events={order.statusHistory} />
           </section>
 
           <section className="card">
-            <div className="card-head"><div><h3>Payment history</h3><p>{money(order.paidAmount)} received · {money(balance)} due</p></div></div>
+            <div className="card-head"><div><h3>{t('Payment history')}</h3><p>{money(order.paidAmount)} {t('Paid')} · {money(balance)} {t('outstanding')}</p></div></div>
             {order.payments.length ? (
               <div className="payment-list">
                 {order.payments.map((paymentItem) => (
@@ -180,34 +184,34 @@ export default function OrderDetail() {
 
         <aside className="detail-side">
           <section className="card qr-card">
-            <div className="card-head"><div><h3>QR receipt</h3><p>Customer scans this for live status</p></div></div>
+            <div className="card-head"><div><h3>{t('QR receipt')}</h3><p>{t('Customer scans this for live status')}</p></div></div>
             <div className="qr-display"><QRCode value={link} dataUrl={order.qrDataUrl} size={218} /></div>
             <div className="qr-order-no">#{order.orderNumber}</div>
             <div className="qr-actions">
-              <button className="btn btn-outline btn-sm" onClick={copyLink}><Copy size={15} /> Copy link</button>
-              <Link className="btn btn-outline btn-sm" to={`/print/${order.publicToken}`}><Printer size={15} /> Print receipt</Link>
-              <a className="btn btn-outline btn-sm" href={link} target="_blank" rel="noreferrer"><ExternalLink size={15} /> Preview</a>
+              <button className="btn btn-outline btn-sm" onClick={copyLink}><Copy size={15} /> {t('Copy link')}</button>
+              <Link className="btn btn-outline btn-sm" to={`/print/${order.publicToken}`}><Printer size={15} /> {t('Print receipt')}</Link>
+              <a className="btn btn-outline btn-sm" href={link} target="_blank" rel="noreferrer"><ExternalLink size={15} /> {t('Preview')}</a>
             </div>
           </section>
 
           <section className="card">
-            <div className="card-head"><div><h3>Customer</h3></div></div>
+            <div className="card-head"><div><h3>{t('Customer')}</h3></div></div>
             <div className="info-list">
               <div><UserRound size={16} /><span>{order.customerName}</span></div>
               <div><Phone size={16} /><span>{order.customerPhone}</span></div>
-              <div><CalendarDays size={16} /><span>Due {formatDate(order.dueDate)}</span></div>
+              <div><CalendarDays size={16} /><span>{t('Expected pickup')}: {formatDate(order.dueDate)}</span></div>
               {order.notes && <div><StickyNote size={16} /><span>{order.notes}</span></div>}
             </div>
           </section>
 
           <section className="card action-card">
-            <div className="card-head"><div><h3>Update order</h3><p>Move it along the workflow</p></div></div>
+            <div className="card-head"><div><h3>{t('Update order')}</h3><p>{t('Move it along the workflow')}</p></div></div>
             {remaining.length ? (
               <div className="action-buttons">
                 {remaining.map((status) => (
                   <button key={status} className={`btn btn-sm ${status === 'Delivered' ? 'btn-primary' : 'btn-outline'} btn-block`} disabled={busy} onClick={() => updateStatus(status)}>
                     {status === 'Delivered' ? <CheckCircle2 size={15} /> : <Clock3 size={15} />}
-                    {status === 'Delivered' ? 'Mark as delivered' : `Move to ${STATUS_LABELS[status]}`}
+                    {status === 'Delivered' ? t('Mark as delivered') : `${t('Move to')} ${t(STATUS_LABELS[status])}`}
                   </button>
                 ))}
               </div>
@@ -216,11 +220,13 @@ export default function OrderDetail() {
                 <CheckCircle2 size={20} /> {order.status === 'Cancelled' ? 'This order was cancelled.' : 'This order is complete.'}
               </div>
             )}
-            <button className="btn btn-success btn-sm btn-block" onClick={() => { setPayment({ amount: balance > 0 ? balance : '', method: 'Cash', reference: '' }); setPaymentOpen(true); }}>
-              <CircleDollarSign size={15} /> Record payment
-            </button>
             {!['Delivered', 'Cancelled'].includes(order.status) && (
-              <button className="btn btn-ghost btn-sm btn-block danger-text" onClick={cancelOrder}><XCircle size={15} /> Cancel order</button>
+              <button className="btn btn-success btn-sm btn-block" onClick={() => { setPayment({ amount: balance > 0 ? balance : '', method: 'Cash', reference: '' }); setPaymentOpen(true); }}>
+                <CircleDollarSign size={15} /> {t('Record payment')}
+              </button>
+            )}
+            {!['Delivered', 'Cancelled'].includes(order.status) && (
+              <button className="btn btn-ghost btn-sm btn-block danger-text" onClick={cancelOrder}><XCircle size={15} /> {t('Cancel order')}</button>
             )}
           </section>
         </aside>

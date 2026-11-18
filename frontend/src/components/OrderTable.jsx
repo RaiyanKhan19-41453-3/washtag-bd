@@ -2,22 +2,24 @@ import { Link } from 'react-router-dom';
 import { ArrowUpRight } from 'lucide-react';
 import { StatusBadge, PaymentBadge } from './StatusBadge';
 import { money, formatDate } from '../utils/helpers';
+import { useLanguage } from '../context/LanguageContext';
 
 export default function OrderTable({ orders = [], showCustomer = true }) {
-  if (!orders.length) return <p className="muted">No orders to show.</p>;
+  const { t } = useLanguage();
+  if (!orders.length) return <p className="muted">{t('No orders to show.')}</p>;
 
   return (
     <div className="table-scroll">
       <table className="data-table">
         <thead>
           <tr>
-            <th>Order</th>
-            {showCustomer && <th>Customer</th>}
-            <th>Items</th>
-            <th>Status</th>
-            <th>Payment</th>
-            <th className="align-right">Total</th>
-            <th>Date</th>
+            <th>{t('Order')}</th>
+            {showCustomer && <th>{t('Customer')}</th>}
+            <th>{t('Items')}</th>
+            <th>{t('Status')}</th>
+            <th>{t('Payment')}</th>
+            <th className="align-right">{t('Total')}</th>
+            <th>{t('Date')}</th>
             <th />
           </tr>
         </thead>

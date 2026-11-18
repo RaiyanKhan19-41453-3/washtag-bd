@@ -16,7 +16,7 @@ export default function Timeline({ events = [] }) {
               <time>{formatDateTime(event.createdAt)}</time>
             </div>
             {event.note && <p>{event.note}</p>}
-            <span className="timeline-actor">by {event.actorName}</span>
+            <span className="timeline-actor">{t('by')} {event.actorName}</span>
           </div>
         </div>
       ))}
