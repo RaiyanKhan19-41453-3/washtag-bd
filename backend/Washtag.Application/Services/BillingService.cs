@@ -11,8 +11,13 @@ namespace Washtag.Application.Services;
 public class BillingService : IBillingService
 {
     private readonly IAppDbContext _db;
+    private readonly IInvoiceStore _invoices;
 
-    public BillingService(IAppDbContext db) => _db = db;
+    public BillingService(IAppDbContext db, IInvoiceStore invoices)
+    {
+        _db = db;
+        _invoices = invoices;
+    }
 
     public async Task<BillingOverviewDto> GetOverviewAsync(Guid shopId, CancellationToken cancellationToken = default)
     {
@@ -59,38 +64,17 @@ public class BillingService : IBillingService
         if (invoice.Status == InvoiceStatus.Cancelled)
             throw new AppException("This invoice was cancelled.");
 
-        invoice.Status = InvoiceStatus.Paid;
-        invoice.PaidAt = DateTime.UtcNow;
-        invoice.Method = request.Method;
-        invoice.Reference = string.IsNullOrWhiteSpace(request.Reference) ? null : request.Reference.Trim();
+        var reference = string.IsNullOrWhiteSpace(request.Reference) ? null : request.Reference.Trim();
+        var shop = await _db.Shops.FirstOrDefaultAsync(s => s.Id == shopId, cancellationToken);
+        var settled = await _invoices.SettleAsync(shopId, invoiceId, request.Method, reference,
+            Plans.MonthlyPrice(shop?.Plan), cancellationToken);
+        if (!settled)
+            throw new AppException("The invoice state changed. Reload and try again.");
 
-        var remaining = await _db.Invoices.CountAsync(
-            i => i.ShopId == shopId && i.Id != invoiceId &&
-                 i.Status != InvoiceStatus.Paid && i.Status != InvoiceStatus.Cancelled, cancellationToken);
-        if (remaining == 0)
-        {
-            var shop = await _db.Shops.FirstOrDefaultAsync(s => s.Id == shopId, cancellationToken);
-            if (shop != null)
-            {
-                shop.SubscriptionStatus = SubscriptionStatus.Active;
-                var now = DateTime.UtcNow;
-                shop.SubscriptionStartedAt = now;
-                shop.SubscriptionEndsAt = now.AddMonths(1);
-                var periodStart = shop.SubscriptionEndsAt.AddMonths(-1);
-                _db.Invoices.Add(new Invoice
-                {
-                    ShopId = shopId,
-                    InvoiceNumber = $"INV-{periodStart:yyyyMM}-{Guid.NewGuid().ToString("N")[..8].ToUpperInvariant()}",
-                    PeriodFrom = periodStart,
-                    PeriodTo = shop.SubscriptionEndsAt,
-                    Amount = Plans.MonthlyPrice(shop.Plan),
-                    Status = InvoiceStatus.Pending
-                });
-            }
-        }
-
-        await _db.SaveChangesAsync(cancellationToken);
-        return Map(invoice);
+        var updated = await _db.Invoices.AsNoTracking()
+            .FirstOrDefaultAsync(i => i.Id == invoiceId && i.ShopId == shopId, cancellationToken)
+            ?? throw new AppException("Invoice not found.");
+        return Map(updated);
     }
 
     public async Task<BillingOverviewDto> ChangePlanAsync(Guid shopId, ChangePlanRequest request, CancellationToken cancellationToken = default)

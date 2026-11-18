@@ -85,14 +85,14 @@ public class CreateOrderRequest
 
 public class UpdateStatusRequest
 {
-    [Required] public OrderStatus Status { get; set; }
+    [Required, EnumDataType(typeof(OrderStatus))] public OrderStatus Status { get; set; }
     public string? Note { get; set; }
 }
 
 public class RecordPaymentRequest
 {
     [Range(0.01, 10000000)] public decimal Amount { get; set; }
-    public PaymentMethod Method { get; set; } = PaymentMethod.Cash;
+    [EnumDataType(typeof(PaymentMethod))] public PaymentMethod Method { get; set; } = PaymentMethod.Cash;
     public string? Reference { get; set; }
 }
 

@@ -38,8 +38,8 @@ public class AuthService : IAuthService
             Name = request.ShopName.Trim(),
             OwnerName = request.OwnerName.Trim(),
             Email = email,
-            Phone = request.Phone.Trim(),
-            Address = request.Address.Trim(),
+            Phone = request.Phone?.Trim() ?? string.Empty,
+            Address = request.Address?.Trim() ?? string.Empty,
             City = string.IsNullOrWhiteSpace(request.City) ? "Dhaka" : request.City.Trim(),
             Plan = Plans.IsValid(request.Plan) ? Plans.All.First(p => p.Equals(request.Plan.Trim(), StringComparison.OrdinalIgnoreCase)) : "Starter",
             SubscriptionStatus = SubscriptionStatus.Trial,
@@ -52,7 +52,7 @@ public class AuthService : IAuthService
             Shop = shop,
             Name = request.OwnerName.Trim(),
             Email = email,
-            Phone = request.Phone.Trim(),
+            Phone = request.Phone?.Trim() ?? string.Empty,
             PasswordHash = BCrypt.Net.BCrypt.HashPassword(request.Password),
             Role = UserRole.Owner,
             IsActive = true
@@ -80,17 +80,22 @@ public class AuthService : IAuthService
 
     public async Task<AuthResponse> RefreshAsync(string refreshToken)
     {
-        var hash = Hash(refreshToken);
-        var userId = await _refreshTokens.TryClaimAsync(hash);
+        var rawRefresh = Convert.ToBase64String(RandomNumberGenerator.GetBytes(48));
+        var userId = await _refreshTokens.RotateAsync(Hash(refreshToken), Hash(rawRefresh),
+            DateTime.UtcNow.AddDays(30));
         if (userId == null) throw new AppException("Invalid or expired refresh token.");
 
         var user = await _db.Users.Include(u => u.Shop).FirstOrDefaultAsync(u => u.Id == userId.Value);
         if (user == null || !user.IsActive || !user.Shop.IsActive)
             throw new AppException("Invalid or expired refresh token.");
 
-        var response = await IssueTokensAsync(user, user.Shop);
-        await _refreshTokens.SetReplacedByAsync(hash, Hash(response.RefreshToken));
-        return response;
+        return new AuthResponse
+        {
+            Token = _tokens.Generate(user, user.Shop),
+            RefreshToken = rawRefresh,
+            User = MapUser(user),
+            Shop = MapShop(user.Shop)
+        };
     }
 
     public async Task ChangePasswordAsync(Guid userId, ChangePasswordRequest request)

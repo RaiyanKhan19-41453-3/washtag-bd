@@ -43,7 +43,7 @@ public class StaffService : IStaffService
             if (existing.IsActive || existing.Role != UserRole.Staff)
                 throw new AppException("That email address is already in use.");
             existing.Name = request.Name.Trim();
-            existing.Phone = request.Phone.Trim();
+            existing.Phone = request.Phone?.Trim() ?? string.Empty;
             existing.PasswordHash = BCrypt.Net.BCrypt.HashPassword(request.Password);
             existing.IsActive = true;
             await _db.SaveChangesAsync(cancellationToken);
@@ -55,7 +55,7 @@ public class StaffService : IStaffService
             ShopId = shopId,
             Name = request.Name.Trim(),
             Email = email,
-            Phone = request.Phone.Trim(),
+            Phone = request.Phone?.Trim() ?? string.Empty,
             PasswordHash = BCrypt.Net.BCrypt.HashPassword(request.Password),
             Role = UserRole.Staff,
             IsActive = true
@@ -72,7 +72,7 @@ public class StaffService : IStaffService
             throw new AppException("The shop owner cannot be edited from the team page.");
 
         user.Name = request.Name.Trim();
-        user.Phone = request.Phone.Trim();
+        user.Phone = request.Phone?.Trim() ?? string.Empty;
         if (user.IsActive && !request.IsActive)
         {
             var tokens = await _db.RefreshTokens

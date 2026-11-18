@@ -1,3 +1,4 @@
+using Microsoft.EntityFrameworkCore;
 using Washtag.Domain.Exceptions;
 
 namespace Washtag.Api.Middleware;
@@ -26,6 +27,24 @@ public class ExceptionMiddleware
                 context.Response.Clear();
                 context.Response.StatusCode = StatusCodes.Status400BadRequest;
                 await context.Response.WriteAsJsonAsync(new { message = ex.Message });
+            }
+        }
+        catch (DbUpdateConcurrencyException)
+        {
+            if (!context.Response.HasStarted)
+            {
+                context.Response.Clear();
+                context.Response.StatusCode = StatusCodes.Status409Conflict;
+                await context.Response.WriteAsJsonAsync(new { message = "The record changed. Reload and try again." });
+            }
+        }
+        catch (DbUpdateException)
+        {
+            if (!context.Response.HasStarted)
+            {
+                context.Response.Clear();
+                context.Response.StatusCode = StatusCodes.Status409Conflict;
+                await context.Response.WriteAsJsonAsync(new { message = "A record with these details already exists." });
             }
         }
         catch (Exception ex)

@@ -14,6 +14,7 @@ public interface IRefreshTokenStore
     Task<Guid?> TryClaimAsync(string tokenHash, CancellationToken cancellationToken = default);
     Task SetReplacedByAsync(string oldHash, string newHash, CancellationToken cancellationToken = default);
     Task PurgeExpiredAsync(CancellationToken cancellationToken = default);
+    Task<Guid?> RotateAsync(string oldHash, string newHash, DateTime expiresAt, CancellationToken cancellationToken = default);
 }
 
 /// <summary>Atomically records a payment without ever exceeding the order balance.</summary>
@@ -21,4 +22,11 @@ public interface IPaymentStore
 {
     Task<bool> RecordAsync(Guid shopId, Guid orderId, decimal amount, PaymentMethod method,
         string? reference, string recordedBy, CancellationToken cancellationToken = default);
+}
+
+/// <summary>Atomically settles an invoice and advances the subscription once.</summary>
+public interface IInvoiceStore
+{
+    Task<bool> SettleAsync(Guid shopId, Guid invoiceId, PaymentMethod method, string? reference,
+        decimal monthlyPrice, CancellationToken cancellationToken = default);
 }

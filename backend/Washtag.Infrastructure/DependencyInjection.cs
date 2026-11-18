@@ -33,6 +33,7 @@ public static class DependencyInjection
         services.AddScoped<ICustomerStore, CustomerStore>();
         services.AddScoped<IRefreshTokenStore, RefreshTokenStore>();
         services.AddScoped<IPaymentStore, PaymentStore>();
+        services.AddScoped<IInvoiceStore, InvoiceStore>();
 
         return services;
     }

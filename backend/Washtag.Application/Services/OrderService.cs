@@ -139,10 +139,9 @@ public class OrderService : IOrderService
             CreatedAt = now
         });
 
-        await _customers.EnsureAsync(shopId, order.CustomerName, order.CustomerPhone, now);
-
         _db.Orders.Add(order);
         await _db.SaveChangesAsync();
+        await _customers.EnsureAsync(shopId, order.CustomerName, order.CustomerPhone, now);
 
         var dto = MapDetail(order);
         await IndexAsync(order);

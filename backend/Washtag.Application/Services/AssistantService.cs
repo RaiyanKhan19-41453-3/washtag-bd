@@ -36,16 +36,6 @@ public class AssistantService : IAssistantService
     public async Task<AssistantAnswerDto> AskAsync(Guid shopId, Guid userId, string question, CancellationToken cancellationToken = default)
     {
         var query = question.Trim();
-        _db.AssistantMessages.Add(new AssistantMessage
-        {
-            ShopId = shopId, UserId = userId, Role = "user", Text = query
-        });
-        var cutoff = DateTime.UtcNow.AddDays(-90);
-        var stale = await _db.AssistantMessages
-            .Where(m => m.CreatedAt < cutoff).ToListAsync(cancellationToken);
-        _db.AssistantMessages.RemoveRange(stale);
-        await _db.SaveChangesAsync(cancellationToken);
-
         var plan = ParseIntent(query);
 
         var matches = new List<DocumentMatch>();
@@ -87,9 +77,20 @@ public class AssistantService : IAssistantService
             Text = answer,
             SourcesJson = sources.Count > 0 ? JsonSerializer.Serialize(sources) : null
         };
+        var savedAt = DateTime.UtcNow;
+        _db.AssistantMessages.Add(new AssistantMessage
+        {
+            ShopId = shopId, UserId = userId, Role = "user", Text = query, CreatedAt = savedAt
+        });
+        record.CreatedAt = savedAt.AddMilliseconds(1);
         _db.AssistantMessages.Add(record);
+        var cutoff = DateTime.UtcNow.AddDays(-90);
+        var stale = await _db.AssistantMessages
+            .Where(m => m.ShopId == shopId && m.CreatedAt < cutoff).ToListAsync(cancellationToken);
+        _db.AssistantMessages.RemoveRange(stale);
         await _db.SaveChangesAsync(cancellationToken);
         result.Id = record.Id;
+        result.AnsweredAt = record.CreatedAt;
         return result;
     }
 

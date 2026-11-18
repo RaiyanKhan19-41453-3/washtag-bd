@@ -62,6 +62,50 @@ public class RefreshTokenStore : IRefreshTokenStore
         await command.ExecuteNonQueryAsync(cancellationToken);
     }
 
+    public async Task<Guid?> RotateAsync(string oldHash, string newHash, DateTime expiresAt,
+        CancellationToken cancellationToken = default)
+    {
+        await using var connection = new NpgsqlConnection(_connectionString);
+        await connection.OpenAsync(cancellationToken);
+        await using var transaction = await connection.BeginTransactionAsync(cancellationToken);
+        Guid userId;
+
+        await using (var claim = new NpgsqlCommand(
+            """
+            UPDATE "RefreshTokens" SET "RevokedAt" = now(), "ReplacedBy" = @new
+            WHERE "TokenHash" = @old AND "RevokedAt" IS NULL AND "ExpiresAt" > now()
+            RETURNING "UserId"
+            """, connection, transaction))
+        {
+            claim.Parameters.AddWithValue("new", newHash);
+            claim.Parameters.AddWithValue("old", oldHash);
+            var result = await claim.ExecuteScalarAsync(cancellationToken);
+            if (result == null || result == DBNull.Value)
+            {
+                await transaction.RollbackAsync(cancellationToken);
+                return null;
+            }
+            userId = (Guid)result;
+        }
+
+        await using (var insert = new NpgsqlCommand(
+            """
+            INSERT INTO "RefreshTokens" ("Id", "UserId", "TokenHash", "ExpiresAt", "CreatedAt")
+            VALUES (@id, @user, @hash, @expires, @now)
+            """, connection, transaction))
+        {
+            insert.Parameters.AddWithValue("id", Guid.NewGuid());
+            insert.Parameters.AddWithValue("user", userId);
+            insert.Parameters.AddWithValue("hash", newHash);
+            insert.Parameters.AddWithValue("expires", expiresAt);
+            insert.Parameters.AddWithValue("now", DateTime.UtcNow);
+            await insert.ExecuteNonQueryAsync(cancellationToken);
+        }
+
+        await transaction.CommitAsync(cancellationToken);
+        return userId;
+    }
+
     public async Task PurgeExpiredAsync(CancellationToken cancellationToken = default)
     {
         await using var connection = new NpgsqlConnection(_connectionString);
