@@ -1,0 +1,177 @@
+# WashTag BD — Smart Laundry & Tailor SaaS
+
+A QR-code based order tracking platform built for laundry, dry-cleaning and tailor shops in Bangladesh. Customers scan a QR receipt with their phone camera and see the live status of their clothes — no app download required. Shop owners scan the same QR to move orders through the workflow and record payments.
+
+Everything runs in Docker. You do **not** need Node, .NET, Postgres or Redis installed locally.
+
+---
+
+## Quick start
+
+```bash
+cp .env.example .env      # optional — sensible defaults are built in
+docker compose up --build -d
+```
+
+Open **http://localhost:8081** (change `APP_PORT` in `.env` if you prefer a different port)
+
+The first build downloads base images and NuGet/npm packages, so it can take a few minutes. Subsequent starts are fast.
+
+### Demo account (seeded automatically)
+
+| Field | Value |
+| --- | --- |
+| Email | `demo@washtagbd.com` |
+| Password | `demo1234` |
+
+The demo shop comes preloaded with customers, orders in every status, payment history and status timelines, so the dashboard looks alive on first login.
+
+To disable demo data, set `SEED_DEMO_DATA=false` in `.env` and recreate the `pgdata` volume.
+
+---
+
+## Architecture
+
+| Service | Technology | Purpose |
+| --- | --- | --- |
+| `web` | React 19 + Vite + nginx | Customer tracking page, owner dashboard, QR scanning |
+| `api` | ASP.NET Core 9 Web API | Clean Architecture host: controllers, SignalR hub, JWT, QR endpoints |
+| `postgres` | PostgreSQL 16 + **pgvector** | Durable tenant/order data (EF Core + Npgsql) and 384-dimension embeddings for RAG |
+| `redis` | Redis 7 | Distributed cache for public tracking lookups |
+
+Single entry point: nginx serves the SPA and reverse-proxies `/api/*` and `/hubs/*` to the API, so the browser has no CORS or mixed-origin issues.
+
+```
+Browser ──> web (nginx :8080) ──> /api/*  ──> api (:8080) ──> postgres
+                              └─> /hubs/* ──> api (SignalR)
+```
+
+Every API request from the dashboard is scoped by the `shopId` claim embedded in the signed JWT. Public tracking is scoped by a per-order, unguessable GUID token — no shop data leaks.
+
+### Backend structure (Clean Architecture)
+
+```
+backend/
+├── Washtag.Domain/         Entities, enums, domain exceptions — zero dependencies
+├── Washtag.Application/    DTOs, service interfaces, use-case services (incl. RAG orchestration)
+├── Washtag.Infrastructure/ EF Core/Postgres, Redis, QRCoder, pgvector store, embeddings — implements interfaces
+└── Washtag.Api/            Controllers, SignalR hub, JWT/auth, DI composition root
+```
+
+The dependency rule points inward: `Api → Infrastructure → Application → Domain`. Application services talk only to interfaces (`IAppDbContext`, `IRealtimeNotifier`, `ICacheService`, `IQrCodeService`, `ITrackingUrlProvider`), so the business logic stays testable and free of framework concerns.
+
+---
+
+## Features
+
+**Shop owner**
+- Register a shop, invite staff accounts, JWT login
+- Dashboard with live counts, revenue, 7-day trend and recent orders
+- Create orders with multiple items, per-item service, quantity and price
+- Auto-generated order number and unique QR receipt
+- Status workflow: `Received → Washing → Ironing → Ready for Pickup → Delivered`
+- Camera QR scanning with manual token fallback
+- Partial/full payment recording (Cash, Card, bKash, Nagad, Bank Transfer)
+- Customer directory with totals and unpaid balances
+- Shop profile settings
+
+**Customer**
+- Scan QR → instant mobile page at `/track/{orderToken}` showing shop branding, item list, expected pickup, a live progress bar and status timeline
+- Real-time updates over SignalR (with polling fallback)
+- No account, no app download
+
+**AI Shop Assistant** (`/app/assistant`)
+- Ask in English or Banglish: *"Show me customers who haven't picked up their clothes in 5 days"*, *"What is the total unpaid bill for Mr. Rahman?"*
+- Type or **speak** (browser Web Speech API; mic button)
+- **RAG pipeline:** every order and customer becomes a vector document embedded into pgvector; questions are embedded and matched with cosine distance, then combined with deterministic database facts before answering
+- Answers are grounded in real data with clickable source records — never invented
+- Works fully **offline** with deterministic local embeddings and a grounded answer composer; optionally add `OPENAI_API_KEY` for LLM-phrased answers
+- Index rebuilds automatically on every order/status/payment change, with a manual "Rebuild index" button
+
+**Platform**
+- Multi-tenant isolation
+- QR receipts generated server-side with QRCoder (data URL + printable PNG); they encode the real public `/track/{token}` URL of whatever host serves the app, so they work on localhost, a VPS IP or a custom domain
+- Real-time push to both the owner dashboard and the customer tracking page
+- Health-checked dependencies with automatic restarts
+- Swagger UI at `/swagger`
+
+---
+
+## Useful commands
+
+```bash
+docker compose logs -f api          # API logs
+docker compose logs -f web          # nginx logs
+docker compose ps                   # service status
+docker compose restart              # restart everything
+docker compose down                 # stop, keep data
+docker compose down -v              # stop and delete all data
+```
+
+Rebuild after changing code:
+
+```bash
+docker compose up --build -d
+```
+
+---
+
+## API surface
+
+| Method | Endpoint | Auth | Description |
+| --- | --- | --- | --- |
+| POST | `/api/auth/register` | public | Create shop + owner account |
+| POST | `/api/auth/login` | public | Get JWT token |
+| GET | `/api/auth/me` | JWT | Current user + shop |
+| GET | `/api/dashboard` | JWT | Dashboard aggregates |
+| GET | `/api/orders` | JWT | Paginated, filterable order list |
+| GET | `/api/orders/lookup/{token}` | JWT | Look up an order by QR token |
+| GET | `/api/orders/{id}` | JWT | Order detail + timeline + payments + .NET-generated QR |
+| GET | `/api/orders/{id}/qr` | JWT | QR receipt as a PNG (print/download) |
+| POST | `/api/orders` | JWT | Create an order |
+| PATCH | `/api/orders/{id}/status` | JWT | Advance/change status |
+| POST | `/api/orders/{id}/payment` | JWT | Record a payment |
+| DELETE | `/api/orders/{id}` | JWT | Cancel an order |
+| GET | `/api/customers` | JWT | Customer directory |
+| GET/PUT | `/api/shop` | JWT | Shop profile |
+| GET | `/api/public/track/{token}` | public | Customer-facing tracking payload |
+| POST | `/api/assistant/ask` | JWT | Ask the RAG assistant a question |
+| GET | `/api/assistant/status` | JWT | Vector index/engine status |
+| POST | `/api/assistant/reindex` | JWT | Rebuild the shop's vector index |
+| WS | `/hubs/orders` | optional | SignalR realtime updates |
+
+Full interactive docs: **http://localhost:8081/swagger**
+
+---
+
+## AI configuration
+
+The assistant runs with zero configuration using local hashed embeddings (384 dimensions) and grounded answers computed from your database. To have an LLM phrase the answers naturally, set these in `.env` and restart:
+
+```env
+OPENAI_API_KEY=sk-...
+OPENAI_BASE_URL=https://api.openai.com/v1   # or any OpenAI-compatible gateway
+OPENAI_EMBEDDING_MODEL=text-embedding-3-small
+OPENAI_CHAT_MODEL=gpt-4o-mini
+```
+
+The embedding dimension stays at 384 in both modes, so the pgvector column never needs changing. If an API call fails, the assistant automatically falls back to the offline path.
+
+---
+
+## Production checklist
+
+- Set a strong `JWT_SECRET` in `.env`.
+- Change `POSTGRES_PASSWORD`.
+- Browser camera and microphone access (Scan QR / Assistant voice input) require `localhost` or HTTPS in production.
+- Put TLS in front of nginx (a reverse proxy such as Caddy/Traefik or a cloud load balancer).
+- Back up the `pgdata` volume.
+- Point `APP_PORT` at the port your platform exposes.
+
+### Troubleshooting
+
+- **Port already in use:** change `APP_PORT` in `.env`, then `docker compose up -d`.
+- **Blank page after code changes:** `docker compose up --build -d` rebuilds both images.
+- **Start completely fresh:** `docker compose down -v && docker compose up -d`.
+
+Built with care for Dhaka, Gulshan, Uttara, Chittagong — and every neighbourhood shop that deserves a paper-free counter.
