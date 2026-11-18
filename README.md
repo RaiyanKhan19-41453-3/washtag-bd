@@ -1,5 +1,7 @@
 # WashTag BD — Smart Laundry & Tailor SaaS
 
+[![CI](https://github.com/RaiyanKhan19-41453-3/washtag-bd/actions/workflows/ci.yml/badge.svg)](https://github.com/RaiyanKhan19-41453-3/washtag-bd/actions/workflows/ci.yml)
+
 A QR-code based order tracking platform built for laundry, dry-cleaning and tailor shops in Bangladesh. Customers scan a QR receipt with their phone camera and see the live status of their clothes — no app download required. Shop owners scan the same QR to move orders through the workflow and record payments.
 
 Everything runs in Docker. You do **not** need Node, .NET, Postgres or Redis installed locally.
@@ -113,6 +115,26 @@ Rebuild after changing code:
 ```bash
 docker compose up --build -d
 ```
+
+### Tests and migrations
+
+Everything is in one solution; .NET and Node are only needed if you want to develop outside Docker.
+
+```bash
+dotnet test WashtagBD.sln          # 18 xUnit tests (use cases + controllers)
+cd frontend && npm run build       # production bundle check
+```
+
+Schema changes are managed with EF Core migrations in `backend/Washtag.Infrastructure/Data/Migrations`. The API applies pending migrations at startup (`db.Database.Migrate()`) and then seeds demo data. To create a new migration:
+
+```bash
+dotnet tool install --global dotnet-ef --version 9.0.1
+dotnet ef migrations add MyChange --project backend/Washtag.Infrastructure --startup-project backend/Washtag.Api --output-dir Data/Migrations
+```
+
+> Upgrading from an older checkout that used `EnsureCreated()`? Existing volumes have no migration history. Recreate them once with `docker compose down -v && docker compose up -d`.
+
+GitHub Actions runs build + tests + both Docker image builds on every push and PR to `main` (badge above).
 
 ---
 
