@@ -36,7 +36,13 @@ export default function Assistant() {
   useEffect(() => {
     api.get('/assistant/status').then(({ data }) => setStatus(data)).catch(() => {});
     api.get('/assistant/history?limit=50').then(({ data }) => {
-      if (data.length) setMessages([WELCOME, ...data.map((item) => ({ ...item, text: item.answer }))]);
+      if (!data.length) return;
+      setMessages((current) => {
+        const saved = data.map((item) => ({ ...item, text: item.answer }));
+        const savedIds = new Set(saved.map((item) => item.id));
+        const fresh = current.filter((item) => item !== WELCOME && !savedIds.has(item.id));
+        return [WELCOME, ...saved, ...fresh];
+      });
     }).catch(() => {});
   }, []);
 
@@ -166,7 +172,7 @@ export default function Assistant() {
 
           <div className="chat-messages">
             {messages.map((message, index) => (
-              <div key={index} className={`chat-row ${message.role}`}>
+              <div key={message.id || `${message.role}-${index}`} className={`chat-row ${message.role}`}>
                 <span className="chat-avatar">
                   {message.role === 'user' ? <UserRound size={17} /> : <Bot size={17} />}
                 </span>
@@ -203,7 +209,7 @@ export default function Assistant() {
                     </div>
                   )}
 
-                  {message.id && (
+                  {message.role === 'assistant' && message.id && (
                     <div className="chat-feedback">
                       <button
                         className={message.rating === 1 ? 'selected' : ''}

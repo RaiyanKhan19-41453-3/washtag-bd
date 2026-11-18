@@ -12,7 +12,10 @@ export function useRealtime({ token = null, group = { type: 'shop' }, onUpdate, 
   useEffect(() => {
     if (!enabled) return undefined;
 
-    const options = token ? { accessTokenFactory: () => token } : {};
+    // Read storage at connect/reconnect time so a refreshed access token is used.
+    const options = token
+      ? { accessTokenFactory: () => localStorage.getItem('washtag_token') ?? token ?? '' }
+      : {};
     const connection = new signalR.HubConnectionBuilder()
       .withUrl('/hubs/orders', options)
       .withAutomaticReconnect()

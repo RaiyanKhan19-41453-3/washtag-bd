@@ -94,7 +94,7 @@ export default function Layout() {
           </div>
           <button className="nav-link logout-link" onClick={handleLogout}>
             <LogOut size={19} />
-            <span>Log out</span>
+            <span>{t('Log out')}</span>
           </button>
         </div>
       </aside>
@@ -122,7 +122,7 @@ export default function Layout() {
                 <small>{user?.role}</small>
               </div>
             </div>
-            <button className="icon-btn logout-btn" onClick={handleLogout} title="Log out">
+            <button className="icon-btn logout-btn" onClick={handleLogout} title={t('Log out')}>
               <LogOut size={18} />
             </button>
           </div>
