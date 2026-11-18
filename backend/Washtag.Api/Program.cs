@@ -172,7 +172,7 @@ var app = builder.Build();
 
 app.UseForwardedHeaders();
 app.UseMiddleware<ExceptionMiddleware>();
-// Swagger is opt-in in production; the demo compose file enables it by default.
+// Swagger is opt-in; set ENABLE_SWAGGER=true to expose interactive API docs.
 if (builder.Configuration.GetValue("ENABLE_SWAGGER", builder.Environment.IsDevelopment()))
 {
     app.UseSwagger();
