@@ -62,9 +62,15 @@ public sealed class FakeIndexer : IDocumentIndexer
 {
     public int IndexCalls { get; private set; }
     public int ReindexCalls { get; private set; }
+    public int CustomerIndexCalls { get; private set; }
     public Task IndexOrderAsync(Order order, CancellationToken cancellationToken = default)
     {
         IndexCalls++;
+        return Task.CompletedTask;
+    }
+    public Task IndexCustomerAsync(Guid shopId, string phone, CancellationToken cancellationToken = default)
+    {
+        CustomerIndexCalls++;
         return Task.CompletedTask;
     }
     public Task ReindexShopAsync(Guid shopId, CancellationToken cancellationToken = default)
