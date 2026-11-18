@@ -3,6 +3,7 @@ using System.Text;
 using System.Text.Json;
 using System.Text.RegularExpressions;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Logging;
 using Washtag.Application.Interfaces;
 
 namespace Washtag.Infrastructure.Services;
@@ -20,10 +21,12 @@ public class AiProvider : IAiProvider
     private readonly string _embeddingModel;
     private readonly string _chatModel;
     private readonly bool _usingGateway;
+    private readonly ILogger<AiProvider> _logger;
 
-    public AiProvider(HttpClient http, IConfiguration configuration)
+    public AiProvider(HttpClient http, IConfiguration configuration, ILogger<AiProvider> logger)
     {
         _http = http;
+        _logger = logger;
         var openAiKey = configuration["OPENAI_API_KEY"];
         var gatewayToken = configuration["AI_GATEWAY_TOKEN"];
         _usingGateway = string.IsNullOrWhiteSpace(openAiKey) && !string.IsNullOrWhiteSpace(gatewayToken);
@@ -71,8 +74,9 @@ public class AiProvider : IAiProvider
 
             return Resize(values, AiConstants.EmbeddingDimensions);
         }
-        catch
+        catch (Exception ex)
         {
+            _logger.LogWarning(ex, "AI embedding provider failed; falling back to local hashing embeddings.");
             return LocalEmbed(text);
         }
     }
@@ -110,8 +114,9 @@ public class AiProvider : IAiProvider
             return document.RootElement.GetProperty("choices")[0].GetProperty("message")
                 .GetProperty("content").GetString();
         }
-        catch
+        catch (Exception ex)
         {
+            _logger.LogWarning(ex, "AI answer generation failed; using grounded local answer.");
             return null;
         }
     }

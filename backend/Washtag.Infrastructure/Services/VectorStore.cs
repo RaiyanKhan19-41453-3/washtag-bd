@@ -71,6 +71,7 @@ public class VectorStore : IVectorStore
             SELECT doc_type, ref_id, content, 1 - (embedding <=> @vector::vector) AS similarity
             FROM shop_documents
             WHERE shop_id = @shop
+              AND 1 - (embedding <=> @vector::vector) >= 0.05
             ORDER BY embedding <=> @vector::vector
             LIMIT @limit
             """, connection);

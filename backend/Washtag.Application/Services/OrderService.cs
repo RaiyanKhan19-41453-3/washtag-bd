@@ -18,6 +18,7 @@ public class OrderService : IOrderService
     private readonly ITrackingUrlProvider _urls;
     private readonly IDocumentIndexer _indexer;
     private readonly IOrderNumberGenerator _numbers;
+    private readonly ICustomerStore _customers;
 
     public OrderService(
         IAppDbContext db,
@@ -26,7 +27,8 @@ public class OrderService : IOrderService
         IQrCodeService qr,
         ITrackingUrlProvider urls,
         IDocumentIndexer indexer,
-        IOrderNumberGenerator numbers)
+        IOrderNumberGenerator numbers,
+        ICustomerStore customers)
     {
         _db = db;
         _notifier = notifier;
@@ -35,6 +37,7 @@ public class OrderService : IOrderService
         _urls = urls;
         _indexer = indexer;
         _numbers = numbers;
+        _customers = customers;
     }
 
     public async Task<PagedResult<OrderListDto>> GetOrdersAsync(Guid shopId, string? status, string? search, int page, int pageSize)
@@ -133,24 +136,14 @@ public class OrderService : IOrderService
             CreatedAt = now
         });
 
-        var phone = order.CustomerPhone;
-        if (!await _db.Customers.AnyAsync(c => c.ShopId == shopId && c.Phone == phone))
-        {
-            _db.Customers.Add(new Customer
-            {
-                ShopId = shopId,
-                Name = order.CustomerName,
-                Phone = phone,
-                CreatedAt = now
-            });
-        }
+        await _customers.EnsureAsync(shopId, order.CustomerName, order.CustomerPhone, now);
 
         _db.Orders.Add(order);
         await _db.SaveChangesAsync();
 
         var dto = MapDetail(order);
         await IndexAsync(order);
-        await _notifier.OrderUpdatedAsync(order, dto, BuildPublicTrack(order));
+        await NotifyAsync(order, dto, BuildPublicTrack(order));
         return dto;
     }
 
@@ -163,6 +156,8 @@ public class OrderService : IOrderService
             throw new AppException("This order is already completed and cannot be changed.");
         if (request.Status == order.Status)
             throw new AppException("The order is already at this status.");
+        if (request.Status == OrderStatus.Delivered && order.PaidAmount < order.TotalAmount)
+            throw new AppException("Settle the remaining balance before marking this order delivered.");
         if (request.Status == OrderStatus.Cancelled)
         {
             await CancelOrderAsync(shopId, id, actor);
@@ -188,7 +183,7 @@ public class OrderService : IOrderService
         await _db.SaveChangesAsync();
         await InvalidateCacheAsync(order.PublicToken);
         await IndexAsync(order);
-        await _notifier.OrderUpdatedAsync(order, MapDetail(order), BuildPublicTrack(order));
+        await NotifyAsync(order, MapDetail(order), BuildPublicTrack(order));
         return MapDetail(order);
     }
 
@@ -222,7 +217,7 @@ public class OrderService : IOrderService
         await _db.SaveChangesAsync();
         await InvalidateCacheAsync(order.PublicToken);
         await IndexAsync(order);
-        await _notifier.OrderUpdatedAsync(order, MapDetail(order), BuildPublicTrack(order));
+        await NotifyAsync(order, MapDetail(order), BuildPublicTrack(order));
         return MapDetail(order);
     }
 
@@ -250,7 +245,7 @@ public class OrderService : IOrderService
         await _db.SaveChangesAsync();
         await InvalidateCacheAsync(order.PublicToken);
         await IndexAsync(order);
-        await _notifier.OrderUpdatedAsync(order, MapDetail(order), BuildPublicTrack(order));
+        await NotifyAsync(order, MapDetail(order), BuildPublicTrack(order));
     }
 
     public async Task<PublicTrackDto?> TrackAsync(string token)
@@ -322,9 +317,9 @@ public class OrderService : IOrderService
             DeliveredCount = orders.Count(o => o.Status == OrderStatus.Delivered),
             CancelledCount = orders.Count(o => o.Status == OrderStatus.Cancelled),
             ActiveCount = orders.Count(o => activeStatuses.Contains(o.Status)),
-            UnpaidCount = orders.Count(o => o.PaymentStatus != PaymentStatus.Paid),
+            UnpaidCount = orders.Count(o => o.PaymentStatus != PaymentStatus.Paid && o.Status != OrderStatus.Cancelled),
             Collected = orders.Sum(o => o.PaidAmount),
-            Outstanding = orders.Sum(o => o.TotalAmount - o.PaidAmount),
+            Outstanding = orders.Sum(o => o.Status != OrderStatus.Cancelled ? o.TotalAmount - o.PaidAmount : 0),
             TodayOrders = orders.Count(o => o.CreatedAt.AddHours(6).Date == today),
             CustomerCount = customerCount,
             RecentOrders = orders.Take(6).Select(MapList).ToList(),
@@ -347,7 +342,7 @@ public class OrderService : IOrderService
                     Phone = group.Key,
                     OrderCount = group.Count(),
                     TotalSpent = group.Sum(o => o.TotalAmount),
-                    UnpaidAmount = group.Sum(o => o.TotalAmount - o.PaidAmount),
+                    UnpaidAmount = group.Sum(o => o.Status != OrderStatus.Cancelled ? o.TotalAmount - o.PaidAmount : 0),
                     LastOrderAt = group.Max(o => o.CreatedAt)
                 };
             })
@@ -393,6 +388,12 @@ public class OrderService : IOrderService
     {
         try { await _indexer.IndexOrderAsync(order); }
         catch { /* vector indexing is best-effort */ }
+    }
+
+    private async Task NotifyAsync(Order order, object ownerPayload, object customerPayload)
+    {
+        try { await _notifier.OrderUpdatedAsync(order, ownerPayload, customerPayload); }
+        catch { /* realtime push is best-effort */ }
     }
 
     private static OrderListDto MapList(Order order)

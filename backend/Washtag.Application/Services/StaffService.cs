@@ -73,6 +73,9 @@ public class StaffService : IStaffService
         if (user.Role == UserRole.Owner)
             throw new AppException("The shop owner cannot be deactivated.");
         user.IsActive = false;
+        var tokens = await _db.RefreshTokens
+            .Where(t => t.UserId == userId && t.RevokedAt == null).ToListAsync(cancellationToken);
+        foreach (var token in tokens) token.RevokedAt = DateTime.UtcNow;
         await _db.SaveChangesAsync(cancellationToken);
     }
 

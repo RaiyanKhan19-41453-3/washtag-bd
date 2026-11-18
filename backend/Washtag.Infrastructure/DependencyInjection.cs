@@ -30,6 +30,8 @@ public static class DependencyInjection
         services.AddScoped<IVectorStore, VectorStore>();
         services.AddScoped<IDocumentIndexer, DocumentIndexer>();
         services.AddScoped<IOrderNumberGenerator, OrderNumberGenerator>();
+        services.AddScoped<ICustomerStore, CustomerStore>();
+        services.AddScoped<IRefreshTokenStore, RefreshTokenStore>();
 
         return services;
     }

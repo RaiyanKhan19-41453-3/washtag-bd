@@ -2,6 +2,7 @@ using System.Security.Cryptography;
 using Microsoft.EntityFrameworkCore;
 using Washtag.Application.DTOs;
 using Washtag.Application.Interfaces;
+using Washtag.Domain;
 using Washtag.Domain.Entities;
 using Washtag.Domain.Enums;
 using Washtag.Domain.Exceptions;
@@ -13,12 +14,15 @@ public class AuthService : IAuthService
     private readonly IAppDbContext _db;
     private readonly IJwtTokenGenerator _tokens;
     private readonly IAdminSettings _admin;
+    private readonly IRefreshTokenStore _refreshTokens;
 
-    public AuthService(IAppDbContext db, IJwtTokenGenerator tokens, IAdminSettings admin)
+    public AuthService(IAppDbContext db, IJwtTokenGenerator tokens, IAdminSettings admin,
+        IRefreshTokenStore refreshTokens)
     {
         _db = db;
         _tokens = tokens;
         _admin = admin;
+        _refreshTokens = refreshTokens;
     }
 
     public async Task<AuthResponse> RegisterAsync(RegisterRequest request)
@@ -35,7 +39,7 @@ public class AuthService : IAuthService
             Phone = request.Phone.Trim(),
             Address = request.Address.Trim(),
             City = string.IsNullOrWhiteSpace(request.City) ? "Dhaka" : request.City.Trim(),
-            Plan = string.IsNullOrWhiteSpace(request.Plan) ? "Starter" : request.Plan.Trim(),
+            Plan = Plans.IsValid(request.Plan) ? Plans.All.First(p => p.Equals(request.Plan.Trim(), StringComparison.OrdinalIgnoreCase)) : "Starter",
             SubscriptionStatus = SubscriptionStatus.Trial,
             SubscriptionStartedAt = DateTime.UtcNow,
             SubscriptionEndsAt = DateTime.UtcNow.AddMonths(1)
@@ -74,16 +78,15 @@ public class AuthService : IAuthService
     public async Task<AuthResponse> RefreshAsync(string refreshToken)
     {
         var hash = Hash(refreshToken);
-        var stored = await _db.RefreshTokens.Include(t => t.User).ThenInclude(u => u.Shop)
-            .FirstOrDefaultAsync(t => t.TokenHash == hash && t.RevokedAt == null && t.ExpiresAt > DateTime.UtcNow);
+        var userId = await _refreshTokens.TryClaimAsync(hash);
+        if (userId == null) throw new AppException("Invalid or expired refresh token.");
 
-        if (stored == null || !stored.User.IsActive || !stored.User.Shop.IsActive)
+        var user = await _db.Users.Include(u => u.Shop).FirstOrDefaultAsync(u => u.Id == userId.Value);
+        if (user == null || !user.IsActive || !user.Shop.IsActive)
             throw new AppException("Invalid or expired refresh token.");
 
-        stored.RevokedAt = DateTime.UtcNow;
-        var response = await IssueTokensAsync(stored.User, stored.User.Shop);
-        stored.ReplacedBy = Hash(response.RefreshToken);
-        await _db.SaveChangesAsync();
+        var response = await IssueTokensAsync(user, user.Shop);
+        await _refreshTokens.SetReplacedByAsync(hash, Hash(response.RefreshToken));
         return response;
     }
 

@@ -165,7 +165,8 @@ public class AssistantService : IAssistantService
             case "unpaid":
             {
                 var orders = await _db.Orders.AsNoTracking()
-                    .Where(o => o.ShopId == shopId && o.PaymentStatus != PaymentStatus.Paid)
+                    .Where(o => o.ShopId == shopId && o.Status != OrderStatus.Cancelled &&
+                                o.PaymentStatus != PaymentStatus.Paid)
                     .OrderByDescending(o => o.CreatedAt).ToListAsync(ct);
                 orders = Filter(orders, plan.CustomerName);
                 var amount = orders.Sum(o => o.TotalAmount - o.PaidAmount);
@@ -183,29 +184,46 @@ public class AssistantService : IAssistantService
             {
                 var orders = await _db.Orders.AsNoTracking()
                     .Where(o => o.ShopId == shopId && o.Status == OrderStatus.ReadyForPickup)
-                    .OrderBy(o => o.UpdatedAt).ToListAsync(ct);
+                    .ToListAsync(ct);
                 orders = Filter(orders, plan.CustomerName);
+                var orderIds = orders.Select(o => o.Id).ToList();
+                var readyEvents = await _db.StatusEvents.AsNoTracking()
+                    .Where(e => orderIds.Contains(e.OrderId) && e.ToStatus == OrderStatus.ReadyForPickup)
+                    .ToListAsync(ct);
+                DateTime ReadyAt(Order o) => readyEvents
+                    .Where(e => e.OrderId == o.Id).Select(e => e.CreatedAt)
+                    .DefaultIfEmpty(o.UpdatedAt).Max();
+
                 var cutoffDays = plan.Days ?? 0;
                 var waiting = cutoffDays > 0
-                    ? orders.Where(o => o.UpdatedAt <= now.AddDays(-cutoffDays)).ToList()
+                    ? orders.Where(o => ReadyAt(o) <= now.AddDays(-cutoffDays)).ToList()
                     : orders;
+                waiting = waiting.OrderBy(ReadyAt).ToList();
                 var text = waiting.Count == 0
                     ? $"No orders have been waiting for pickup{(cutoffDays > 0 ? $" longer than {cutoffDays} day(s)" : "")}."
                     : $"{waiting.Count} order(s) have been ready for pickup{(cutoffDays > 0 ? $" for more than {cutoffDays} day(s)" : "")}: " +
                       string.Join(", ", waiting.Take(10).Select(o =>
-                          $"{o.CustomerName} (#{o.OrderNumber}, waiting since {o.UpdatedAt:dd MMM})")) + ".";
+                          $"{o.CustomerName} (#{o.OrderNumber}, waiting since {ReadyAt(o):dd MMM})")) + ".";
                 return new FactSet(text, waiting);
             }
 
             case "revenue":
             {
-                var orders = await _db.Orders.AsNoTracking().Where(o => o.ShopId == shopId).ToListAsync(ct);
+                var orders = await _db.Orders.AsNoTracking()
+                    .Where(o => o.ShopId == shopId && o.Status != OrderStatus.Cancelled).ToListAsync(ct);
                 if (plan.Days.HasValue)
                     orders = orders.Where(o => o.CreatedAt >= now.AddDays(-plan.Days.Value)).ToList();
+                else if (plan.MonthOnly)
+                {
+                    var local = now.AddHours(6);
+                    var monthStart = new DateTime(local.Year, local.Month, 1).AddHours(-6);
+                    orders = orders.Where(o => o.CreatedAt >= monthStart).ToList();
+                }
                 orders = Filter(orders, plan.CustomerName);
                 var collected = orders.Sum(o => o.PaidAmount);
                 var outstanding = orders.Sum(o => o.TotalAmount - o.PaidAmount);
-                var period = plan.Days.HasValue ? $"in the last {plan.Days.Value} day(s)" : "in total";
+                var period = plan.Days.HasValue ? $"in the last {plan.Days.Value} day(s)"
+                    : plan.MonthOnly ? "this month" : "in total";
                 return new FactSet(
                     $"Amount collected {period} is ৳{collected:0} across {orders.Count} order(s). Outstanding balance: ৳{outstanding:0}.",
                     orders);
@@ -321,21 +339,27 @@ public class AssistantService : IAssistantService
         var daysMatch = Regex.Match(lower, @"(\d+)\s*(?:days?|din|d)\b");
         var days = daysMatch.Success && int.TryParse(daysMatch.Groups[1].Value, out var parsed) ? parsed : (int?)null;
         var name = ExtractName(question);
+        var monthOnly = Regex.IsMatch(lower, "this month|এই মাসে|এ মাসে|মাসের");
 
-        if (Regex.IsMatch(lower, @"\b(unpaid|due|baki|baaki|bill|bille?|payment|not paid|deya|dena|ostad)\b"))
-            return new QueryPlan("unpaid", days, name);
-        if (Regex.IsMatch(lower, @"\b(pick ?up|picked|collect|delivery|tola|waiting|ready|porchha|pore ?cha|kapor|kapur|joma|dhore)\b"))
-            return new QueryPlan("pickup", days, name);
-        if (Regex.IsMatch(lower, @"\b(revenue|collected|sales|income|money|taka|earnings?)\b"))
-            return new QueryPlan("revenue", days, name);
-        if (Regex.IsMatch(lower, @"\b(how many|koto|koy|count|total orders?|number of orders?)\b"))
-            return new QueryPlan("count", days, name);
-        if (name != null || Regex.IsMatch(lower, @"\b(customer|kustomar|client)\b"))
-            return new QueryPlan("customer", days, name);
+        if (Regex.IsMatch(lower, @"\b(unpaid|due|baki|baaki|bill|bille?|payment|not paid|deya|dena|ostad)\b") ||
+            Regex.IsMatch(lower, "বাকি|বাকী|অপরিশোধিত|বিল|বিলের"))
+            return new QueryPlan("unpaid", days, name, monthOnly);
+        if (Regex.IsMatch(lower, @"\b(pick ?up|picked|collect|delivery|tola|waiting|ready|porchha|pore ?cha|kapor|kapur|joma|dhore)\b") ||
+            Regex.IsMatch(lower, "তোলা|কাপড়|পোশাক|অপেক্ষা|প্রস্তুত"))
+            return new QueryPlan("pickup", days, name, monthOnly);
+        if (Regex.IsMatch(lower, @"\b(revenue|collected|sales|income|money|taka|earnings?)\b") ||
+            Regex.IsMatch(lower, "আয়|সংগৃহীত|টাকা"))
+            return new QueryPlan("revenue", days, name, monthOnly);
+        if (Regex.IsMatch(lower, @"\b(how many|koto|koy|count|total orders?|number of orders?)\b") ||
+            Regex.IsMatch(lower, "কত|কয়টি|কতটি|অর্ডার"))
+            return new QueryPlan("count", days, name, monthOnly);
+        if (name != null || Regex.IsMatch(lower, @"\b(customer|kustomar|client)\b") ||
+            Regex.IsMatch(lower, "গ্রাহক|কাস্টমার"))
+            return new QueryPlan("customer", days, name, monthOnly);
         if (Regex.IsMatch(lower, @"\b(pending|progress|washing|ironing|active|ongoing)\b"))
-            return new QueryPlan("active", days, name);
+            return new QueryPlan("active", days, name, monthOnly);
 
-        return new QueryPlan("general", days, name);
+        return new QueryPlan("general", days, name, monthOnly);
     }
 
     private static string? ExtractName(string question)
@@ -346,6 +370,6 @@ public class AssistantService : IAssistantService
         return match.Success ? match.Groups[1].Value : null;
     }
 
-    private sealed record QueryPlan(string Intent, int? Days, string? CustomerName);
+    private sealed record QueryPlan(string Intent, int? Days, string? CustomerName, bool MonthOnly = false);
     private sealed record FactSet(string Summary, List<Order> Orders);
 }
