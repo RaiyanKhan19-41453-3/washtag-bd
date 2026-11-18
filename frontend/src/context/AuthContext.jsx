@@ -1,5 +1,5 @@
 import { createContext, useContext, useEffect, useState } from 'react';
-import api from '../api/client';
+import api, { clearTokens, storeTokens } from '../api/client';
 
 const AuthContext = createContext(null);
 
@@ -22,14 +22,14 @@ export function AuthProvider({ children }) {
         setUser(data.user);
         setShop(data.shop);
       })
-      .catch(() => localStorage.removeItem('washtag_token'))
+      .catch(() => clearTokens())
       .finally(() => { if (active) setLoading(false); });
 
     return () => { active = false; };
   }, []);
 
   const storeSession = (data) => {
-    localStorage.setItem('washtag_token', data.token);
+    storeTokens(data);
     setUser(data.user);
     setShop(data.shop);
   };
@@ -47,7 +47,7 @@ export function AuthProvider({ children }) {
   };
 
   const logout = () => {
-    localStorage.removeItem('washtag_token');
+    clearTokens();
     setUser(null);
     setShop(null);
   };

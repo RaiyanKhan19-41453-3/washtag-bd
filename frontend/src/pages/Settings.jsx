@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
-import { Store, MapPin, Phone, Image as ImageIcon, Save, ShieldCheck, BadgeCheck, Mail, Info } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import { Store, MapPin, Phone, Image as ImageIcon, Save, ShieldCheck, BadgeCheck, Mail, Info, KeyRound } from 'lucide-react';
 import api from '../api/client';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
@@ -11,6 +12,7 @@ export default function Settings() {
   const toast = useToast();
   const [form, setForm] = useState(null);
   const [busy, setBusy] = useState(false);
+  const [passwords, setPasswords] = useState({ currentPassword: '', newPassword: '' });
 
   useEffect(() => {
     api.get('/shop').then(({ data }) => setForm({
@@ -28,6 +30,20 @@ export default function Settings() {
       const { data } = await api.put('/shop', form);
       setShop(data);
       toast.success('Shop profile updated.');
+    } catch (error) {
+      toast.error(error.message);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const changePassword = async (event) => {
+    event.preventDefault();
+    setBusy(true);
+    try {
+      await api.post('/auth/change-password', passwords);
+      setPasswords({ currentPassword: '', newPassword: '' });
+      toast.success('Password changed. Other sessions were signed out.');
     } catch (error) {
       toast.error(error.message);
     } finally {
@@ -82,7 +98,7 @@ export default function Settings() {
             <div className="plan-badge">{shop?.plan || 'Starter'} plan</div>
             <p className="muted">Active until {shop?.subscriptionEndsAt ? formatDate(shop.subscriptionEndsAt) : '—'}</p>
             <div className="plan-line"><ShieldCheck size={16} /> Active &amp; verified</div>
-            <p className="tiny-note">Need to change your plan? Contact your WashTag BD representative.</p>
+            <Link to="/app/billing" className="text-link">Manage plan &amp; invoices →</Link>
           </section>
 
           <section className="card info-panel">
@@ -90,6 +106,15 @@ export default function Settings() {
             <div className="info-line"><span>Name</span><strong>{user?.name}</strong></div>
             <div className="info-line"><span>Email</span><strong>{user?.email}</strong></div>
             <div className="info-line"><span>Role</span><strong className="capitalize">{user?.role}</strong></div>
+          </section>
+
+          <section className="card info-panel">
+            <div className="panel-heading"><KeyRound size={20} /><h3>Change password</h3></div>
+            <form onSubmit={changePassword} className="form-stack">
+              <label className="field"><span>Current password</span><input type="password" value={passwords.currentPassword} onChange={(e) => setPasswords({ ...passwords, currentPassword: e.target.value })} required /></label>
+              <label className="field"><span>New password</span><input type="password" minLength={6} value={passwords.newPassword} onChange={(e) => setPasswords({ ...passwords, newPassword: e.target.value })} required /></label>
+              <button className="btn btn-outline btn-sm btn-block" disabled={busy}><KeyRound size={15} /> Update password</button>
+            </form>
           </section>
 
           <section className="card info-panel">

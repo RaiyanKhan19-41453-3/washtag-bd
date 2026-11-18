@@ -15,6 +15,9 @@ import Loader from './components/Loader';
 import Customers from './pages/Customers';
 import Settings from './pages/Settings';
 import Assistant from './pages/Assistant';
+import Team from './pages/Team';
+import Billing from './pages/Billing';
+import Admin from './pages/Admin';
 import PrintReceipt from './pages/PrintReceipt';
 import Track from './pages/Track';
 import NotFound from './pages/NotFound';
@@ -44,6 +47,9 @@ export default function App() {
                 <Route path="orders/:id" element={<OrderDetail />} />
                 <Route path="scan" element={<Scan />} />
                 <Route path="customers" element={<Customers />} />
+                <Route path="team" element={<Team />} />
+                <Route path="billing" element={<Billing />} />
+                <Route path="admin" element={<Admin />} />
                 <Route path="settings" element={<Settings />} />
               </Route>
             </Route>

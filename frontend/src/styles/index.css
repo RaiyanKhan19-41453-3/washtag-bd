@@ -703,10 +703,42 @@ button:disabled { cursor: not-allowed; opacity: .55; }
   .receipt-paper { box-shadow: none; width: 80mm; max-width: none; margin: 0; padding: 3mm 2mm; }
 }
 
+/* ---------- Team ---------- */
+.team-grid { display: grid; grid-template-columns: 1fr 310px; gap: 18px; align-items: start; }
+.team-list { display: flex; flex-direction: column; }
+.team-row { display: flex; align-items: center; gap: 10px; padding: 12px 4px; border-bottom: 1px solid var(--line); flex-wrap: wrap; }
+.team-row:last-child { border-bottom: 0; }
+.team-info { flex: 1; min-width: 130px; }
+.team-info strong { display: block; font-size: 13px; }
+.team-info span { display: block; font-size: 11px; color: var(--muted); }
+.owner-chip { background: #ede9fe; color: var(--violet); }
+.team-date { font-size: 11px; }
+.team-owner-note { display: inline-flex; align-items: center; gap: 5px; color: var(--violet); font-size: 12px; font-weight: 700; }
+.team-actions { display: flex; gap: 6px; align-items: center; }
+.invite-card { display: flex; flex-direction: column; gap: 16px; }
+.toggle-field { flex-direction: row; align-items: center; justify-content: space-between; }
+.toggle { width: 44px; height: 24px; border-radius: 20px; border: 0; background: #cbd5e1; padding: 3px; transition: background .15s; }
+.toggle span { display: block; width: 18px; height: 18px; border-radius: 50%; background: #fff; transition: transform .15s; }
+.toggle.on { background: var(--teal); }
+.toggle.on span { transform: translateX(20px); }
+
+/* ---------- Billing ---------- */
+.billing-grid { display: grid; grid-template-columns: 320px 1fr; gap: 18px; align-items: start; }
+.plan-card-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; }
+.plan-card-head h2 { font-size: 26px; margin-top: 4px; }
+.plan-price { font-family: var(--font-head); font-size: 34px; font-weight: 800; margin: 16px 0; }
+.plan-price small { font-family: var(--font); font-size: 12px; color: var(--muted); font-weight: 500; }
+.plan-meta { display: flex; flex-direction: column; gap: 10px; font-size: 12.5px; color: var(--muted); }
+.plan-meta > div { display: flex; align-items: center; gap: 8px; }
+.plan-meta svg { color: var(--teal); }
+.plan-meta strong { color: var(--ink); }
+.plan-change { margin-top: 20px; padding-top: 18px; border-top: 1px solid var(--line); display: flex; flex-direction: column; gap: 12px; }
+.paid-note { display: inline-flex; align-items: center; gap: 5px; color: var(--emerald); font-size: 11.5px; }
+
 /* ---------- Responsive ---------- */
 @media (max-width: 1100px) {
   .stat-grid { grid-template-columns: repeat(2, 1fr); }
-  .dashboard-grid, .detail-grid, .settings-grid, .new-order-grid, .assistant-grid { grid-template-columns: 1fr; }
+  .dashboard-grid, .detail-grid, .settings-grid, .new-order-grid, .assistant-grid, .team-grid, .billing-grid { grid-template-columns: 1fr; }
   .summary-card { position: static; }
   .feature-grid { grid-template-columns: repeat(2, 1fr); }
   .hero { gap: 30px; }

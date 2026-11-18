@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Link, NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import {
   LayoutDashboard, Package, ScanLine, Users, Settings as SettingsIcon,
-  LogOut, Plus, Menu, Shirt, Sparkles
+  LogOut, Plus, Menu, Shirt, Sparkles, UserCog, CreditCard, Shield
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { greeting, initials } from '../utils/helpers';
@@ -13,6 +13,8 @@ const navItems = [
   { to: '/app/orders', label: 'Orders', icon: Package },
   { to: '/app/scan', label: 'Scan QR', icon: ScanLine },
   { to: '/app/customers', label: 'Customers', icon: Users },
+  { to: '/app/team', label: 'Team', icon: UserCog },
+  { to: '/app/billing', label: 'Billing', icon: CreditCard },
   { to: '/app/settings', label: 'Settings', icon: SettingsIcon }
 ];
 
@@ -24,6 +26,9 @@ function titleFor(pathname) {
   if (pathname.startsWith('/app/orders')) return 'Orders';
   if (pathname.startsWith('/app/scan')) return 'Scan QR';
   if (pathname.startsWith('/app/customers')) return 'Customers';
+  if (pathname.startsWith('/app/team')) return 'Team';
+  if (pathname.startsWith('/app/billing')) return 'Billing';
+  if (pathname.startsWith('/app/admin')) return 'Platform Admin';
   if (pathname.startsWith('/app/settings')) return 'Settings';
   return 'Workspace';
 }
@@ -38,6 +43,10 @@ export default function Layout() {
     logout();
     navigate('/login', { replace: true });
   };
+
+  const navigation = user?.isAdmin
+    ? [...navItems, { to: '/app/admin', label: 'Platform Admin', icon: Shield }]
+    : navItems;
 
   return (
     <div className="app-shell">
@@ -60,7 +69,7 @@ export default function Layout() {
 
         <nav className="side-nav">
           <span className="nav-caption">WORKSPACE</span>
-          {navItems.map(({ to, label, icon: Icon, end }) => (
+          {navigation.map(({ to, label, icon: Icon, end }) => (
             <NavLink
               key={to}
               to={to}
