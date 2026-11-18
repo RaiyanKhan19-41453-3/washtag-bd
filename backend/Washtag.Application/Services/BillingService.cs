@@ -73,7 +73,8 @@ public class BillingService : IBillingService
 
         shop.Plan = plan;
         var pending = await _db.Invoices
-            .Where(i => i.ShopId == shopId && i.Status == InvoiceStatus.Pending).ToListAsync(cancellationToken);
+            .Where(i => i.ShopId == shopId && i.Status == InvoiceStatus.Pending && i.PeriodTo > DateTime.UtcNow)
+            .ToListAsync(cancellationToken);
         foreach (var invoice in pending) invoice.Amount = price;
 
         await _db.SaveChangesAsync(cancellationToken);

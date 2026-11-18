@@ -1,6 +1,9 @@
+using System.Security.Claims;
 using System.Security.Cryptography;
+using System.Threading.RateLimiting;
 using System.Text.Json.Serialization;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
@@ -109,12 +112,25 @@ builder.Services.AddCors(options => options.AddPolicy("App", policy =>
 
 builder.Services.AddRateLimiter(options =>
 {
-    options.AddFixedWindowLimiter("auth", limiter =>
-    {
-        limiter.PermitLimit = 6;
-        limiter.Window = TimeSpan.FromMinutes(1);
-        limiter.QueueLimit = 0;
-    });
+    options.AddPolicy("auth", context =>
+        RateLimitPartition.GetFixedWindowLimiter(
+            context.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+            _ => new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = 6,
+                Window = TimeSpan.FromMinutes(1),
+                QueueLimit = 0
+            }));
+
+    options.AddPolicy("ai", context =>
+        RateLimitPartition.GetFixedWindowLimiter(
+            context.User.FindFirstValue("sub") ?? context.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+            _ => new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = 20,
+                Window = TimeSpan.FromMinutes(1),
+                QueueLimit = 0
+            }));
     options.OnRejected = async (context, token) =>
     {
         context.HttpContext.Response.StatusCode = StatusCodes.Status429TooManyRequests;
@@ -123,8 +139,16 @@ builder.Services.AddRateLimiter(options =>
     };
 });
 
+builder.Services.Configure<ForwardedHeadersOptions>(options =>
+{
+    options.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto;
+    options.KnownNetworks.Clear();
+    options.KnownProxies.Clear();
+});
+
 var app = builder.Build();
 
+app.UseForwardedHeaders();
 app.UseMiddleware<ExceptionMiddleware>();
 app.UseSwagger();
 app.UseSwaggerUI(c =>

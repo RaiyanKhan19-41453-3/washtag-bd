@@ -95,12 +95,12 @@ public class AssistantService : IAssistantService
         var messages = await _db.AssistantMessages.AsNoTracking()
             .Where(m => m.ShopId == shopId && m.UserId == userId)
             .OrderByDescending(m => m.CreatedAt)
-            .Take(Math.Clamp(limit, 1, 200))
+            .Take(Math.Clamp(limit, 1, 200) * 2)
             .ToListAsync(cancellationToken);
 
         return messages.Select(m => new AssistantAnswerDto
         {
-            Id = m.Id,
+            Id = m.Role == "assistant" ? m.Id : Guid.Empty,
             Role = m.Role,
             Answer = m.Text,
             Text = m.Text,
@@ -124,7 +124,8 @@ public class AssistantService : IAssistantService
         CancellationToken cancellationToken = default)
     {
         var message = await _db.AssistantMessages.FirstOrDefaultAsync(
-            m => m.Id == request.MessageId && m.ShopId == shopId && m.UserId == userId, cancellationToken)
+            m => m.Id == request.MessageId && m.ShopId == shopId && m.UserId == userId &&
+                 m.Role == "assistant", cancellationToken)
             ?? throw new AppException("Message not found.");
         message.Rating = Math.Clamp(request.Rating, -1, 1);
         message.FeedbackComment = string.IsNullOrWhiteSpace(request.Comment) ? null : request.Comment.Trim();

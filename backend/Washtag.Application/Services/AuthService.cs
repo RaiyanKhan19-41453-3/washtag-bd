@@ -81,9 +81,8 @@ public class AuthService : IAuthService
             throw new AppException("Invalid or expired refresh token.");
 
         stored.RevokedAt = DateTime.UtcNow;
-        stored.ReplacedBy = "rotated";
         var response = await IssueTokensAsync(stored.User, stored.User.Shop);
-        stored.ReplacedBy = response.RefreshToken;
+        stored.ReplacedBy = Hash(response.RefreshToken);
         await _db.SaveChangesAsync();
         return response;
     }

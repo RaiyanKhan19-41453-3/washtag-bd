@@ -1,6 +1,7 @@
 using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using Washtag.Application.DTOs;
 using Washtag.Application.Interfaces;
 
@@ -25,6 +26,7 @@ public class AssistantController : ControllerBase
         }
     }
 
+    [EnableRateLimiting("ai")]
     [HttpPost("ask")]
     public async Task<IActionResult> Ask([FromBody] AssistantAskRequest request)
     {
@@ -57,6 +59,7 @@ public class AssistantController : ControllerBase
     [HttpGet("status")]
     public async Task<IActionResult> Status() => Ok(await _assistant.GetStatusAsync(ShopId));
 
+    [EnableRateLimiting("ai")]
     [HttpPost("reindex")]
     public async Task<IActionResult> Reindex() => Ok(new { documents = await _assistant.ReindexAsync(ShopId) });
 }

@@ -24,13 +24,20 @@ public class AiProvider : IAiProvider
     public AiProvider(HttpClient http, IConfiguration configuration)
     {
         _http = http;
+        var openAiKey = configuration["OPENAI_API_KEY"];
         var gatewayToken = configuration["AI_GATEWAY_TOKEN"];
-        var gatewayUrl = configuration["AI_GATEWAY_URL"];
-        _usingGateway = string.IsNullOrWhiteSpace(configuration["OPENAI_API_KEY"]) && !string.IsNullOrWhiteSpace(gatewayToken);
-        _apiKey = configuration["OPENAI_API_KEY"] ?? gatewayToken ?? string.Empty;
-        _baseUrl = (configuration["OPENAI_BASE_URL"] ?? gatewayUrl ?? "https://api.openai.com/v1").TrimEnd('/');
-        _embeddingModel = configuration["OPENAI_EMBEDDING_MODEL"] ?? configuration["AI_GATEWAY_EMBEDDING_MODEL"] ?? "text-embedding-3-small";
-        _chatModel = configuration["OPENAI_CHAT_MODEL"] ?? configuration["AI_GATEWAY_CHAT_MODEL"] ?? "gpt-4o-mini";
+        _usingGateway = string.IsNullOrWhiteSpace(openAiKey) && !string.IsNullOrWhiteSpace(gatewayToken);
+
+        _apiKey = _usingGateway ? gatewayToken! : (openAiKey ?? string.Empty);
+        _baseUrl = (_usingGateway
+            ? configuration["AI_GATEWAY_URL"] ?? "https://ai.gateway.vercel.app/v1"
+            : configuration["OPENAI_BASE_URL"] ?? "https://api.openai.com/v1").TrimEnd('/');
+        _embeddingModel = (_usingGateway
+            ? configuration["AI_GATEWAY_EMBEDDING_MODEL"]
+            : configuration["OPENAI_EMBEDDING_MODEL"]) ?? "text-embedding-3-small";
+        _chatModel = (_usingGateway
+            ? configuration["AI_GATEWAY_CHAT_MODEL"]
+            : configuration["OPENAI_CHAT_MODEL"]) ?? "gpt-4o-mini";
     }
 
     public string Name => string.IsNullOrWhiteSpace(_apiKey)
