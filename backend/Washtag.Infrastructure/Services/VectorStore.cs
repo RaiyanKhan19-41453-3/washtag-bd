@@ -35,6 +35,8 @@ public class VectorStore : IVectorStore
                 UNIQUE (shop_id, doc_type, ref_id)
             );
             CREATE INDEX IF NOT EXISTS ix_shop_documents_shop ON shop_documents (shop_id);
+            CREATE INDEX IF NOT EXISTS ix_shop_documents_embedding
+                ON shop_documents USING hnsw (embedding vector_cosine_ops);
             """, connection);
         await command.ExecuteNonQueryAsync(cancellationToken);
     }

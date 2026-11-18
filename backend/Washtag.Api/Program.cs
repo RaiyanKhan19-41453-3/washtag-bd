@@ -212,6 +212,15 @@ if (usingDefaultSecret && app.Environment.IsProduction())
 
 var seedDemo = seedFlag.Equals("true", StringComparison.OrdinalIgnoreCase);
 await DbInitializer.InitializeAsync(app.Services, seedDemo, app.Environment.IsProduction());
-await AssistantInitializer.InitializeAsync(app.Services);
+
+// Index in the background so AI/gateway latency never blocks readiness.
+app.Lifetime.ApplicationStarted.Register(() =>
+{
+    _ = Task.Run(async () =>
+    {
+        try { await AssistantInitializer.InitializeAsync(app.Services); }
+        catch (Exception ex) { app.Logger.LogError(ex, "Background assistant index failed."); }
+    });
+});
 
 app.Run();

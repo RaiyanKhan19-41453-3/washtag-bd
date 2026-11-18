@@ -63,7 +63,7 @@ public class OrderService : IOrderService
         }
 
         var total = await query.CountAsync();
-        var orders = await query.OrderByDescending(o => o.CreatedAt)
+        var orders = await query.OrderByDescending(o => o.CreatedAt).ThenBy(o => o.Id)
             .Skip((page - 1) * pageSize).Take(pageSize).ToListAsync();
 
         return new PagedResult<OrderListDto>
@@ -382,8 +382,12 @@ public class OrderService : IOrderService
 
     private async Task IndexAsync(Order order)
     {
-        // Rebuild both order and customer documents so aggregate facts stay current.
-        try { await _indexer.ReindexShopAsync(order.ShopId); }
+        // Incremental: only the changed order and its customer need re-embedding.
+        try
+        {
+            await _indexer.IndexOrderAsync(order);
+            await _indexer.IndexCustomerAsync(order.ShopId, order.CustomerPhone);
+        }
         catch { /* vector indexing is best-effort */ }
     }
 

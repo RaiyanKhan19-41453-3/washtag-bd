@@ -30,6 +30,7 @@ public interface IVectorStore
 public interface IDocumentIndexer
 {
     Task IndexOrderAsync(Order order, CancellationToken cancellationToken = default);
+    Task IndexCustomerAsync(Guid shopId, string phone, CancellationToken cancellationToken = default);
     Task ReindexShopAsync(Guid shopId, CancellationToken cancellationToken = default);
 }
 

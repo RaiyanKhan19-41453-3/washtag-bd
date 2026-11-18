@@ -34,7 +34,7 @@ public class AssistantController : ControllerBase
         if (string.IsNullOrWhiteSpace(request.Question))
             return BadRequest(new { message = "Ask a question first." });
 
-        return Ok(await _assistant.AskAsync(ShopId, UserId, request.Question));
+        return Ok(await _assistant.AskAsync(ShopId, UserId, request.Question, HttpContext.RequestAborted));
     }
 
     [HttpGet("history")]
@@ -61,5 +61,5 @@ public class AssistantController : ControllerBase
 
     [EnableRateLimiting("ai")]
     [HttpPost("reindex")]
-    public async Task<IActionResult> Reindex() => Ok(new { documents = await _assistant.ReindexAsync(ShopId) });
+    public async Task<IActionResult> Reindex() => Ok(new { documents = await _assistant.ReindexAsync(ShopId, HttpContext.RequestAborted) });
 }

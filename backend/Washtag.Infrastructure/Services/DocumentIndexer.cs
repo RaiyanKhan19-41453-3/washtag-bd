@@ -30,11 +30,35 @@ public class DocumentIndexer : IDocumentIndexer
         catch { /* Indexing must never break a shop operation. */ }
     }
 
+    public async Task IndexCustomerAsync(Guid shopId, string phone, CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            var customer = await _db.Customers.AsNoTracking()
+                .FirstOrDefaultAsync(c => c.ShopId == shopId && c.Phone == phone, cancellationToken);
+            if (customer == null) return;
+
+            var stats = await _db.Orders.AsNoTracking()
+                .Where(o => o.ShopId == shopId && o.CustomerPhone == phone && o.Status != OrderStatus.Cancelled)
+                .GroupBy(o => 1)
+                .Select(g => new
+                {
+                    Count = g.Count(),
+                    Total = g.Sum(o => o.TotalAmount),
+                    Paid = g.Sum(o => o.PaidAmount)
+                }).FirstOrDefaultAsync(cancellationToken);
+
+            var content = $"Customer {customer.Name}, phone {customer.Phone}. " +
+                          $"Has {stats?.Count ?? 0} order(s), total ৳{stats?.Total ?? 0:0}, " +
+                          $"paid ৳{stats?.Paid ?? 0:0}, due ৳{(stats?.Total ?? 0) - (stats?.Paid ?? 0):0}.";
+            var embedding = await _ai.EmbedAsync(content, cancellationToken);
+            await _vectors.UpsertAsync(shopId, "customer", customer.Id, content, embedding, cancellationToken);
+        }
+        catch { /* Indexing must never break a shop operation. */ }
+    }
+
     public async Task ReindexShopAsync(Guid shopId, CancellationToken cancellationToken = default)
     {
-        try { await _vectors.EnsureSchemaAsync(cancellationToken); }
-        catch { return; }
-
         var orders = await _db.Orders.AsNoTracking()
             .Where(o => o.ShopId == shopId)
             .Include(o => o.Items)
@@ -44,22 +68,8 @@ public class DocumentIndexer : IDocumentIndexer
 
         var customers = await _db.Customers.AsNoTracking()
             .Where(c => c.ShopId == shopId).ToListAsync(cancellationToken);
-        var shopOrders = orders.Where(o => o.Status != OrderStatus.Cancelled)
-            .Select(o => new { o.CustomerPhone, o.TotalAmount, o.PaidAmount }).ToList();
-
         foreach (var customer in customers)
-        {
-            try
-            {
-                var mine = shopOrders.Where(o => o.CustomerPhone == customer.Phone).ToList();
-                var content = $"Customer {customer.Name}, phone {customer.Phone}. " +
-                              $"Has {mine.Count} order(s), total ৳{mine.Sum(o => o.TotalAmount):0}, " +
-                              $"paid ৳{mine.Sum(o => o.PaidAmount):0}, due ৳{mine.Sum(o => o.TotalAmount - o.PaidAmount):0}.";
-                var embedding = await _ai.EmbedAsync(content, cancellationToken);
-                await _vectors.UpsertAsync(shopId, "customer", customer.Id, content, embedding, cancellationToken);
-            }
-            catch { /* skip this document */ }
-        }
+            await IndexCustomerAsync(shopId, customer.Phone, cancellationToken);
 
         // Remove embeddings for records that no longer exist so sources never link to ghosts.
         try
