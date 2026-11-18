@@ -8,12 +8,13 @@ namespace Washtag.Application.Tests;
 
 public class AuthServiceTests
 {
-    private static AuthService Create(out TestDbContext db)
+    private static AuthService Create(out TestDbContext db, out FakeRefreshTokenStore refreshStore)
     {
         var options = new DbContextOptionsBuilder<TestDbContext>()
             .UseInMemoryDatabase(Guid.NewGuid().ToString()).Options;
         db = new TestDbContext(options);
-        return new AuthService(db, new FakeTokens(), new FakeAdminSettings());
+        refreshStore = new FakeRefreshTokenStore();
+        return new AuthService(db, new FakeTokens(), new FakeAdminSettings(), refreshStore);
     }
 
     private static RegisterRequest Register(string email) => new()
@@ -29,7 +30,7 @@ public class AuthServiceTests
     [Fact]
     public async Task Register_CreatesShopOwnerAndReturnsToken()
     {
-        var service = Create(out var db);
+        var service = Create(out var db, out _);
 
         var result = await service.RegisterAsync(Register("owner@test.com"));
 
@@ -43,16 +44,28 @@ public class AuthServiceTests
     [Fact]
     public async Task Register_RejectsDuplicateEmail()
     {
-        var service = Create(out _);
+        var service = Create(out _, out _);
         await service.RegisterAsync(Register("owner@test.com"));
 
         await Assert.ThrowsAsync<AppException>(() => service.RegisterAsync(Register("OWNER@test.com")));
     }
 
     [Fact]
+    public async Task Register_FallsBackToStarterForInvalidPlan()
+    {
+        var service = Create(out _, out _);
+        var request = Register("owner@test.com");
+        request.Plan = "Enterprise";
+
+        var result = await service.RegisterAsync(request);
+
+        Assert.Equal("Starter", result.Shop.Plan);
+    }
+
+    [Fact]
     public async Task Login_AcceptsValidCredentialsAndRejectsWrongPassword()
     {
-        var service = Create(out _);
+        var service = Create(out _, out _);
         await service.RegisterAsync(Register("owner@test.com"));
 
         var result = await service.LoginAsync(new LoginRequest { Email = "owner@test.com", Password = "secret123" });

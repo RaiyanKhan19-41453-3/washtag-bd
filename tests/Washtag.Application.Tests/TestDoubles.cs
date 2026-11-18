@@ -104,6 +104,25 @@ public sealed class FakeTokens : IJwtTokenGenerator
     public string Generate(Washtag.Domain.Entities.AppUser user, Shop shop) => "signed-token";
 }
 
+public sealed class FakeCustomerStore : ICustomerStore
+{
+    public Task EnsureAsync(Guid shopId, string name, string phone, DateTime createdAt,
+        CancellationToken cancellationToken = default) => Task.CompletedTask;
+}
+
+public sealed class FakeRefreshTokenStore : IRefreshTokenStore
+{
+    private readonly Queue<Guid> _claims = new();
+
+    public Task<Guid?> TryClaimAsync(string tokenHash, CancellationToken cancellationToken = default) =>
+        Task.FromResult(_claims.Count > 0 ? _claims.Dequeue() : (Guid?)null);
+
+    public Task SetReplacedByAsync(string oldHash, string newHash, CancellationToken cancellationToken = default) =>
+        Task.CompletedTask;
+
+    public void Seed(Guid userId) => _claims.Enqueue(userId);
+}
+
 public sealed class FakeAdminSettings : IAdminSettings
 {
     public bool IsAdmin(string email) => false;

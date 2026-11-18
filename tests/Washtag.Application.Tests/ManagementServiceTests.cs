@@ -83,6 +83,27 @@ public class ManagementServiceTests
     }
 
     [Fact]
+    public async Task StaffDeactivationRevokesRefreshTokens()
+    {
+        var h = new Harness();
+        var staffId = Guid.NewGuid();
+        h.Db.Users.Add(new AppUser
+        {
+            Id = staffId, ShopId = h.ShopId, Email = "staff@test.com", Name = "Staff",
+            Role = UserRole.Staff, PasswordHash = "x", IsActive = true
+        });
+        h.Db.RefreshTokens.Add(new RefreshToken
+        {
+            UserId = staffId, TokenHash = "hash", ExpiresAt = DateTime.UtcNow.AddDays(30)
+        });
+        await h.Db.SaveChangesAsync();
+
+        await Staff(h).DeactivateAsync(h.ShopId, staffId);
+
+        Assert.NotNull((await h.Db.RefreshTokens.SingleAsync()).RevokedAt);
+    }
+
+    [Fact]
     public async Task Billing_OverviewIncludesOutstandingInvoices()
     {
         var h = new Harness();
@@ -164,12 +185,14 @@ public class ManagementServiceTests
     public async Task Auth_RefreshRotatesTokenAndOldTokenCannotBeReused()
     {
         var h = new Harness();
-        var auth = new AuthService(h.Db, new FakeTokens(), new FakeAdminSettings());
+        var store = new FakeRefreshTokenStore();
+        var auth = new AuthService(h.Db, new FakeTokens(), new FakeAdminSettings(), store);
         var login = await auth.RegisterAsync(new RegisterRequest
         {
             ShopName = "Shop", OwnerName = "Owner", Email = "owner@test.com", Phone = "1", Password = "secret123"
         });
         Assert.False(string.IsNullOrEmpty(login.RefreshToken));
+        store.Seed(login.User.Id);
 
         var refreshed = await auth.RefreshAsync(login.RefreshToken);
 
@@ -182,7 +205,7 @@ public class ManagementServiceTests
     public async Task Auth_ChangePasswordRevokesExistingRefreshTokens()
     {
         var h = new Harness();
-        var auth = new AuthService(h.Db, new FakeTokens(), new FakeAdminSettings());
+        var auth = new AuthService(h.Db, new FakeTokens(), new FakeAdminSettings(), new FakeRefreshTokenStore());
         var login = await auth.RegisterAsync(new RegisterRequest
         {
             ShopName = "Shop", OwnerName = "Owner", Email = "owner@test.com", Phone = "1", Password = "secret123"

@@ -25,7 +25,7 @@ public class OrderServiceTests
             Db.Shops.Add(new Washtag.Domain.Entities.Shop { Id = ShopId, Name = "Test Shop" });
             Db.SaveChanges();
             Service = new OrderService(Db, Notifier, new FakeCache(), new FakeQr(),
-                new FakeUrls(), Indexer, new FakeNumbers());
+                new FakeUrls(), Indexer, new FakeNumbers(), new FakeCustomerStore());
         }
 
         public Task<OrderDetailDto> NewOrder(string customer = "Test Customer", decimal price = 100, int quantity = 2) =>
@@ -108,6 +108,18 @@ public class OrderServiceTests
         await Assert.ThrowsAsync<AppException>(() =>
             h.Service.GetOrderAsync(Guid.NewGuid(), order.Id));
         Assert.NotNull(await h.Service.GetOrderAsync(h.ShopId, order.Id));
+    }
+
+    [Fact]
+    public async Task DeliveredRequiresFullPayment()
+    {
+        var h = new Harness();
+        var order = await h.NewOrder(price: 200, quantity: 1);
+        await h.Service.RecordPaymentAsync(h.ShopId, order.Id,
+            new RecordPaymentRequest { Amount = 50, Method = PaymentMethod.Cash }, "Tester");
+
+        await Assert.ThrowsAsync<AppException>(() => h.Service.UpdateStatusAsync(h.ShopId, order.Id,
+            new UpdateStatusRequest { Status = OrderStatus.Delivered }, "Tester"));
     }
 
     [Fact]

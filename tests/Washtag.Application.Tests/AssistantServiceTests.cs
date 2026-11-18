@@ -90,6 +90,18 @@ public class AssistantServiceTests
     }
 
     [Fact]
+    public async Task Ask_BengaliScriptQuestion_ResolvesToUnpaidIntent()
+    {
+        var h = new Harness();
+        h.AddOrder("Rahman", OrderStatus.Washing, 500, 100, DateTime.UtcNow.AddDays(-1));
+
+        var answer = await h.Service.AskAsync(h.ShopId, h.UserId, "আমার বাকি টাকা কত?");
+
+        Assert.Equal("unpaid", answer.Intent);
+        Assert.Contains("৳400", answer.Answer);
+    }
+
+    [Fact]
     public async Task Ask_WithNoOrders_ReturnsSafeEmptyAnswer()
     {
         var h = new Harness();
