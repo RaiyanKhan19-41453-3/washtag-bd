@@ -125,7 +125,7 @@ The dependency rule points inward: `Api → Infrastructure → Application → D
 - Ask in English or Banglish: *"Show me customers who haven't picked up their clothes in 5 days"*, *"What is the total unpaid bill for Mr. Rahman?"*
 - Type or **speak** (browser Web Speech API; mic button)
 - **RAG pipeline:** every order and customer becomes a vector document embedded into pgvector; questions are embedded and matched with cosine distance, then combined with deterministic database facts before answering
-- Answers are grounded in real data with clickable source records — never invented
+- Answers are grounded in real data — date ranges (`today`, `yesterday`, `this month`, `last week`) and revenue-by-payment-date are supported; offline mode suppresses weak vector citations and an LLM, when enabled, is instructed to treat computed facts as authoritative
 - **Conversation history** is saved per user, with thumbs up/down feedback and a clear-history action
 - Works fully **offline** with deterministic local embeddings and a grounded answer composer; optionally enable an `OPENAI_API_KEY` or `AI_GATEWAY_TOKEN` for LLM-phrased answers
 - Index rebuilds automatically on every order/status/payment change, with a manual "Rebuild index" button
@@ -176,7 +176,7 @@ Both scripts read `POSTGRES_USER` / `POSTGRES_DB` from `.env` (with the compose 
 Everything is in one solution; .NET and Node are only needed if you want to develop outside Docker.
 
 ```bash
-dotnet test WashtagBD.sln          # 38 xUnit tests (use cases, billing, auth, assistant + controllers)
+dotnet test WashtagBD.sln          # 40 xUnit tests (use cases, billing, auth, assistant + controllers)
 cd frontend && npm run build       # production bundle check
 ```
 
