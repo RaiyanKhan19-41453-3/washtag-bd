@@ -176,7 +176,7 @@ Both scripts read `POSTGRES_USER` / `POSTGRES_DB` from `.env` (with the compose 
 Everything is in one solution; .NET and Node are only needed if you want to develop outside Docker.
 
 ```bash
-dotnet test WashtagBD.sln          # 37 xUnit tests (use cases, billing, auth, assistant + controllers)
+dotnet test WashtagBD.sln          # 38 xUnit tests (use cases, billing, auth, assistant + controllers)
 cd frontend && npm run build       # production bundle check
 ```
 
@@ -247,7 +247,7 @@ ADMIN_EMAILS=demo@washtagbd.com
 ENABLE_SWAGGER=false
 ```
 
-Access tokens live for 15 minutes; refresh tokens last 30 days, are stored hashed, and rotate on every use. The client refreshes transparently on a 401. Auth endpoints are rate-limited to 6 attempts per minute per IP. Team management, plan changes, invoice settlement and order cancellation require the Owner role; `/api/admin/*` requires the `isAdmin` claim.
+Emails listed in `ADMIN_EMAILS` are reserved and cannot be self-registered. Deactivating an account or changing a password invalidates its existing access tokens immediately. Access tokens live for 15 minutes; refresh tokens last 30 days, are stored hashed, and rotate on every use. The client refreshes transparently on a 401. Auth endpoints are rate-limited to 6 attempts per minute per IP. Team management, plan changes, invoice settlement and order cancellation require the Owner role; `/api/admin/*` requires the `isAdmin` claim.
 
 ---
 
