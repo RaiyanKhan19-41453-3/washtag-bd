@@ -13,7 +13,7 @@ public class AuthServiceTests
         var options = new DbContextOptionsBuilder<TestDbContext>()
             .UseInMemoryDatabase(Guid.NewGuid().ToString()).Options;
         db = new TestDbContext(options);
-        return new AuthService(db, new FakeTokens());
+        return new AuthService(db, new FakeTokens(), new FakeAdminSettings());
     }
 
     private static RegisterRequest Register(string email) => new()

@@ -17,6 +17,8 @@ public sealed class TestDbContext : DbContext, IAppDbContext
     public DbSet<OrderItem> OrderItems => Set<OrderItem>();
     public DbSet<StatusEvent> StatusEvents => Set<StatusEvent>();
     public DbSet<Payment> Payments => Set<Payment>();
+    public DbSet<Invoice> Invoices => Set<Invoice>();
+    public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
 
     protected override void OnModelCreating(ModelBuilder mb)
     {
@@ -99,4 +101,15 @@ public sealed class FakeVectors : IVectorStore
 public sealed class FakeTokens : IJwtTokenGenerator
 {
     public string Generate(Washtag.Domain.Entities.AppUser user, Shop shop) => "signed-token";
+}
+
+public sealed class FakeAdminSettings : IAdminSettings
+{
+    public bool IsAdmin(string email) => false;
+}
+
+public sealed class FakeAdmin : IAdminService
+{
+    public Task<AdminStatsDto> GetStatsAsync(CancellationToken cancellationToken = default) =>
+        Task.FromResult(new AdminStatsDto { ShopCount = 1 });
 }
