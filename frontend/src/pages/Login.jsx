@@ -3,6 +3,8 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Shirt, Mail, Lock, ArrowRight, Eye, EyeOff, Sparkles } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
+import { useLanguage } from '../context/LanguageContext';
+import LanguageToggle from '../components/LanguageToggle';
 
 export default function Login() {
   const [email, setEmail] = useState('');
@@ -11,6 +13,7 @@ export default function Login() {
   const [busy, setBusy] = useState(false);
   const { login } = useAuth();
   const toast = useToast();
+  const { t } = useLanguage();
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -56,8 +59,13 @@ export default function Login() {
       <div className="auth-panel">
         <div className="auth-form-wrap">
           <div className="auth-form-head">
-            <h2>Log in to your shop</h2>
-            <p>Enter your account details to continue.</p>
+            <div className="login-top-row">
+              <div>
+                <h2>{t('Log in to your shop')}</h2>
+                <p>Enter your account details to continue.</p>
+              </div>
+              <LanguageToggle compact />
+            </div>
           </div>
 
           <form onSubmit={submit} className="form-stack">

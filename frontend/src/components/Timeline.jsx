@@ -1,6 +1,8 @@
 import { STATUS_LABELS, formatDateTime } from '../utils/helpers';
+import { useLanguage } from '../context/LanguageContext';
 
 export default function Timeline({ events = [] }) {
+  const { t } = useLanguage();
   if (!events.length) return <p className="muted">No activity yet.</p>;
 
   return (
@@ -10,7 +12,7 @@ export default function Timeline({ events = [] }) {
           <div className="timeline-marker" />
           <div className="timeline-content">
             <div className="timeline-top">
-              <strong>{STATUS_LABELS[event.toStatus] || event.toStatus}</strong>
+              <strong>{t(STATUS_LABELS[event.toStatus] || event.toStatus)}</strong>
               <time>{formatDateTime(event.createdAt)}</time>
             </div>
             {event.note && <p>{event.note}</p>}

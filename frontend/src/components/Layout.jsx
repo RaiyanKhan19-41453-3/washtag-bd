@@ -5,6 +5,8 @@ import {
   LogOut, Plus, Menu, Shirt, Sparkles, UserCog, CreditCard, Shield
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
+import { useLanguage } from '../context/LanguageContext';
+import LanguageToggle from './LanguageToggle';
 import { greeting, initials } from '../utils/helpers';
 
 const navItems = [
@@ -36,6 +38,7 @@ function titleFor(pathname) {
 export default function Layout() {
   const [open, setOpen] = useState(false);
   const { user, shop, logout } = useAuth();
+  const { t } = useLanguage();
   const location = useLocation();
   const navigate = useNavigate();
 
@@ -78,7 +81,7 @@ export default function Layout() {
               onClick={() => setOpen(false)}
             >
               <Icon size={19} />
-              <span>{label}</span>
+              <span>{t(label)}</span>
             </NavLink>
           ))}
         </nav>
@@ -104,12 +107,13 @@ export default function Layout() {
             <Menu size={21} />
           </button>
           <div className="topbar-title">
-            <h1>{titleFor(location.pathname)}</h1>
-            <p>{greeting()}, {user?.name?.split(' ')[0]} 👋</p>
+            <h1>{t(titleFor(location.pathname))}</h1>
+            <p>{t(greeting())}, {user?.name?.split(' ')[0]} 👋</p>
           </div>
           <div className="topbar-actions">
+            <LanguageToggle />
             <Link to="/app/orders/new" className="btn btn-primary btn-sm">
-              <Plus size={16} /> <span>New Order</span>
+              <Plus size={16} /> <span>{t('New Order')}</span>
             </Link>
             <div className="user-chip">
               <span className="avatar">{initials(user?.name)}</span>

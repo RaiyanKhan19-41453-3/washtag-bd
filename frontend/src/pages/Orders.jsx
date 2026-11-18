@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { Plus, Search, PackageOpen, ChevronLeft, ChevronRight, RefreshCw } from 'lucide-react';
 import api from '../api/client';
 import { useRealtime } from '../hooks/useRealtime';
+import { useLanguage } from '../context/LanguageContext';
 import OrderTable from '../components/OrderTable';
 import EmptyState from '../components/EmptyState';
 import Loader from '../components/Loader';
@@ -20,6 +21,7 @@ export default function Orders() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const token = localStorage.getItem('washtag_token');
+  const { t } = useLanguage();
 
   const load = useCallback(() => {
     setLoading(true);
@@ -42,8 +44,8 @@ export default function Orders() {
     <div className="page-stack">
       <div className="page-heading">
         <div>
-          <h2>All orders</h2>
-          <p>Track every piece that passes through your shop.</p>
+          <h2>{t('All orders')}</h2>
+          <p>{t('Track every piece that passes through your shop.')}</p>
         </div>
         <Link to="/app/orders/new" className="btn btn-primary btn-sm"><Plus size={16} /> New Order</Link>
       </div>
@@ -55,7 +57,7 @@ export default function Orders() {
             <input
               value={search}
               onChange={(event) => { setSearch(event.target.value); setPage(1); }}
-              placeholder="Search by order no, customer or phone…"
+              placeholder={t('Search by order no, customer or phone…')}
             />
           </div>
           <button className="icon-btn" onClick={load} title="Refresh"><RefreshCw size={17} /></button>
@@ -67,7 +69,7 @@ export default function Orders() {
               className={`pill ${status === value ? 'active' : ''}`}
               onClick={() => { setStatus(value); setPage(1); }}
             >
-              {value ? STATUS_LABELS[value] : 'All'}
+              {value ? t(STATUS_LABELS[value]) : t('All')}
             </button>
           ))}
         </div>

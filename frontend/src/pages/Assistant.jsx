@@ -2,10 +2,12 @@ import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
   Sparkles, Send, Mic, MicOff, Bot, UserRound, Database, RefreshCw,
-  ExternalLink, Lightbulb, CircleCheck, CircleAlert, WandSparkles
+  ExternalLink, Lightbulb, CircleCheck, CircleAlert, WandSparkles,
+  ThumbsUp, ThumbsDown, Trash2
 } from 'lucide-react';
 import api from '../api/client';
 import { useToast } from '../context/ToastContext';
+import { useLanguage } from '../context/LanguageContext';
 import { formatDateTime } from '../utils/helpers';
 
 const WELCOME = {
@@ -29,9 +31,13 @@ export default function Assistant() {
   const busyRef = useRef(false);
   const askRef = useRef(null);
   const toast = useToast();
+  const { t } = useLanguage();
 
   useEffect(() => {
     api.get('/assistant/status').then(({ data }) => setStatus(data)).catch(() => {});
+    api.get('/assistant/history?limit=50').then(({ data }) => {
+      if (data.length) setMessages([WELCOME, ...data.map((item) => ({ ...item, text: item.answer }))]);
+    }).catch(() => {});
   }, []);
 
   useEffect(() => {
@@ -109,14 +115,32 @@ export default function Assistant() {
     }
   };
 
+  const sendFeedback = async (message, rating) => {
+    if (!message.id) return;
+    try {
+      await api.post('/assistant/feedback', { messageId: message.id, rating });
+      setMessages((current) => current.map((item) =>
+        item.id === message.id ? { ...item, rating } : item));
+      toast.success(rating > 0 ? t('Thanks for the feedback!') : t('Thanks for the feedback!'));
+    } catch (error) { toast.error(error.message); }
+  };
+
+  const clearHistory = async () => {
+    try {
+      await api.delete('/assistant/history');
+      setMessages([WELCOME]);
+      toast.success(t('Conversation cleared.'));
+    } catch (error) { toast.error(error.message); }
+  };
+
   const useSuggestion = (text) => ask(text);
 
   return (
     <div className="page-stack assistant-page">
       <div className="page-heading">
         <div>
-          <h2>AI Shop Assistant</h2>
-          <p>Ask questions in English or Banglish — answers come from your shop's own data.</p>
+          <h2>{t('AI Shop Assistant')}</h2>
+          <p>{t("Ask questions in English or Banglish — answers come from your shop's own data.")}</p>
         </div>
       </div>
 
@@ -127,14 +151,17 @@ export default function Assistant() {
               <span className="chat-header-icon"><WandSparkles size={20} /></span>
               <div>
                 <strong>WashTag Assistant</strong>
-                <small>{status?.VectorReady ? 'Vector index online' : 'Using database facts'} · {status?.Provider || 'Connecting…'}</small>
+                <small>{status?.VectorReady ? t('Vector index online') : t('Using database facts')} · {status?.Provider || 'Connecting…'}</small>
               </div>
             </div>
-            {status && (
-              <span className={`badge ${status.VectorReady ? 'payment-Paid' : 'payment-Partial'}`}>
-                <i className="badge-dot" /> {status.DocumentCount} docs
-              </span>
-            )}
+            <div className="chat-header-actions">
+              {status && (
+                <span className={`badge ${status.VectorReady ? 'payment-Paid' : 'payment-Partial'}`}>
+                  <i className="badge-dot" /> {status.DocumentCount} docs
+                </span>
+              )}
+              <button className="icon-btn" onClick={clearHistory} title={t('Clear history')}><Trash2 size={16} /></button>
+            </div>
           </header>
 
           <div className="chat-messages">
@@ -146,11 +173,11 @@ export default function Assistant() {
                 <div className="chat-bubble">
                   <p>{message.answer || message.text}</p>
 
-                  {message.intent && <span className="chat-intent">Understood: {message.intent}</span>}
+                  {message.intent && <span className="chat-intent">{t('Understood')}: {message.intent}</span>}
 
                   {message.sources?.length > 0 && (
                     <div className="chat-sources">
-                      <span className="chat-sources-label"><Database size={13} /> Based on these records</span>
+                      <span className="chat-sources-label"><Database size={13} /> {t('Based on these records')}</span>
                       {message.sources.map((source, sourceIndex) => (
                         <div className="chat-source" key={`${source.refId}-${sourceIndex}`}>
                           {source.type === 'order' ? (
@@ -176,6 +203,20 @@ export default function Assistant() {
                     </div>
                   )}
 
+                  {message.id && (
+                    <div className="chat-feedback">
+                      <button
+                        className={message.rating === 1 ? 'selected' : ''}
+                        onClick={() => sendFeedback(message, 1)}
+                        title={t('Good answer')}
+                      ><ThumbsUp size={14} /></button>
+                      <button
+                        className={message.rating === -1 ? 'selected' : ''}
+                        onClick={() => sendFeedback(message, -1)}
+                        title={t('Bad answer')}
+                      ><ThumbsDown size={14} /></button>
+                    </div>
+                  )}
                   {message.answeredAt && <time>{formatDateTime(message.answeredAt)}</time>}
                 </div>
               </div>

@@ -1,14 +1,17 @@
 import { STATUS_LABELS, PAYMENT_LABELS } from '../utils/helpers';
+import { useLanguage } from '../context/LanguageContext';
 
 export function StatusBadge({ status, dot = true }) {
+  const { t } = useLanguage();
   return (
     <span className={`badge status-${status}`}>
       {dot && <i className="badge-dot" />}
-      {STATUS_LABELS[status] || status}
+      {t(STATUS_LABELS[status] || status)}
     </span>
   );
 }
 
 export function PaymentBadge({ status }) {
-  return <span className={`badge payment-${status}`}>{PAYMENT_LABELS[status] || status}</span>;
+  const { t } = useLanguage();
+  return <span className={`badge payment-${status}`}>{t(PAYMENT_LABELS[status] || status)}</span>;
 }

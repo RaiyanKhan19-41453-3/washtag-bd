@@ -22,8 +22,8 @@
   --shadow-lg: 0 20px 60px rgba(15, 23, 42, .12);
   --radius: 14px;
   --radius-sm: 9px;
-  --font: 'DM Sans', system-ui, -apple-system, 'Segoe UI', sans-serif;
-  --font-head: 'Plus Jakarta Sans', 'DM Sans', system-ui, sans-serif;
+  --font: 'DM Sans', 'Noto Sans Bengali', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-head: 'Plus Jakarta Sans', 'DM Sans', 'Noto Sans Bengali', system-ui, sans-serif;
 }
 
 * { box-sizing: border-box; }
@@ -83,6 +83,13 @@ button:disabled { cursor: not-allowed; opacity: .55; }
 }
 .icon-btn:hover { color: var(--ink); border-color: var(--muted-2); }
 .icon-btn.danger:hover { color: var(--rose); border-color: #fecdd3; background: #fff1f2; }
+.lang-toggle {
+  display: inline-flex; align-items: center; gap: 6px; border: 1px solid var(--line);
+  background: #fff; color: var(--ink-soft); border-radius: 9px; padding: 8px 10px;
+  font-size: 12px; font-weight: 700;
+}
+.lang-toggle:hover { border-color: var(--teal); color: var(--teal); }
+.lang-toggle-compact { padding: 6px 8px; }
 
 /* ---------- Cards ---------- */
 .card {
@@ -459,6 +466,7 @@ button:disabled { cursor: not-allowed; opacity: .55; }
 .auth-form-wrap { width: 100%; max-width: 380px; }
 .auth-form-wide { max-width: 560px; }
 .auth-form-head { margin-bottom: 26px; }
+.login-top-row { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
 .auth-form-head h2 { font-size: 26px; }
 .auth-form-head p { color: var(--muted); font-size: 13px; margin-top: 6px; }
 .auth-form-wrap .form-row { gap: 12px; }
@@ -562,6 +570,7 @@ button:disabled { cursor: not-allowed; opacity: .55; }
 .track-card { width: 100%; max-width: 520px; background: #fff; border-radius: 20px; box-shadow: var(--shadow-lg); overflow: hidden; }
 .track-header { display: flex; align-items: center; gap: 12px; padding: 20px 22px; border-bottom: 1px solid var(--line); }
 .track-shop-avatar { width: 44px; height: 44px; border-radius: 13px; background: var(--teal); color: #fff; display: grid; place-items: center; flex: 0 0 auto; }
+.track-header .lang-toggle { margin-left: auto; flex: 0 0 auto; }
 .track-header h1 { font-size: 17px; }
 .track-header p { display: flex; align-items: center; gap: 4px; font-size: 11px; color: var(--muted); margin-top: 3px; }
 .track-hero { text-align: center; padding: 34px 24px 28px; background: #f8fafb; }
@@ -642,6 +651,10 @@ button:disabled { cursor: not-allowed; opacity: .55; }
 .chat-bubble p { font-size: 13.5px; line-height: 1.65; white-space: pre-wrap; word-break: break-word; }
 .chat-intent { display: inline-block; margin-top: 9px; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; color: var(--teal); background: var(--teal-soft); padding: 4px 8px; border-radius: 6px; }
 .chat-bubble time { display: block; font-size: 10px; color: var(--muted-2); margin-top: 9px; }
+.chat-header-actions { display: flex; align-items: center; gap: 8px; }
+.chat-feedback { display: flex; gap: 6px; margin-top: 10px; }
+.chat-feedback button { width: 28px; height: 28px; border-radius: 7px; border: 1px solid var(--line); background: #fff; color: var(--muted); display: grid; place-items: center; }
+.chat-feedback button:hover, .chat-feedback button.selected { color: var(--teal); border-color: var(--teal); background: var(--teal-soft); }
 .chat-sources { margin-top: 12px; padding-top: 11px; border-top: 1px dashed var(--line); display: flex; flex-direction: column; gap: 7px; }
 .chat-sources-label { display: flex; align-items: center; gap: 6px; font-size: 10.5px; font-weight: 700; color: var(--muted); }
 .chat-source a, .chat-source-static { display: inline-flex; align-items: center; gap: 6px; font-size: 11.5px; color: var(--teal); font-weight: 700; }

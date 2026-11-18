@@ -5,6 +5,8 @@ import {
   SearchX, RefreshCw, Sparkles, Receipt, Wallet
 } from 'lucide-react';
 import api from '../api/client';
+import { useLanguage } from '../context/LanguageContext';
+import LanguageToggle from '../components/LanguageToggle';
 import { useRealtime } from '../hooks/useRealtime';
 import Timeline from '../components/Timeline';
 import Loader from '../components/Loader';
@@ -31,6 +33,7 @@ const STATUS_ICONS = {
 
 export default function Track() {
   const { token } = useParams();
+  const { t } = useLanguage();
   const [data, setData] = useState(null);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
@@ -83,26 +86,27 @@ export default function Track() {
             <h1>{shop.name}</h1>
             <p><MapPin size={13} /> {[shop.address, shop.city].filter(Boolean).join(', ') || 'Bangladesh'}</p>
           </div>
+          <LanguageToggle compact />
         </header>
 
         <div className={`track-hero status-bg-${order.status}`}>
           <div className="track-hero-icon"><StatusIcon size={30} /></div>
-          <span className="track-eyebrow">CURRENT STATUS</span>
-          <h2>{STATUS_LABELS[order.status]}</h2>
+          <span className="track-eyebrow">{t('CURRENT STATUS')}</span>
+          <h2>{t(STATUS_LABELS[order.status])}</h2>
           <p>{STATUS_MESSAGES[order.status]}</p>
           <div className="track-order-no"><Receipt size={14} /> {order.orderNumber} · Dropped off {formatDate(order.createdAt)}</div>
         </div>
 
         <div className="track-progress">
           <div className="track-progress-head">
-            <span>Overall progress</span>
+            <span>{t('Overall progress')}</span>
             <strong>{progress}%</strong>
           </div>
           <div className="track-progress-track">
             <div className="track-progress-fill" style={{ width: `${progress}%` }} />
           </div>
           <div className="track-progress-caption">
-            {isCancelled ? 'This order was cancelled' : `${currentIndex + 1} of ${STATUS_ORDER.length} steps complete`}
+            {isCancelled ? t('Cancelled') : `${currentIndex + 1} / ${STATUS_ORDER.length} ${t('steps complete')}`}
           </div>
         </div>
 
@@ -110,13 +114,13 @@ export default function Track() {
           {STATUS_ORDER.map((status, index) => (
             <div key={status} className={`track-step ${index < currentIndex ? 'done' : ''} ${index === currentIndex ? 'current' : ''}`}>
               <span className="step-dot">{index < currentIndex ? <CheckCircle2 size={13} /> : index + 1}</span>
-              <span className="step-label">{STATUS_LABELS[status]}</span>
+              <span className="step-label">{t(STATUS_LABELS[status])}</span>
             </div>
           ))}
         </div>
 
         <section className="track-section">
-          <div className="track-section-head"><h3>Your items</h3><span>{order.items.length} item(s)</span></div>
+          <div className="track-section-head"><h3>{t('Your items')}</h3><span>{order.items.length} {t('Items').toLowerCase()}</span></div>
           <div className="track-items">
             {order.items.map((item) => (
               <div className="track-item" key={item.id}>
@@ -130,7 +134,7 @@ export default function Track() {
 
         <section className="track-section">
           <div className="track-section-head">
-            <h3>Payment</h3>
+            <h3>{t('Payment')}</h3>
             <PaymentBadge status={order.paymentStatus} />
           </div>
           <div className="track-payment-row">
@@ -140,17 +144,17 @@ export default function Track() {
         </section>
 
         <section className="track-section">
-          <div className="track-section-head"><h3>Order journey</h3><span>Live updates</span></div>
+          <div className="track-section-head"><h3>{t('Order journey')}</h3><span>{t('Live updates')}</span></div>
           <Timeline events={timeline} />
         </section>
 
         <footer className="track-footer">
-          <p>Expected pickup: <strong>{order.dueDate ? formatDate(order.dueDate) : 'We will notify you'}</strong></p>
+          <p>{t('Expected pickup')}: <strong>{order.dueDate ? formatDate(order.dueDate) : '—'}</strong></p>
           {order.deliveredAt && <p>Delivered on <strong>{formatDateTime(order.deliveredAt)}</strong></p>}
-          <p>Questions? Call the shop at <strong>{shop.phone || 'the counter'}</strong></p>
+          <p>{t('Questions? Call the shop at')} <strong>{shop.phone || '—'}</strong></p>
         </footer>
       </div>
-      <p className="track-power">Powered by <strong>WashTag BD</strong> · Live QR tracking</p>
+      <p className="track-power">{t('Powered by')} <strong>WashTag BD</strong> · {t('Live QR tracking')}</p>
     </div>
   );
 }

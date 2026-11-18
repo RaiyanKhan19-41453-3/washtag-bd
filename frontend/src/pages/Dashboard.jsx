@@ -6,6 +6,7 @@ import {
 } from 'lucide-react';
 import api from '../api/client';
 import { useAuth } from '../context/AuthContext';
+import { useLanguage } from '../context/LanguageContext';
 import { useRealtime } from '../hooks/useRealtime';
 import StatCard from '../components/StatCard';
 import OrderTable from '../components/OrderTable';
@@ -25,6 +26,7 @@ export default function Dashboard() {
   const [data, setData] = useState(null);
   const [error, setError] = useState('');
   const { user } = useAuth();
+  const { t } = useLanguage();
   const token = localStorage.getItem('washtag_token');
 
   const load = useCallback(() => {
@@ -70,30 +72,30 @@ export default function Dashboard() {
     <div className="page-stack">
       <div className="welcome-row">
         <div>
-          <h2>{greeting()}, {user?.name?.split(' ')[0]} 👋</h2>
-          <p>Here's what's happening at your counter today.</p>
+          <h2>{t(greeting())}, {user?.name?.split(' ')[0]} 👋</h2>
+          <p>{t("Here's what's happening at your counter today.")}</p>
         </div>
         <div className="welcome-actions">
-          <Link to="/app/scan" className="btn btn-outline btn-sm"><ScanLine size={16} /> Scan QR</Link>
-          <Link to="/app/orders/new" className="btn btn-primary btn-sm"><Plus size={16} /> New Order</Link>
+          <Link to="/app/scan" className="btn btn-outline btn-sm"><ScanLine size={16} /> {t('Scan QR')}</Link>
+          <Link to="/app/orders/new" className="btn btn-primary btn-sm"><Plus size={16} /> {t('New Order')}</Link>
         </div>
       </div>
 
       <div className="stat-grid">
-        <StatCard icon={Package} label="Active orders" value={data.activeCount} hint={`${data.totalOrders} all time`} tone="teal" />
-        <StatCard icon={CheckCircle2} label="Ready for pickup" value={data.readyCount} hint="Waiting for customers" tone="violet" />
-        <StatCard icon={Wallet} label="Collected" value={money(data.collected)} hint={`${money(data.outstanding)} outstanding`} tone="emerald" />
-        <StatCard icon={AlertCircle} label="Unpaid orders" value={data.unpaidCount} hint={`${data.customerCount} customers`} tone="amber" />
+        <StatCard icon={Package} label={t('Active orders')} value={data.activeCount} hint={`${data.totalOrders} ${t('all time')}`} tone="teal" />
+        <StatCard icon={CheckCircle2} label={t('Ready for pickup')} value={data.readyCount} hint={t('Waiting for customers')} tone="violet" />
+        <StatCard icon={Wallet} label={t('Collected')} value={money(data.collected)} hint={`${money(data.outstanding)} ${t('outstanding')}`} tone="emerald" />
+        <StatCard icon={AlertCircle} label={t('Unpaid orders')} value={data.unpaidCount} hint={`${data.customerCount} ${t('customers')}`} tone="amber" />
       </div>
 
       <div className="dashboard-grid">
         <section className="card chart-card">
           <div className="card-head">
             <div>
-              <h3>Orders this week</h3>
-              <p>Last 7 days at a glance</p>
+              <h3>{t('Orders this week')}</h3>
+              <p>{t('Last 7 days at a glance')}</p>
             </div>
-            <span className="card-chip"><TrendingUp size={14} /> {data.todayOrders} today</span>
+            <span className="card-chip"><TrendingUp size={14} /> {data.todayOrders} {t('today')}</span>
           </div>
           <div className="bar-chart">
             {data.weeklyTrend.map((day) => (
@@ -111,22 +113,22 @@ export default function Dashboard() {
         <section className="card breakdown-card">
           <div className="card-head">
             <div>
-              <h3>Order mix</h3>
-              <p>Where your orders stand</p>
+              <h3>{t('Order mix')}</h3>
+              <p>{t('Where your orders stand')}</p>
             </div>
           </div>
           <div className="breakdown-body">
             <div className="donut" style={{ background: donut }}>
               <div className="donut-hole">
                 <strong>{data.totalOrders}</strong>
-                <span>orders</span>
+                <span>{t('orders')}</span>
               </div>
             </div>
             <div className="legend">
               {data.statusBreakdown.filter((item) => item.count > 0).map((item) => (
                 <div key={item.status} className="legend-row">
                   <i style={{ background: COLORS[item.status] }} />
-                  <span>{STATUS_LABELS[item.status]}</span>
+                  <span>{t(STATUS_LABELS[item.status])}</span>
                   <strong>{item.count}</strong>
                 </div>
               ))}
@@ -139,10 +141,10 @@ export default function Dashboard() {
       <section className="card">
         <div className="card-head">
           <div>
-            <h3>Recent orders</h3>
-            <p>The latest movements at your counter</p>
+            <h3>{t('Recent orders')}</h3>
+            <p>{t('The latest movements at your counter')}</p>
           </div>
-          <Link to="/app/orders" className="text-link">View all <ArrowUpRight size={15} /></Link>
+          <Link to="/app/orders" className="text-link">{t('View all')} <ArrowUpRight size={15} /></Link>
         </div>
         <OrderTable orders={data.recentOrders} />
       </section>

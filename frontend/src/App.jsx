@@ -2,6 +2,7 @@ import { Suspense, lazy } from 'react';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext';
 import { ToastProvider } from './context/ToastContext';
+import { LanguageProvider } from './context/LanguageContext';
 import ProtectedRoute from './components/ProtectedRoute';
 import Layout from './components/Layout';
 import Landing from './pages/Landing';
@@ -27,6 +28,7 @@ const Scan = lazy(() => import('./pages/Scan'));
 export default function App() {
   return (
     <BrowserRouter>
+      <LanguageProvider>
       <ToastProvider>
         <AuthProvider>
           <Suspense fallback={<Loader full label="Loading page…" />}>
@@ -59,6 +61,7 @@ export default function App() {
           </Suspense>
         </AuthProvider>
       </ToastProvider>
+      </LanguageProvider>
     </BrowserRouter>
   );
 }
