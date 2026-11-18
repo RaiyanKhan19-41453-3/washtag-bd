@@ -3,6 +3,7 @@ using Washtag.Application.DTOs;
 using Washtag.Application.Services;
 using Washtag.Domain.Entities;
 using Washtag.Domain.Enums;
+using Washtag.Domain.Exceptions;
 using Xunit;
 
 namespace Washtag.Application.Tests;
@@ -121,5 +122,31 @@ public class AssistantServiceTests
 
         await h.Service.ClearHistoryAsync(h.ShopId, h.UserId);
         Assert.Empty(await h.Service.GetHistoryAsync(h.ShopId, h.UserId, 50));
+    }
+
+    [Fact]
+    public async Task Feedback_OnUserMessageIsRejected()
+    {
+        var h = new Harness();
+        await h.Service.AskAsync(h.ShopId, h.UserId, "baki taka koto?");
+        var history = await h.Service.GetHistoryAsync(h.ShopId, h.UserId, 50);
+        var userMessage = history.First(m => m.Role == "user");
+
+        Assert.Equal(Guid.Empty, userMessage.Id);
+        await Assert.ThrowsAsync<AppException>(() => h.Service.SubmitFeedbackAsync(h.ShopId, h.UserId,
+            new AssistantFeedbackRequest { MessageId = userMessage.Id, Rating = 1 }));
+    }
+
+    [Fact]
+    public async Task History_WithOddLimitStillReturnsCompleteExchange()
+    {
+        var h = new Harness();
+        await h.Service.AskAsync(h.ShopId, h.UserId, "baki taka koto?");
+
+        var history = await h.Service.GetHistoryAsync(h.ShopId, h.UserId, 1);
+
+        Assert.Equal(2, history.Count);
+        Assert.Equal("user", history[0].Role);
+        Assert.Equal("assistant", history[1].Role);
     }
 }

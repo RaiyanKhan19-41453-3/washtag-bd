@@ -122,7 +122,13 @@ public class ManagementServiceTests
     public async Task Billing_ChangePlanUpdatesPendingInvoiceAmounts()
     {
         var h = new Harness();
-        var invoice = new Invoice { ShopId = h.ShopId, InvoiceNumber = "INV-3", Amount = 500, Status = InvoiceStatus.Pending };
+        var invoice = new Invoice
+        {
+            ShopId = h.ShopId, InvoiceNumber = "INV-3", Amount = 500,
+            Status = InvoiceStatus.Pending,
+            PeriodFrom = DateTime.UtcNow.AddDays(-10),
+            PeriodTo = DateTime.UtcNow.AddDays(20)
+        };
         h.Db.Invoices.Add(invoice);
         await h.Db.SaveChangesAsync();
 
