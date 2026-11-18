@@ -1,0 +1,100 @@
+using Microsoft.EntityFrameworkCore;
+using Washtag.Application.Services;
+using Washtag.Domain.Entities;
+using Washtag.Domain.Enums;
+using Xunit;
+
+namespace Washtag.Application.Tests;
+
+public class AssistantServiceTests
+{
+    private sealed class Harness
+    {
+        public Guid ShopId { get; } = Guid.NewGuid();
+        public TestDbContext Db { get; }
+        public AssistantService Service { get; }
+
+        public Harness()
+        {
+            var options = new DbContextOptionsBuilder<TestDbContext>()
+                .UseInMemoryDatabase(Guid.NewGuid().ToString()).Options;
+            Db = new TestDbContext(options);
+            Service = new AssistantService(Db, new FakeVectors(), new FakeAi(), new FakeIndexer());
+        }
+
+        public void AddOrder(string customer, OrderStatus status, decimal total, decimal paid, DateTime created)
+        {
+            Db.Orders.Add(new Order
+            {
+                ShopId = ShopId,
+                OrderNumber = $"WT-{Db.Orders.Count() + 1:D5}",
+                CustomerName = customer,
+                CustomerPhone = "+880 1700-000000",
+                Status = status,
+                TotalAmount = total,
+                PaidAmount = paid,
+                PaymentStatus = paid >= total ? PaymentStatus.Paid : paid > 0 ? PaymentStatus.Partial : PaymentStatus.Unpaid,
+                CreatedAt = created,
+                UpdatedAt = created
+            });
+            Db.SaveChanges();
+        }
+    }
+
+    [Fact]
+    public async Task Ask_UnpaidQuestion_ReturnsGroundedTotal()
+    {
+        var h = new Harness();
+        h.AddOrder("Mr. Rahman", OrderStatus.Washing, 500, 100, DateTime.UtcNow.AddDays(-2));
+        h.AddOrder("Tasnim", OrderStatus.Ironing, 300, 300, DateTime.UtcNow.AddDays(-1));
+
+        var answer = await h.Service.AskAsync(h.ShopId, "What is the total unpaid bill for Mr. Rahman?");
+
+        Assert.Equal("unpaid", answer.Intent);
+        Assert.Contains("৳400", answer.Answer);
+        Assert.Contains("Mr. Rahman", answer.Answer);
+        Assert.False(answer.AiPhrased);
+    }
+
+    [Fact]
+    public async Task Ask_PickupDelay_UsesDayThreshold()
+    {
+        var h = new Harness();
+        h.AddOrder("Old Customer", OrderStatus.ReadyForPickup, 200, 0, DateTime.UtcNow.AddDays(-9));
+        h.AddOrder("Fresh Customer", OrderStatus.ReadyForPickup, 200, 0, DateTime.UtcNow.AddDays(-1));
+
+        var answer = await h.Service.AskAsync(h.ShopId,
+            "Show me all customers who haven't picked up their clothes in 5 days.");
+
+        Assert.Equal("pickup", answer.Intent);
+        Assert.Contains("Old Customer", answer.Answer);
+        Assert.Contains("1 order(s)", answer.Answer);
+        Assert.DoesNotContain("Fresh Customer", answer.Answer);
+    }
+
+    [Fact]
+    public async Task Ask_EnglishAndBanglish_ResolveToSamePickupIntent()
+    {
+        var h = new Harness();
+        h.AddOrder("Nadia", OrderStatus.ReadyForPickup, 200, 0, DateTime.UtcNow.AddDays(-8));
+
+        var english = await h.Service.AskAsync(h.ShopId, "orders waiting for pickup for 5 days");
+        var banglish = await h.Service.AskAsync(h.ShopId, "kapor 5 din dhore porchha?");
+
+        Assert.Equal("pickup", english.Intent);
+        Assert.Equal("pickup", banglish.Intent);
+        Assert.Contains("Nadia", banglish.Answer);
+    }
+
+    [Fact]
+    public async Task Ask_WithNoOrders_ReturnsSafeEmptyAnswer()
+    {
+        var h = new Harness();
+
+        var answer = await h.Service.AskAsync(h.ShopId, "baki taka koto?");
+
+        Assert.Equal("unpaid", answer.Intent);
+        Assert.Contains("no unpaid balances", answer.Answer, StringComparison.OrdinalIgnoreCase);
+        Assert.Empty(answer.Sources);
+    }
+}
