@@ -13,6 +13,11 @@ namespace Washtag.Api.Tests;
 
 public class ControllerTests
 {
+    private sealed class FakeIdempotencyStore : IIdempotencyStore
+    {
+        public bool TryClaim(string key, Guid shopId) => true;
+    }
+
     private static void Authenticate(ControllerBase controller, Guid shopId)
     {
         var identity = new ClaimsIdentity(new[]
@@ -35,7 +40,7 @@ public class ControllerTests
         var service = new Mock<IOrderService>();
         service.Setup(s => s.GetOrdersAsync(shopId, null, null, 1, 20))
             .ReturnsAsync(new PagedResult<OrderListDto> { Total = 0 });
-        var controller = new OrdersController(service.Object);
+        var controller = new OrdersController(service.Object, new FakeIdempotencyStore());
         Authenticate(controller, shopId);
 
         var result = await controller.List(null, null, 1, 20);
