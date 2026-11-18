@@ -65,6 +65,7 @@ services:
       PUBLIC_BASE_URL: ${PUBLIC_BASE_URL:-}
       ALLOWED_ORIGINS: ${ALLOWED_ORIGINS:-*}
       ADMIN_EMAILS: ${ADMIN_EMAILS:-demo@washtagbd.com}
+      ENABLE_SWAGGER: ${ENABLE_SWAGGER:-true}
     expose:
       - "8080"
     healthcheck:

@@ -139,7 +139,7 @@ The dependency rule points inward: `Api → Infrastructure → Application → D
 - QR receipts generated server-side with QRCoder (data URL + printable PNG); they encode the real public `/track/{token}` URL of whatever host serves the app, so they work on localhost, a VPS IP or a custom domain
 - Real-time push to both the owner dashboard and the customer tracking page
 - Health-checked dependencies with automatic restarts
-- Swagger UI at `/swagger`
+- Swagger UI at `/swagger` (enabled by the demo compose file; set `ENABLE_SWAGGER=false` for real deployments)
 
 ---
 
@@ -176,7 +176,7 @@ Both scripts read `POSTGRES_USER` / `POSTGRES_DB` from `.env` (with the compose 
 Everything is in one solution; .NET and Node are only needed if you want to develop outside Docker.
 
 ```bash
-dotnet test WashtagBD.sln          # 35 xUnit tests (use cases, billing, auth, assistant + controllers)
+dotnet test WashtagBD.sln          # 37 xUnit tests (use cases, billing, auth, assistant + controllers)
 cd frontend && npm run build       # production bundle check
 ```
 
@@ -242,6 +242,9 @@ ALLOWED_ORIGINS=https://wash.example.com
 
 # Comma-separated emails with platform-admin access (the demo owner by default)
 ADMIN_EMAILS=demo@washtagbd.com
+
+# Hide interactive API docs in production
+ENABLE_SWAGGER=false
 ```
 
 Access tokens live for 15 minutes; refresh tokens last 30 days, are stored hashed, and rotate on every use. The client refreshes transparently on a 401. Auth endpoints are rate-limited to 6 attempts per minute per IP. Team management, plan changes, invoice settlement and order cancellation require the Owner role; `/api/admin/*` requires the `isAdmin` claim.
