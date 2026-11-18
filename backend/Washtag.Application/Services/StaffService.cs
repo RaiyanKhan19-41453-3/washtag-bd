@@ -73,13 +73,13 @@ public class StaffService : IStaffService
 
         user.Name = request.Name.Trim();
         user.Phone = request.Phone?.Trim() ?? string.Empty;
-        if (user.IsActive && !request.IsActive)
+        if (request.IsActive.HasValue && user.IsActive && !request.IsActive.Value)
         {
             var tokens = await _db.RefreshTokens
                 .Where(t => t.UserId == userId && t.RevokedAt == null).ToListAsync(cancellationToken);
             foreach (var token in tokens) token.RevokedAt = DateTime.UtcNow;
         }
-        user.IsActive = request.IsActive;
+        if (request.IsActive.HasValue) user.IsActive = request.IsActive.Value;
         await _db.SaveChangesAsync(cancellationToken);
         return Map(user);
     }

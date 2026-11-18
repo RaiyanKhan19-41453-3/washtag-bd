@@ -121,7 +121,7 @@ public class OrderService : IOrderService
                 Name = item.Name.Trim(),
                 Service = string.IsNullOrWhiteSpace(item.Service) ? "Wash & Fold" : item.Service.Trim(),
                 Quantity = item.Quantity,
-                UnitPrice = item.UnitPrice,
+                UnitPrice = decimal.Round(item.UnitPrice, 2, MidpointRounding.AwayFromZero),
                 Notes = string.IsNullOrWhiteSpace(item.Notes) ? null : item.Notes.Trim()
             };
             order.Items.Add(line);

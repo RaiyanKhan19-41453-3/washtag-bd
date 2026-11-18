@@ -112,6 +112,8 @@ namespace Washtag.Infrastructure.Data.Migrations
 
                     b.HasKey("Id");
 
+                    b.HasIndex("UserId");
+
                     b.HasIndex("ShopId", "UserId", "CreatedAt");
 
                     b.ToTable("AssistantMessages");
@@ -487,6 +489,21 @@ namespace Washtag.Infrastructure.Data.Migrations
                         .IsRequired();
 
                     b.Navigation("Shop");
+                });
+
+            modelBuilder.Entity("Washtag.Domain.Entities.AssistantMessage", b =>
+                {
+                    b.HasOne("Washtag.Domain.Entities.Shop", null)
+                        .WithMany()
+                        .HasForeignKey("ShopId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("Washtag.Domain.Entities.AppUser", null)
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
                 });
 
             modelBuilder.Entity("Washtag.Domain.Entities.Customer", b =>

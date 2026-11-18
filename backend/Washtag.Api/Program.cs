@@ -190,8 +190,8 @@ app.MapControllers();
 app.MapHub<OrdersHub>("/hubs/orders");
 app.MapGet("/health", async (IServiceProvider services) =>
 {
-    if (!DbInitializer.InitializationSucceeded)
-        return Results.Json(new { status = "unhealthy", reason = "database initialization failed" }, statusCode: 503);
+    // Probe the live database rather than a one-shot startup flag: a transient
+    // boot failure should not mark a healthy deployment as permanently down.
     try
     {
         using var scope = services.CreateScope();

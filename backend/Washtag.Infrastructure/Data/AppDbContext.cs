@@ -92,6 +92,8 @@ public class AppDbContext : DbContext, IAppDbContext
         mb.Entity<AssistantMessage>(e =>
         {
             e.HasIndex(x => new { x.ShopId, x.UserId, x.CreatedAt });
+            e.HasOne<Shop>().WithMany().HasForeignKey(x => x.ShopId).OnDelete(DeleteBehavior.Cascade);
+            e.HasOne<AppUser>().WithMany().HasForeignKey(x => x.UserId).OnDelete(DeleteBehavior.Cascade);
         });
     }
 }

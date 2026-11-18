@@ -27,7 +27,7 @@ public class UpdateStaffRequest
 {
     [Required, MaxLength(100)] public string Name { get; set; } = string.Empty;
     [MaxLength(30)] public string Phone { get; set; } = string.Empty;
-    public bool IsActive { get; set; } = true;
+    public bool? IsActive { get; set; }
 }
 
 public class ChangePasswordRequest
