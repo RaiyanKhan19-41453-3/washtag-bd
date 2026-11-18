@@ -66,6 +66,24 @@ builder.Services.AddAuthentication(options =>
             if (!string.IsNullOrEmpty(token) && context.HttpContext.Request.Path.StartsWithSegments("/hubs"))
                 context.Token = token;
             return Task.CompletedTask;
+        },
+        // A deactivated account must not keep using an already-issued access token.
+        OnTokenValidated = async context =>
+        {
+            var db = context.HttpContext.RequestServices.GetRequiredService<IAppDbContext>();
+            var raw = context.Principal?.FindFirstValue(ClaimTypes.NameIdentifier)
+                      ?? context.Principal?.FindFirstValue("sub");
+            if (!Guid.TryParse(raw, out var userId))
+            {
+                context.Fail("Invalid token.");
+                return;
+            }
+            var user = await db.Users.AsNoTracking().Include(u => u.Shop)
+                .FirstOrDefaultAsync(u => u.Id == userId, context.HttpContext.RequestAborted);
+            if (user == null || !user.IsActive || !user.Shop.IsActive)
+                context.Fail("This account is inactive.");
+            else if (context.Principal?.FindFirstValue("ver") != TokenVersion.From(user.PasswordHash))
+                context.Fail("Password has changed.");
         }
     };
 });
@@ -142,7 +160,11 @@ builder.Services.AddRateLimiter(options =>
 builder.Services.Configure<ForwardedHeadersOptions>(options =>
 {
     options.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto;
-    options.KnownNetworks.Clear();
+    // Only trust X-Forwarded-For from private proxy networks; a client cannot
+    // mint a fresh rate-limit bucket by spoofing the header from the internet.
+    options.KnownNetworks.Add(new IPNetwork(System.Net.IPAddress.Parse("10.0.0.0"), 8));
+    options.KnownNetworks.Add(new IPNetwork(System.Net.IPAddress.Parse("172.16.0.0"), 12));
+    options.KnownNetworks.Add(new IPNetwork(System.Net.IPAddress.Parse("192.168.0.0"), 16));
     options.KnownProxies.Clear();
 });
 

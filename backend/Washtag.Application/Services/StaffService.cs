@@ -36,7 +36,8 @@ public class StaffService : IStaffService
             throw new AppException("Only staff accounts can be created from the team page.");
 
         var email = request.Email.Trim().ToLowerInvariant();
-        var existing = await _db.Users.FirstOrDefaultAsync(u => u.Email.ToLower() == email, cancellationToken);
+        var existing = await _db.Users.FirstOrDefaultAsync(
+            u => u.ShopId == shopId && u.Email.ToLower() == email, cancellationToken);
         if (existing != null)
         {
             if (existing.IsActive || existing.Role != UserRole.Staff)

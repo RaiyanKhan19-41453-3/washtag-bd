@@ -34,7 +34,8 @@ public class JwtTokenGenerator : IJwtTokenGenerator
             new Claim(ClaimTypes.Email, user.Email),
             new Claim("role", user.Role.ToString()),
             new Claim(ClaimTypes.Role, user.Role.ToString()),
-            new Claim("isAdmin", _admin.IsAdmin(user.Email) ? "true" : "false")
+            new Claim("isAdmin", _admin.IsAdmin(user.Email) ? "true" : "false"),
+            new Claim("ver", TokenVersion.From(user.PasswordHash))
         };
 
         var token = new JwtSecurityToken(

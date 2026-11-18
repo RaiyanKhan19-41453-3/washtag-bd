@@ -28,6 +28,8 @@ public class AuthService : IAuthService
     public async Task<AuthResponse> RegisterAsync(RegisterRequest request)
     {
         var email = request.Email.Trim().ToLowerInvariant();
+        if (_admin.IsAdmin(email))
+            throw new AppException("This email address is reserved for platform administration.");
         if (await _db.Users.AnyAsync(u => u.Email.ToLower() == email))
             throw new AppException("An account with this email already exists.");
 
