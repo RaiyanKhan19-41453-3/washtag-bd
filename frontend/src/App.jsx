@@ -15,6 +15,7 @@ import Loader from './components/Loader';
 import Customers from './pages/Customers';
 import Settings from './pages/Settings';
 import Assistant from './pages/Assistant';
+import PrintReceipt from './pages/PrintReceipt';
 import Track from './pages/Track';
 import NotFound from './pages/NotFound';
 
@@ -31,6 +32,7 @@ export default function App() {
             <Route path="/login" element={<Login />} />
             <Route path="/register" element={<Register />} />
             <Route path="/track/:token" element={<Track />} />
+            <Route path="/print/:token" element={<PrintReceipt />} />
             <Route path="/t/:token" element={<Track />} />
 
             <Route element={<ProtectedRoute />}>

@@ -3,7 +3,7 @@ import { Link, useNavigate, useParams } from 'react-router-dom';
 import {
   ArrowLeft, Package, UserRound, Phone, CalendarDays, StickyNote,
   QrCode, Copy, ExternalLink, CheckCircle2, XCircle, CircleDollarSign,
-  Printer, Clock3, RefreshCw, Download
+  Printer, Clock3, RefreshCw
 } from 'lucide-react';
 import api from '../api/client';
 import { useRealtime } from '../hooks/useRealtime';
@@ -185,7 +185,7 @@ export default function OrderDetail() {
             <div className="qr-order-no">#{order.orderNumber}</div>
             <div className="qr-actions">
               <button className="btn btn-outline btn-sm" onClick={copyLink}><Copy size={15} /> Copy link</button>
-              <a className="btn btn-outline btn-sm" href={`/api/orders/${order.id}/qr`} target="_blank" rel="noreferrer"><Download size={15} /> Print QR</a>
+              <Link className="btn btn-outline btn-sm" to={`/print/${order.publicToken}`}><Printer size={15} /> Print receipt</Link>
               <a className="btn btn-outline btn-sm" href={link} target="_blank" rel="noreferrer"><ExternalLink size={15} /> Preview</a>
             </div>
           </section>

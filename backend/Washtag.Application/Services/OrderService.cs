@@ -481,6 +481,7 @@ public class OrderService : IOrderService
         {
             Token = order.PublicToken.ToString(),
             OrderNumber = order.OrderNumber,
+            CustomerName = order.CustomerName,
             Status = order.Status,
             PaymentStatus = order.PaymentStatus,
             CreatedAt = order.CreatedAt,

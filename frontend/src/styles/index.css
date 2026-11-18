@@ -671,6 +671,38 @@ button:disabled { cursor: not-allowed; opacity: .55; }
 .assistant-health.healthy { color: var(--emerald); background: #ecfdf5; }
 .assistant-prompts { display: flex; flex-direction: column; gap: 7px; }
 
+/* ---------- 80mm thermal receipt ---------- */
+.print-wrapper { min-height: 100vh; padding: 24px 16px 40px; display: flex; flex-direction: column; align-items: center; gap: 18px; background: #e9eef3; }
+.print-toolbar { width: 100%; max-width: 420px; display: flex; justify-content: space-between; gap: 12px; }
+.receipt-paper {
+  width: 80mm; max-width: 80mm; min-height: 100mm; background: #fff; color: #000;
+  padding: 4mm 3mm; box-shadow: 0 8px 30px rgba(15, 23, 42, .18);
+  font-family: 'Courier New', ui-monospace, monospace; font-size: 10px; line-height: 1.45;
+}
+.receipt-shop { text-align: center; }
+.receipt-shop strong { display: block; font-size: 13px; letter-spacing: .02em; }
+.receipt-shop span { display: block; font-size: 9px; }
+.receipt-divider { border-top: 1px dashed #000; margin: 3mm 0; }
+.receipt-line, .receipt-item { display: flex; justify-content: space-between; gap: 6px; }
+.receipt-line span { color: #333; }
+.receipt-items { display: flex; flex-direction: column; gap: 2px; }
+.receipt-item span:first-child { flex: 1; }
+.receipt-total { display: flex; justify-content: space-between; font-size: 12px; }
+.receipt-payment { margin-top: 2px; text-transform: uppercase; }
+.receipt-qr { margin: 4mm 0 2mm; text-align: center; }
+.receipt-qr .qr-wrap { margin: 0 auto; border: 0; padding: 0; width: 150px !important; height: 150px !important; }
+.receipt-qr p { font-weight: 700; font-size: 10px; margin-top: 2mm; }
+.receipt-qr small { font-size: 7px; word-break: break-all; display: block; margin-top: 1mm; }
+.receipt-footer { text-align: center; font-size: 8px; }
+
+@page { size: 80mm auto; margin: 0; }
+@media print {
+  body { background: #fff !important; }
+  .no-print, .print-toolbar, .toast-stack { display: none !important; }
+  .print-wrapper { padding: 0; background: #fff; display: block; min-height: 0; }
+  .receipt-paper { box-shadow: none; width: 80mm; max-width: none; margin: 0; padding: 3mm 2mm; }
+}
+
 /* ---------- Responsive ---------- */
 @media (max-width: 1100px) {
   .stat-grid { grid-template-columns: repeat(2, 1fr); }
