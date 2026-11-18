@@ -1,0 +1,85 @@
+name: washtag-bd
+
+services:
+  postgres:
+    image: pgvector/pgvector:pg16
+    container_name: washtag_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-washtag}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-washtag_secret}
+      POSTGRES_DB: ${POSTGRES_DB:-washtagdb}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-washtag} -d ${POSTGRES_DB:-washtagdb}"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+    networks:
+      - washtag
+
+  redis:
+    image: redis:7-alpine
+    container_name: washtag_redis
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - redisdata:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+    networks:
+      - washtag
+
+  api:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: washtag_api
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      ASPNETCORE_HTTP_PORTS: 8080
+      ASPNETCORE_ENVIRONMENT: Production
+      ConnectionStrings__Postgres: Host=postgres;Port=5432;Database=${POSTGRES_DB:-washtagdb};Username=${POSTGRES_USER:-washtag};Password=${POSTGRES_PASSWORD:-washtag_secret};SSL Mode=Disable;Trust Server Certificate=true
+      ConnectionStrings__Redis: redis:6379
+      JWT_SECRET: ${JWT_SECRET:-washtagbd-development-secret-change-this-in-production-2026}
+      JWT_ISSUER: WashtagBD
+      JWT_AUDIENCE: WashtagBDClient
+      SEED_DEMO_DATA: ${SEED_DEMO_DATA:-true}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      OPENAI_BASE_URL: ${OPENAI_BASE_URL:-https://api.openai.com/v1}
+      OPENAI_EMBEDDING_MODEL: ${OPENAI_EMBEDDING_MODEL:-text-embedding-3-small}
+      OPENAI_CHAT_MODEL: ${OPENAI_CHAT_MODEL:-gpt-4o-mini}
+    expose:
+      - "8080"
+    networks:
+      - washtag
+
+  web:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: washtag_web
+    restart: unless-stopped
+    depends_on:
+      - api
+    ports:
+      - "${APP_PORT:-8081}:80"
+    networks:
+      - washtag
+
+volumes:
+  pgdata:
+  redisdata:
+
+networks:
+  washtag:
+    driver: bridge
