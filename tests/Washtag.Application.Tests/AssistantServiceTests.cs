@@ -90,6 +90,18 @@ public class AssistantServiceTests
     }
 
     [Fact]
+    public async Task Ask_TotalOrderCountIncludesCancelledOrders()
+    {
+        var h = new Harness();
+        h.AddOrder("Active", OrderStatus.Received, 100, 0, DateTime.UtcNow.AddDays(-1));
+        h.AddOrder("Gone", OrderStatus.Cancelled, 200, 0, DateTime.UtcNow.AddDays(-1));
+
+        var answer = await h.Service.AskAsync(h.ShopId, h.UserId, "how many orders do I have?");
+
+        Assert.Contains("2 total order(s)", answer.Answer);
+    }
+
+    [Fact]
     public async Task Ask_MonthCollectionQuestion_UsesRevenueIntent()
     {
         var h = new Harness();

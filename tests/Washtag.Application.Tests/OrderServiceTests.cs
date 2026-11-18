@@ -113,6 +113,18 @@ public class OrderServiceTests
     }
 
     [Fact]
+    public async Task BackwardStatusTransitionIsRejected()
+    {
+        var h = new Harness();
+        var order = await h.NewOrder();
+        await h.Service.UpdateStatusAsync(h.ShopId, order.Id,
+            new UpdateStatusRequest { Status = OrderStatus.Washing }, "Tester");
+
+        await Assert.ThrowsAsync<AppException>(() => h.Service.UpdateStatusAsync(h.ShopId, order.Id,
+            new UpdateStatusRequest { Status = OrderStatus.Received }, "Tester"));
+    }
+
+    [Fact]
     public async Task DeliveredRequiresFullPayment()
     {
         var h = new Harness();
