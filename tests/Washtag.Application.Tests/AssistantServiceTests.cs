@@ -90,6 +90,33 @@ public class AssistantServiceTests
     }
 
     [Fact]
+    public async Task Ask_MonthCollectionQuestion_UsesRevenueIntent()
+    {
+        var h = new Harness();
+        h.AddOrder("Tasnim", OrderStatus.Delivered, 500, 500, DateTime.UtcNow.AddDays(-2));
+
+        var answer = await h.Service.AskAsync(h.ShopId, h.UserId, "this month collection?");
+
+        Assert.Equal("revenue", answer.Intent);
+        Assert.Contains("this month", answer.Answer);
+    }
+
+    [Fact]
+    public async Task Ask_BanglishCustomerNameAtStart_IsExtracted()
+    {
+        var h = new Harness();
+        h.AddOrder("Tasnim Rahman", OrderStatus.Washing, 500, 100, DateTime.UtcNow.AddDays(-1));
+        h.AddOrder("Other Customer", OrderStatus.Washing, 900, 0, DateTime.UtcNow.AddDays(-1));
+
+        var answer = await h.Service.AskAsync(h.ShopId, h.UserId, "Tasnim Rahman er baki?");
+
+        Assert.Equal("unpaid", answer.Intent);
+        Assert.Contains("Tasnim Rahman", answer.Answer);
+        Assert.Contains("৳400", answer.Answer);
+        Assert.DoesNotContain("Other Customer", answer.Answer);
+    }
+
+    [Fact]
     public async Task Ask_BengaliScriptQuestion_ResolvesToUnpaidIntent()
     {
         var h = new Harness();
