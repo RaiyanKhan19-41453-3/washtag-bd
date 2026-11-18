@@ -75,7 +75,7 @@ To disable demo data, set `SEED_DEMO_DATA=false` in `.env` and recreate the `pgd
 Single entry point: nginx serves the SPA and reverse-proxies `/api/*` and `/hubs/*` to the API, so the browser has no CORS or mixed-origin issues.
 
 ```
-Browser ──> web (nginx :8080) ──> /api/*  ──> api (:8080) ──> postgres
+Browser ──> web (nginx :8081) ──> /api/*  ──> api (:8080) ──> postgres
                               └─> /hubs/* ──> api (SignalR)
 ```
 
@@ -132,7 +132,7 @@ The dependency rule points inward: `Api → Infrastructure → Application → D
 
 **Bengali UI**
 - `EN / বাং` toggle in the sidebar, login and customer tracking page; persists per browser
-- Documents, navigation, dashboard, order statuses, assistant and tracking page are translated; anything not yet translated falls back to English
+- Navigation, dashboard, order statuses, assistant chrome and the customer tracking page are translated; other screens still use English with automatic fallback per string (contributions to `frontend/src/i18n/translations.js` welcome)
 
 **Platform**
 - Multi-tenant isolation
@@ -266,13 +266,13 @@ AI_GATEWAY_EMBEDDING_MODEL=text-embedding-3-small
 AI_GATEWAY_CHAT_MODEL=gpt-4o-mini
 ```
 
-The embedding dimension stays at 384 in every mode, so the pgvector column never needs changing. If an API call fails, the assistant automatically falls back to the offline path. Conversations and feedback are stored per user in `AssistantMessages`.
+`/api/assistant/ask` and `/api/assistant/reindex` are limited to 20 requests/minute per user to bound AI costs. The embedding dimension stays at 384 in every mode, so the pgvector column never needs changing. If an API call fails, the assistant automatically falls back to the offline path. Conversations and feedback are stored per user in `AssistantMessages`.
 
 ---
 
 ## Production checklist
 
-- Set a strong `JWT_SECRET` in `.env` — the API refuses to reuse the public development default in Production and generates an ephemeral secret instead (tokens reset on restart).
+- Set a strong `JWT_SECRET` in `.env` — the API refuses to reuse the public development default in Production and generates an ephemeral secret instead. Without a real secret, every production restart signs a new key and logs all users out.
 - Change `POSTGRES_PASSWORD`.
 - Set `SEED_DEMO_DATA=false` so known demo passwords are not created on a real deployment.
 - Set `PUBLIC_BASE_URL` to your public origin so QR codes never depend on request `Host` headers.
