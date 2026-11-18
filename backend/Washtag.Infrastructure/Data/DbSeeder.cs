@@ -184,8 +184,11 @@ public static class DbInitializer
         var logger = scope.ServiceProvider.GetRequiredService<ILoggerFactory>().CreateLogger("DbInitializer");
         try
         {
-            db.Database.EnsureCreated();
-            logger.LogInformation("Database ready.");
+            var pending = (await db.Database.GetPendingMigrationsAsync()).ToList();
+            if (pending.Count > 0)
+                logger.LogInformation("Applying {Count} database migration(s): {Migrations}", pending.Count, string.Join(", ", pending));
+            db.Database.Migrate();
+            logger.LogInformation("Database migrations applied.");
             if (seedDemo)
             {
                 if (isProduction)
