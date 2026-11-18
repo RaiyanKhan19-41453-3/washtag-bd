@@ -132,6 +132,9 @@ public sealed class FakeRefreshTokenStore : IRefreshTokenStore
     public Task SetReplacedByAsync(string oldHash, string newHash, CancellationToken cancellationToken = default) =>
         Task.CompletedTask;
     public Task PurgeExpiredAsync(CancellationToken cancellationToken = default) => Task.CompletedTask;
+    public Task<Guid?> RotateAsync(string oldHash, string newHash, DateTime expiresAt,
+        CancellationToken cancellationToken = default) =>
+        Task.FromResult(_claims.Count > 0 ? _claims.Dequeue() : (Guid?)null);
 
     public void Seed(Guid userId) => _claims.Enqueue(userId);
 }
@@ -157,6 +160,49 @@ public sealed class FakePaymentStore : IPaymentStore
             OrderId = orderId, Amount = amount, Method = method, Reference = reference,
             RecordedBy = recordedBy, CreatedAt = DateTime.UtcNow
         });
+        await _db.SaveChangesAsync(cancellationToken);
+        return true;
+    }
+}
+
+public sealed class FakeInvoiceStore : IInvoiceStore
+{
+    private readonly TestDbContext _db;
+    public FakeInvoiceStore(TestDbContext db) => _db = db;
+
+    public async Task<bool> SettleAsync(Guid shopId, Guid invoiceId, PaymentMethod method, string? reference,
+        decimal monthlyPrice, CancellationToken cancellationToken = default)
+    {
+        var invoice = await _db.Invoices.FirstOrDefaultAsync(
+            i => i.Id == invoiceId && i.ShopId == shopId &&
+                 (i.Status == InvoiceStatus.Pending || i.Status == InvoiceStatus.Overdue), cancellationToken);
+        if (invoice == null) return false;
+
+        invoice.Status = InvoiceStatus.Paid;
+        invoice.PaidAt = DateTime.UtcNow;
+        invoice.Method = method;
+        invoice.Reference = reference;
+        var remaining = await _db.Invoices.CountAsync(
+            i => i.ShopId == shopId && i.Id != invoiceId &&
+                 i.Status != InvoiceStatus.Paid && i.Status != InvoiceStatus.Cancelled, cancellationToken);
+        if (remaining == 0)
+        {
+            var shop = await _db.Shops.FirstOrDefaultAsync(s => s.Id == shopId, cancellationToken);
+            if (shop != null)
+            {
+                shop.SubscriptionStatus = SubscriptionStatus.Active;
+                var now = DateTime.UtcNow;
+                shop.SubscriptionStartedAt = now;
+                shop.SubscriptionEndsAt = now.AddMonths(1);
+                _db.Invoices.Add(new Invoice
+                {
+                    ShopId = shopId,
+                    InvoiceNumber = $"INV-{now:yyyyMM}-{Guid.NewGuid().ToString("N")[..8]}",
+                    PeriodFrom = now, PeriodTo = now.AddMonths(1),
+                    Amount = monthlyPrice, Status = InvoiceStatus.Pending
+                });
+            }
+        }
         await _db.SaveChangesAsync(cancellationToken);
         return true;
     }

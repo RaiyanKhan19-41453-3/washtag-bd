@@ -30,7 +30,7 @@ public class ManagementServiceTests
     }
 
     private static StaffService Staff(Harness h) => new(h.Db);
-    private static BillingService Billing(Harness h) => new(h.Db);
+    private static BillingService Billing(Harness h) => new(h.Db, new FakeInvoiceStore(h.Db));
 
     [Fact]
     public async Task Staff_CreateHashesPasswordAndScopesAccountToShop()
