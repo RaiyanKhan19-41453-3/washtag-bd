@@ -26,6 +26,8 @@ export default function Assistant() {
   const [status, setStatus] = useState(null);
   const recognitionRef = useRef(null);
   const bottomRef = useRef(null);
+  const busyRef = useRef(false);
+  const askRef = useRef(null);
   const toast = useToast();
 
   useEffect(() => {
@@ -38,12 +40,13 @@ export default function Assistant() {
 
   const ask = async (text) => {
     const prompt = (text || question).trim();
-    if (!prompt || busy) return;
+    if (!prompt || busyRef.current) return;
+    busyRef.current = true;
     setMessages((current) => [...current, { role: 'user', text: prompt }]);
     setQuestion('');
     setBusy(true);
     try {
-      const { data } = await api.post('/assistant/ask', { question: prompt });
+      const { data } = await api.post('/assistant/ask', { question: prompt }, { timeout: 60000 });
       setMessages((current) => [...current, { role: 'assistant', ...data }]);
     } catch (error) {
       setMessages((current) => [
@@ -51,9 +54,15 @@ export default function Assistant() {
         { role: 'assistant', answer: `Sorry, I could not answer that. ${error.message}` }
       ]);
     } finally {
+      busyRef.current = false;
       setBusy(false);
     }
   };
+  askRef.current = ask;
+
+  useEffect(() => () => {
+    try { recognitionRef.current?.abort(); } catch { /* ignore */ }
+  }, []);
 
   const toggleMic = () => {
     if (listening) {
@@ -74,7 +83,7 @@ export default function Assistant() {
       recognition.onresult = (event) => {
         const transcript = event.results[0][0].transcript;
         setQuestion(transcript);
-        ask(transcript);
+        askRef.current?.(transcript);
       };
       recognition.onerror = () => {
         setListening(false);
@@ -91,7 +100,7 @@ export default function Assistant() {
 
   const reindex = async () => {
     try {
-      const { data } = await api.post('/assistant/reindex');
+      const { data } = await api.post('/assistant/reindex', null, { timeout: 120000 });
       toast.success(`Index refreshed — ${data.documents} document(s) ready.`);
       const { data: fresh } = await api.get('/assistant/status');
       setStatus(fresh);

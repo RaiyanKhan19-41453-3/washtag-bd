@@ -20,11 +20,15 @@ export function useRealtime({ token = null, group = { type: 'shop' }, onUpdate, 
 
     connection.on('OrderUpdated', (payload) => callbackRef.current?.(payload));
 
+    const join = () => group.type === 'token' && group.value
+      ? connection.invoke('JoinTokenGroup', group.value)
+      : connection.invoke('JoinShopGroup');
+
+    // A reconnect gets a new ConnectionId, so token groups must be rejoined.
+    connection.onreconnected(() => { join().catch(() => {}); });
+
     connection.start()
-      .then(() => {
-        if (group.type === 'token' && group.value) return connection.invoke('JoinTokenGroup', group.value);
-        return connection.invoke('JoinShopGroup');
-      })
+      .then(join)
       .catch(() => { /* Polling fallback keeps the UI fresh. */ });
 
     return () => {

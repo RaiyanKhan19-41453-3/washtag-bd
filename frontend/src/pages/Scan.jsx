@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Html5Qrcode } from 'html5-qrcode';
 import { ScanLine, Camera, Keyboard, ArrowRight, CheckCircle2, Clock3, Package, UserRound } from 'lucide-react';
@@ -45,6 +45,10 @@ export default function Scan() {
     }
   }, [toast]);
 
+  // Keep the scanner stable: a toast rerender must not restart the camera.
+  const lookupRef = useRef(lookup);
+  lookupRef.current = lookup;
+
   useEffect(() => {
     if (!scanning || mode !== 'camera') return undefined;
     let scanner;
@@ -53,7 +57,7 @@ export default function Scan() {
       scanner.start(
         { facingMode: 'environment' },
         { fps: 10, qrbox: 230 },
-        (decoded) => { lookup(decoded); },
+        (decoded) => { lookupRef.current(decoded); },
         () => {}
       ).catch(() => {
         setCameraError('Camera unavailable. Check browser permissions or enter the code manually.');
@@ -64,9 +68,11 @@ export default function Scan() {
       setScanning(false);
     }
     return () => {
-      try { scanner?.stop().catch(() => {}); } catch { /* ignore */ }
+      try {
+        scanner?.stop().then(() => scanner.clear()).catch(() => {});
+      } catch { /* ignore */ }
     };
-  }, [scanning, mode, lookup]);
+  }, [scanning, mode]);
 
   const updateStatus = async (status) => {
     setBusy(true);
