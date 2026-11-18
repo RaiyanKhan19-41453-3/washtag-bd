@@ -1,6 +1,7 @@
 using System.Security.Cryptography;
 using System.Text.Json.Serialization;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 using System.Text;
@@ -111,6 +112,20 @@ app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();
 app.MapHub<OrdersHub>("/hubs/orders");
+app.MapGet("/health", async (IServiceProvider services) =>
+{
+    try
+    {
+        using var scope = services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<IAppDbContext>();
+        await db.Shops.AnyAsync();
+        return Results.Json(new { status = "healthy", checkedAt = DateTime.UtcNow });
+    }
+    catch
+    {
+        return Results.Json(new { status = "unhealthy" }, statusCode: 503);
+    }
+}).AllowAnonymous();
 
 var seedFlag = Environment.GetEnvironmentVariable("SEED_DEMO_DATA")
     ?? builder.Configuration["SEED_DEMO_DATA"] ?? "true";
