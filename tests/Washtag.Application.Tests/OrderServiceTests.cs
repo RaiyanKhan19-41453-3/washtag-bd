@@ -25,7 +25,7 @@ public class OrderServiceTests
             Db.Shops.Add(new Washtag.Domain.Entities.Shop { Id = ShopId, Name = "Test Shop" });
             Db.SaveChanges();
             Service = new OrderService(Db, Notifier, new FakeCache(), new FakeQr(),
-                new FakeUrls(), Indexer, new FakeNumbers(), new FakeCustomerStore());
+                new FakeUrls(), Indexer, new FakeNumbers(), new FakeCustomerStore(), new FakePaymentStore(Db));
         }
 
         public Task<OrderDetailDto> NewOrder(string customer = "Test Customer", decimal price = 100, int quantity = 2) =>

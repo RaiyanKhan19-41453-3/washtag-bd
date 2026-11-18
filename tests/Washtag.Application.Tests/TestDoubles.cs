@@ -2,6 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using Washtag.Application.DTOs;
 using Washtag.Application.Interfaces;
 using Washtag.Domain.Entities;
+using Washtag.Domain.Enums;
 
 namespace Washtag.Application.Tests;
 
@@ -121,6 +122,32 @@ public sealed class FakeRefreshTokenStore : IRefreshTokenStore
         Task.CompletedTask;
 
     public void Seed(Guid userId) => _claims.Enqueue(userId);
+}
+
+public sealed class FakePaymentStore : IPaymentStore
+{
+    private readonly TestDbContext _db;
+    public FakePaymentStore(TestDbContext db) => _db = db;
+
+    public async Task<bool> RecordAsync(Guid shopId, Guid orderId, decimal amount, PaymentMethod method,
+        string? reference, string recordedBy, CancellationToken cancellationToken = default)
+    {
+        var order = await _db.Orders.FindAsync(new object[] { orderId }, cancellationToken);
+        if (order == null || order.ShopId != shopId ||
+            order.Status is OrderStatus.Delivered or OrderStatus.Cancelled ||
+            order.TotalAmount - order.PaidAmount < amount) return false;
+
+        order.PaidAmount += amount;
+        order.PaymentStatus = order.PaidAmount >= order.TotalAmount ? PaymentStatus.Paid : PaymentStatus.Partial;
+        order.UpdatedAt = DateTime.UtcNow;
+        _db.Payments.Add(new Payment
+        {
+            OrderId = orderId, Amount = amount, Method = method, Reference = reference,
+            RecordedBy = recordedBy, CreatedAt = DateTime.UtcNow
+        });
+        await _db.SaveChangesAsync(cancellationToken);
+        return true;
+    }
 }
 
 public sealed class FakeAdminSettings : IAdminSettings
