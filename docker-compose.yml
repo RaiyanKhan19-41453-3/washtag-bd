@@ -63,9 +63,9 @@ services:
       AI_GATEWAY_EMBEDDING_MODEL: ${AI_GATEWAY_EMBEDDING_MODEL:-text-embedding-3-small}
       AI_GATEWAY_CHAT_MODEL: ${AI_GATEWAY_CHAT_MODEL:-gpt-4o-mini}
       PUBLIC_BASE_URL: ${PUBLIC_BASE_URL:-}
-      ALLOWED_ORIGINS: ${ALLOWED_ORIGINS:-*}
+      ALLOWED_ORIGINS: ${ALLOWED_ORIGINS:-http://localhost:8081}
       ADMIN_EMAILS: ${ADMIN_EMAILS:-demo@washtagbd.com}
-      ENABLE_SWAGGER: ${ENABLE_SWAGGER:-true}
+      ENABLE_SWAGGER: ${ENABLE_SWAGGER:-false}
     expose:
       - "8080"
     healthcheck:

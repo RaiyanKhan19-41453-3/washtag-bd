@@ -12,8 +12,13 @@ namespace Washtag.Api.Controllers;
 public class OrdersController : ControllerBase
 {
     private readonly IOrderService _orders;
+    private readonly IIdempotencyStore _idempotency;
 
-    public OrdersController(IOrderService orders) => _orders = orders;
+    public OrdersController(IOrderService orders, IIdempotencyStore idempotency)
+    {
+        _orders = orders;
+        _idempotency = idempotency;
+    }
 
     private Guid ShopId => Guid.Parse(User.FindFirstValue("shopId")!);
     private string Actor => User.FindFirstValue(ClaimTypes.Name) ?? "Staff";
@@ -48,6 +53,9 @@ public class OrdersController : ControllerBase
     public async Task<IActionResult> Create([FromBody] CreateOrderRequest request)
     {
         if (!ModelState.IsValid) return ValidationProblem(ModelState);
+        var key = Request.Headers["Idempotency-Key"].FirstOrDefault();
+        if (!string.IsNullOrWhiteSpace(key) && !_idempotency.TryClaim(key, ShopId))
+            return Conflict(new { message = "Duplicate request. This order was already created." });
         var result = await _orders.CreateOrderAsync(ShopId, request, Actor);
         return CreatedAtAction(nameof(Get), new { id = result.Id }, result);
     }
