@@ -28,7 +28,7 @@ export const SERVICES = ['Wash & Fold', 'Wash & Iron', 'Dry Clean', 'Iron Only',
 
 export function money(value) {
   const n = Number(value || 0);
-  return `৳${n.toLocaleString('en-BD', { maximumFractionDigits: 0 })}`;
+  return `৳${n.toLocaleString('en-BD', { minimumFractionDigits: 0, maximumFractionDigits: 2 })}`;
 }
 
 export function formatDate(value, options = {}) {

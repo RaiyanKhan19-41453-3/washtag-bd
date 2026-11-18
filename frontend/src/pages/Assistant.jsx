@@ -157,13 +157,13 @@ export default function Assistant() {
               <span className="chat-header-icon"><WandSparkles size={20} /></span>
               <div>
                 <strong>WashTag Assistant</strong>
-                <small>{status?.VectorReady ? t('Vector index online') : t('Using database facts')} · {status?.Provider || 'Connecting…'}</small>
+                <small>{status?.vectorReady ? t('Vector index online') : t('Using database facts')} · {status?.provider || 'Connecting…'}</small>
               </div>
             </div>
             <div className="chat-header-actions">
               {status && (
-                <span className={`badge ${status.VectorReady ? 'payment-Paid' : 'payment-Partial'}`}>
-                  <i className="badge-dot" /> {status.DocumentCount} docs
+                <span className={`badge ${status.vectorReady ? 'payment-Paid' : 'payment-Partial'}`}>
+                  <i className="badge-dot" /> {status.documentCount} docs
                 </span>
               )}
               <button className="icon-btn" onClick={clearHistory} title={t('Clear history')}><Trash2 size={16} /></button>
@@ -267,19 +267,19 @@ export default function Assistant() {
             <div className="panel-heading"><Database size={19} /><h3>Knowledge base</h3></div>
             <div className="assistant-stat">
               <span>Indexed documents</span>
-              <strong>{status?.DocumentCount ?? '—'}</strong>
+              <strong>{status?.documentCount ?? '—'}</strong>
             </div>
             <div className="assistant-stat">
               <span>Embeddings</span>
-              <strong className="small-value">{status?.EmbeddingModel || '—'}</strong>
+              <strong className="small-value">{status?.embeddingModel || '—'}</strong>
             </div>
             <div className="assistant-stat">
               <span>Answer engine</span>
-              <strong className="small-value">{status?.Provider || '—'}</strong>
+              <strong className="small-value">{status?.provider || '—'}</strong>
             </div>
-            <div className={`assistant-health ${status?.VectorReady ? 'healthy' : ''}`}>
-              {status?.VectorReady ? <CircleCheck size={16} /> : <CircleAlert size={16} />}
-              {status?.VectorReady ? 'pgvector search is live' : (status?.Message || 'Checking index…')}
+            <div className={`assistant-health ${status?.vectorReady ? 'healthy' : ''}`}>
+              {status?.vectorReady ? <CircleCheck size={16} /> : <CircleAlert size={16} />}
+              {status?.vectorReady ? 'pgvector search is live' : (status?.message || 'Checking index…')}
             </div>
             <button className="btn btn-outline btn-sm btn-block" onClick={reindex}>
               <RefreshCw size={15} /> Rebuild index

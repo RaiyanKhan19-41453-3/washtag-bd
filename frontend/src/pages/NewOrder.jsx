@@ -15,7 +15,9 @@ export default function NewOrder() {
   const [busy, setBusy] = useState(false);
   const toast = useToast();
   const navigate = useNavigate();
-  const idempotencyKey = useRef(crypto.randomUUID());
+  const idempotencyKey = useRef(
+    crypto.randomUUID?.() ?? `${Date.now()}-${Math.random().toString(36).slice(2)}`
+  );
 
   useEffect(() => {
     api.get('/customers').then(({ data }) => setCustomers(data)).catch(() => {});
