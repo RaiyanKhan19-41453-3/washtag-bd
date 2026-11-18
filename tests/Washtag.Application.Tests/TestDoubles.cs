@@ -61,12 +61,17 @@ public sealed class FakeUrls : ITrackingUrlProvider
 public sealed class FakeIndexer : IDocumentIndexer
 {
     public int IndexCalls { get; private set; }
+    public int ReindexCalls { get; private set; }
     public Task IndexOrderAsync(Order order, CancellationToken cancellationToken = default)
     {
         IndexCalls++;
         return Task.CompletedTask;
     }
-    public Task ReindexShopAsync(Guid shopId, CancellationToken cancellationToken = default) => Task.CompletedTask;
+    public Task ReindexShopAsync(Guid shopId, CancellationToken cancellationToken = default)
+    {
+        ReindexCalls++;
+        return Task.CompletedTask;
+    }
 }
 
 public sealed class FakeNumbers : IOrderNumberGenerator
@@ -120,6 +125,7 @@ public sealed class FakeRefreshTokenStore : IRefreshTokenStore
 
     public Task SetReplacedByAsync(string oldHash, string newHash, CancellationToken cancellationToken = default) =>
         Task.CompletedTask;
+    public Task PurgeExpiredAsync(CancellationToken cancellationToken = default) => Task.CompletedTask;
 
     public void Seed(Guid userId) => _claims.Enqueue(userId);
 }

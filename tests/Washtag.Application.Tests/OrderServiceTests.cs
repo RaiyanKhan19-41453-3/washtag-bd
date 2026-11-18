@@ -54,7 +54,7 @@ public class OrderServiceTests
         Assert.Single(order.StatusHistory);
         Assert.NotEqual(Guid.Empty, Guid.Parse(order.PublicToken));
         Assert.Equal(1, h.Notifier.Calls);
-        Assert.Equal(1, h.Indexer.IndexCalls);
+        Assert.Equal(1, h.Indexer.ReindexCalls);
         Assert.Contains("data:image/png", order.QrDataUrl);
     }
 

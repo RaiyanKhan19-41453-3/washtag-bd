@@ -122,6 +122,25 @@ public class ManagementServiceTests
     }
 
     [Fact]
+    public async Task Billing_ExpiredPendingInvoiceBecomesOverdue()
+    {
+        var h = new Harness();
+        h.Db.Invoices.Add(new Invoice
+        {
+            ShopId = h.ShopId, InvoiceNumber = "INV-OLD", Amount = 500,
+            Status = InvoiceStatus.Pending,
+            PeriodFrom = DateTime.UtcNow.AddDays(-40),
+            PeriodTo = DateTime.UtcNow.AddDays(-10)
+        });
+        await h.Db.SaveChangesAsync();
+
+        var overview = await Billing(h).GetOverviewAsync(h.ShopId);
+
+        Assert.Equal(InvoiceStatus.Overdue, overview.Invoices.Single().Status);
+        Assert.Equal(SubscriptionStatus.PastDue, overview.Status);
+    }
+
+    [Fact]
     public async Task Billing_MarkPaidActivatesSubscriptionWhenNoInvoicesRemain()
     {
         var h = new Harness();
@@ -137,6 +156,26 @@ public class ManagementServiceTests
         var shop = await h.Db.Shops.SingleAsync();
         Assert.Equal(SubscriptionStatus.Active, shop.SubscriptionStatus);
         await Assert.ThrowsAsync<AppException>(() => Billing(h).MarkPaidAsync(h.ShopId, invoice.Id, new MarkInvoicePaidRequest()));
+    }
+
+    [Fact]
+    public async Task Billing_SettlingLastInvoiceStartsNextPeriod()
+    {
+        var h = new Harness();
+        var invoice = new Invoice
+        {
+            ShopId = h.ShopId, InvoiceNumber = "INV-NEXT", Amount = 500,
+            Status = InvoiceStatus.Pending, PeriodFrom = DateTime.UtcNow.AddDays(-10),
+            PeriodTo = DateTime.UtcNow.AddDays(20)
+        };
+        h.Db.Invoices.Add(invoice);
+        await h.Db.SaveChangesAsync();
+
+        await Billing(h).MarkPaidAsync(h.ShopId, invoice.Id, new MarkInvoicePaidRequest());
+
+        var shop = await h.Db.Shops.SingleAsync();
+        Assert.True(shop.SubscriptionEndsAt > DateTime.UtcNow.AddDays(25));
+        Assert.Equal(1, await h.Db.Invoices.CountAsync(i => i.Status == InvoiceStatus.Pending));
     }
 
     [Fact]
