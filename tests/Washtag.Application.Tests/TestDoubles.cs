@@ -158,7 +158,10 @@ public sealed class FakePaymentStore : IPaymentStore
 
 public sealed class FakeAdminSettings : IAdminSettings
 {
-    public bool IsAdmin(string email) => false;
+    private readonly HashSet<string> _emails;
+    public FakeAdminSettings(params string[] emails) =>
+        _emails = emails.Select(e => e.ToLowerInvariant()).ToHashSet();
+    public bool IsAdmin(string email) => _emails.Contains(email.Trim().ToLowerInvariant());
 }
 
 public sealed class FakeAdmin : IAdminService

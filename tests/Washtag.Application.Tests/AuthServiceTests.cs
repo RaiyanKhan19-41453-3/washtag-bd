@@ -8,13 +8,21 @@ namespace Washtag.Application.Tests;
 
 public class AuthServiceTests
 {
-    private static AuthService Create(out TestDbContext db, out FakeRefreshTokenStore refreshStore)
+    private static AuthService Create(out TestDbContext db, out FakeRefreshTokenStore refreshStore, params string[] adminEmails)
     {
         var options = new DbContextOptionsBuilder<TestDbContext>()
             .UseInMemoryDatabase(Guid.NewGuid().ToString()).Options;
         db = new TestDbContext(options);
         refreshStore = new FakeRefreshTokenStore();
-        return new AuthService(db, new FakeTokens(), new FakeAdminSettings(), refreshStore);
+        return new AuthService(db, new FakeTokens(), new FakeAdminSettings(adminEmails), refreshStore);
+    }
+
+    [Fact]
+    public async Task Register_RejectsAdminEmail()
+    {
+        var service = Create(out _, out _, "admin@test.com");
+
+        await Assert.ThrowsAsync<AppException>(() => service.RegisterAsync(Register("ADMIN@test.com")));
     }
 
     private static RegisterRequest Register(string email) => new()

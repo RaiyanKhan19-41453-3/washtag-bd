@@ -59,16 +59,21 @@ public class ManagementServiceTests
     }
 
     [Fact]
-    public async Task Staff_DuplicateEmailAcrossShopsIsRejected()
+    public async Task Staff_SameEmailInOtherShopDoesNotGrantAccessToThatShop()
     {
         var h = new Harness();
-        h.Db.Users.Add(new AppUser { ShopId = Guid.NewGuid(), Email = "taken@test.com", Name = "Other", PasswordHash = "x" });
+        var otherShopId = Guid.NewGuid();
+        h.Db.Users.Add(new AppUser { ShopId = otherShopId, Email = "taken@test.com", Name = "Other", PasswordHash = "x" });
         await h.Db.SaveChangesAsync();
 
-        await Assert.ThrowsAsync<AppException>(() => Staff(h).CreateAsync(h.ShopId, new CreateStaffRequest
+        var created = await Staff(h).CreateAsync(h.ShopId, new CreateStaffRequest
         {
             Name = "Taken", Email = "taken@test.com", Password = "secret123"
-        }));
+        });
+
+        var user = await h.Db.Users.SingleAsync(u => u.Id == created.Id);
+        Assert.Equal(h.ShopId, user.ShopId);
+        Assert.NotEqual(otherShopId, user.ShopId);
     }
 
     [Fact]
