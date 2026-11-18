@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Store, MapPin, Phone, Image as ImageIcon, Save, ShieldCheck, BadgeCheck, Mail, Info, KeyRound } from 'lucide-react';
 import api from '../api/client';
@@ -11,15 +11,19 @@ export default function Settings() {
   const { user, shop, setShop } = useAuth();
   const toast = useToast();
   const [form, setForm] = useState(null);
+  const [loadError, setLoadError] = useState('');
   const [busy, setBusy] = useState(false);
   const [passwords, setPasswords] = useState({ currentPassword: '', newPassword: '' });
 
-  useEffect(() => {
+  const loadShop = useCallback(() => {
+    setLoadError('');
     api.get('/shop').then(({ data }) => setForm({
       name: data.name || '', address: data.address || '', city: data.city || '',
       phone: data.phone || '', logoUrl: data.logoUrl || ''
-    })).catch((error) => toast.error(error.message));
+    })).catch((error) => { setLoadError(error.message); toast.error(error.message); });
   }, [toast]);
+
+  useEffect(() => { loadShop(); }, [loadShop]);
 
   const update = (key) => (event) => setForm((current) => ({ ...current, [key]: event.target.value }));
 
@@ -51,6 +55,14 @@ export default function Settings() {
     }
   };
 
+  if (loadError) {
+    return (
+      <div className="card error-card">
+        <p>{loadError}</p>
+        <button className="btn btn-outline btn-sm" onClick={loadShop}>Retry</button>
+      </div>
+    );
+  }
   if (!form) return <Loader full label="Loading settings…" />;
 
   return (

@@ -17,6 +17,7 @@ export default function Billing() {
   const { user } = useAuth();
   const toast = useToast();
   const [data, setData] = useState(null);
+  const [loadError, setLoadError] = useState('');
   const [plan, setPlan] = useState('');
   const [paying, setPaying] = useState(null);
   const [method, setMethod] = useState('Cash');
@@ -25,8 +26,9 @@ export default function Billing() {
   const isOwner = user?.role === 'Owner';
 
   const load = useCallback(() => {
+    setLoadError('');
     api.get('/billing').then(({ data: result }) => { setData(result); setPlan(result.plan); })
-      .catch((error) => toast.error(error.message));
+      .catch((error) => { setLoadError(error.message); toast.error(error.message); });
   }, [toast]);
 
   useEffect(() => { load(); }, [load]);
@@ -54,6 +56,14 @@ export default function Billing() {
     finally { setBusy(false); }
   };
 
+  if (loadError) {
+    return (
+      <div className="card error-card">
+        <p>{loadError}</p>
+        <button className="btn btn-outline btn-sm" onClick={load}>Retry</button>
+      </div>
+    );
+  }
   if (!data) return <Loader full label="Loading billing…" />;
 
   return (

@@ -54,14 +54,18 @@ export default function Scan() {
   useEffect(() => {
     if (!scanning || mode !== 'camera') return undefined;
     let scanner;
+    let cancelled = false;
     try {
       scanner = new Html5Qrcode('qr-reader', { verbose: false });
       scanner.start(
         { facingMode: 'environment' },
         { fps: 10, qrbox: 230 },
-        (decoded) => { lookupRef.current(decoded); },
+        (decoded) => { setScanning(false); lookupRef.current(decoded); },
         () => {}
-      ).catch(() => {
+      ).then(() => {
+        if (cancelled) scanner.stop().then(() => scanner.clear()).catch(() => {});
+      }).catch(() => {
+        if (cancelled) return;
         setCameraError('Camera unavailable. Check browser permissions or enter the code manually.');
         setScanning(false);
       });
@@ -70,8 +74,10 @@ export default function Scan() {
       setScanning(false);
     }
     return () => {
+      cancelled = true;
       try {
-        scanner?.stop().then(() => scanner.clear()).catch(() => {});
+        const stopping = scanner?.stop?.();
+        if (stopping?.then) stopping.then(() => scanner.clear()).catch(() => {});
       } catch { /* ignore */ }
     };
   }, [scanning, mode]);

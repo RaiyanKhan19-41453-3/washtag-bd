@@ -52,7 +52,11 @@ api.interceptors.response.use(
     const status = error.response?.status;
 
     if (status !== 401 || isAuthCall || config._retry || window.location.pathname.startsWith('/t/') || window.location.pathname.startsWith('/track/')) {
-      const message = error.response?.data?.message || error.message || 'Something went wrong. Please try again.';
+      const data = error.response?.data;
+      const validation = data?.errors
+        ? Object.values(data.errors).flat().join(', ')
+        : null;
+      const message = data?.message || data?.title || validation || error.message || 'Something went wrong. Please try again.';
       return Promise.reject(new Error(message));
     }
 
