@@ -176,7 +176,7 @@ Both scripts read `POSTGRES_USER` / `POSTGRES_DB` from `.env` (with the compose 
 Everything is in one solution; .NET and Node are only needed if you want to develop outside Docker.
 
 ```bash
-dotnet test WashtagBD.sln          # 29 xUnit tests (use cases, billing, auth, assistant + controllers)
+dotnet test WashtagBD.sln          # 35 xUnit tests (use cases, billing, auth, assistant + controllers)
 cd frontend && npm run build       # production bundle check
 ```
 
