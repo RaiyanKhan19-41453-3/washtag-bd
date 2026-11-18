@@ -58,6 +58,26 @@ public class DocumentIndexer : IDocumentIndexer
             }
             catch { /* skip this document */ }
         }
+
+        // Remove embeddings for records that no longer exist so sources never link to ghosts.
+        try
+        {
+            var existing = await _vectors.GetRefsAsync(shopId, cancellationToken);
+            var orderIds = orders.Select(o => o.Id).ToHashSet();
+            var customerIds = customers.Select(c => c.Id).ToHashSet();
+            foreach (var reference in existing)
+            {
+                var stale = reference.DocType switch
+                {
+                    "order" => !orderIds.Contains(reference.RefId),
+                    "customer" => !customerIds.Contains(reference.RefId),
+                    _ => true
+                };
+                if (stale)
+                    await _vectors.DeleteAsync(shopId, reference.DocType, reference.RefId, cancellationToken);
+            }
+        }
+        catch { /* pruning is best-effort */ }
     }
 
     private static string BuildOrderDocument(Order order)

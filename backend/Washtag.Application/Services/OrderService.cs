@@ -17,6 +17,7 @@ public class OrderService : IOrderService
     private readonly IQrCodeService _qr;
     private readonly ITrackingUrlProvider _urls;
     private readonly IDocumentIndexer _indexer;
+    private readonly IOrderNumberGenerator _numbers;
 
     public OrderService(
         IAppDbContext db,
@@ -24,7 +25,8 @@ public class OrderService : IOrderService
         ICacheService cache,
         IQrCodeService qr,
         ITrackingUrlProvider urls,
-        IDocumentIndexer indexer)
+        IDocumentIndexer indexer,
+        IOrderNumberGenerator numbers)
     {
         _db = db;
         _notifier = notifier;
@@ -32,6 +34,7 @@ public class OrderService : IOrderService
         _qr = qr;
         _urls = urls;
         _indexer = indexer;
+        _numbers = numbers;
     }
 
     public async Task<PagedResult<OrderListDto>> GetOrdersAsync(Guid shopId, string? status, string? search, int page, int pageSize)
@@ -86,15 +89,12 @@ public class OrderService : IOrderService
         if (string.IsNullOrWhiteSpace(request.CustomerName) || string.IsNullOrWhiteSpace(request.CustomerPhone))
             throw new AppException("Customer name and phone are required.");
 
-        var shop = await _db.Shops.FirstOrDefaultAsync(s => s.Id == shopId)
-            ?? throw new AppException("Shop not found.");
-
-        shop.OrderSequence += 1;
+        var orderNumber = await _numbers.NextAsync(shopId);
         var now = DateTime.UtcNow;
         var order = new Order
         {
             ShopId = shopId,
-            OrderNumber = $"WT-{shop.OrderSequence:D5}",
+            OrderNumber = orderNumber,
             PublicToken = Guid.NewGuid(),
             CustomerName = request.CustomerName.Trim(),
             CustomerPhone = request.CustomerPhone.Trim(),
@@ -197,6 +197,11 @@ public class OrderService : IOrderService
         var order = await LoadOrderAsync(q => q.Id == id && q.ShopId == shopId)
             ?? throw new AppException("Order not found.");
         if (request.Amount <= 0) throw new AppException("Payment amount must be greater than zero.");
+        if (order.Status is OrderStatus.Delivered or OrderStatus.Cancelled)
+            throw new AppException("Payments cannot be recorded on a completed order.");
+        var balance = order.TotalAmount - order.PaidAmount;
+        if (request.Amount > balance)
+            throw new AppException($"Payment exceeds the outstanding balance of ৳{balance:0}.");
 
         order.PaidAmount += request.Amount;
         order.PaymentStatus = order.PaidAmount <= 0 ? PaymentStatus.Unpaid
@@ -286,7 +291,7 @@ public class OrderService : IOrderService
             .ToListAsync();
 
         var customerCount = await _db.Customers.CountAsync(c => c.ShopId == shopId);
-        var today = DateTime.UtcNow.Date;
+        var today = DhakaNow.Date;
         var activeStatuses = new[]
         {
             OrderStatus.Received, OrderStatus.Washing, OrderStatus.Ironing, OrderStatus.ReadyForPickup
@@ -303,7 +308,7 @@ public class OrderService : IOrderService
             weeklyTrend.Add(new DayCountDto
             {
                 Label = day.ToString("ddd"),
-                Count = orders.Count(o => o.CreatedAt.Date == day)
+                Count = orders.Count(o => o.CreatedAt.AddHours(6).Date == day)
             });
         }
 
@@ -320,7 +325,7 @@ public class OrderService : IOrderService
             UnpaidCount = orders.Count(o => o.PaymentStatus != PaymentStatus.Paid),
             Collected = orders.Sum(o => o.PaidAmount),
             Outstanding = orders.Sum(o => o.TotalAmount - o.PaidAmount),
-            TodayOrders = orders.Count(o => o.CreatedAt.Date == today),
+            TodayOrders = orders.Count(o => o.CreatedAt.AddHours(6).Date == today),
             CustomerCount = customerCount,
             RecentOrders = orders.Take(6).Select(MapList).ToList(),
             StatusBreakdown = statusBreakdown,
@@ -364,6 +369,9 @@ public class OrderService : IOrderService
         await _db.SaveChangesAsync();
         return AuthService.MapShop(shop);
     }
+
+    // Bangladesh is UTC+6 with no DST; avoids an ICU dependency for timezone IDs.
+    private static DateTime DhakaNow => DateTime.UtcNow.AddHours(6);
 
     private async Task<Order?> LoadOrderAsync(Expression<Func<Order, bool>> predicate)
     {

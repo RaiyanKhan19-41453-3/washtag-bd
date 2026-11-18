@@ -73,7 +73,7 @@ public class AssistantService : IAssistantService
         var ready = true;
         var message = "Vector search is active.";
         try { count = await _vectors.CountAsync(shopId, cancellationToken); }
-        catch (Exception ex) { ready = false; message = ex.Message; }
+        catch { ready = false; message = "Vector search is temporarily unavailable."; }
 
         return new AssistantStatusDto
         {

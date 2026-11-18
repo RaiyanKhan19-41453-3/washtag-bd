@@ -37,6 +37,7 @@ public class ShopController : ControllerBase
         return Ok(profile.Shop);
     }
 
+    [Authorize(Roles = "Owner")]
     [HttpPut]
     public async Task<IActionResult> Update([FromBody] UpdateShopRequest request)
     {

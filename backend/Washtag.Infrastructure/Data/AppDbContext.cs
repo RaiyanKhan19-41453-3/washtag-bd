@@ -41,6 +41,7 @@ public class AppDbContext : DbContext, IAppDbContext
         mb.Entity<Order>(e =>
         {
             e.HasIndex(x => x.PublicToken).IsUnique();
+            e.HasIndex(x => new { x.ShopId, x.OrderNumber }).IsUnique();
             e.HasIndex(x => new { x.ShopId, x.CreatedAt });
             e.HasIndex(x => new { x.ShopId, x.Status });
             e.Property(x => x.TotalAmount).HasPrecision(18, 2);

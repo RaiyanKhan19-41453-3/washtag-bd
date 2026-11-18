@@ -177,7 +177,7 @@ public static class DbSeeder
 
 public static class DbInitializer
 {
-    public static async Task InitializeAsync(IServiceProvider services, bool seedDemo)
+    public static async Task InitializeAsync(IServiceProvider services, bool seedDemo, bool isProduction)
     {
         using var scope = services.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
@@ -188,6 +188,8 @@ public static class DbInitializer
             logger.LogInformation("Database ready.");
             if (seedDemo)
             {
+                if (isProduction)
+                    logger.LogWarning("Demo accounts are enabled in Production. Set SEED_DEMO_DATA=false for real deployments.");
                 await DbSeeder.SeedAsync(services);
                 logger.LogInformation("Demo data check complete.");
             }

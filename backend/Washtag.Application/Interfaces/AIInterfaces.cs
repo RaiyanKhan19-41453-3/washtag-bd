@@ -23,6 +23,7 @@ public interface IVectorStore
     Task UpsertAsync(Guid shopId, string docType, Guid refId, string content, float[] embedding, CancellationToken cancellationToken = default);
     Task<List<DocumentMatch>> SearchAsync(Guid shopId, float[] embedding, int limit, CancellationToken cancellationToken = default);
     Task<int> CountAsync(Guid shopId, CancellationToken cancellationToken = default);
+    Task<List<DocumentRef>> GetRefsAsync(Guid shopId, CancellationToken cancellationToken = default);
     Task DeleteAsync(Guid shopId, string docType, Guid refId, CancellationToken cancellationToken = default);
 }
 

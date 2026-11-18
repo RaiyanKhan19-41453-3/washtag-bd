@@ -1,3 +1,4 @@
+using System.Security.Cryptography;
 using System.Text.Json.Serialization;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
@@ -20,8 +21,17 @@ builder.Services.AddScoped<ITrackingUrlProvider, TrackingUrlProvider>();
 builder.Services.AddScoped<IJwtTokenGenerator, JwtTokenGenerator>();
 builder.Services.AddScoped<IRealtimeNotifier, SignalRNotifier>();
 
-var jwtSecret = builder.Configuration["JWT_SECRET"]
-    ?? "washtagbd-development-secret-change-this-in-production-2026";
+// Never run Production on the source-checked development secret: mint an
+// ephemeral one instead so tokens cannot be forged with a publicly known key.
+const string defaultSecret = "washtagbd-development-secret-change-this-in-production-2026";
+var configuredSecret = builder.Configuration["JWT_SECRET"];
+var usingDefaultSecret = string.IsNullOrWhiteSpace(configuredSecret) || configuredSecret == defaultSecret;
+if (usingDefaultSecret && builder.Environment.IsProduction())
+{
+    configuredSecret = Convert.ToBase64String(RandomNumberGenerator.GetBytes(48));
+    builder.Configuration["JWT_SECRET"] = configuredSecret;
+}
+var jwtSecret = configuredSecret ?? defaultSecret;
 
 builder.Services.AddAuthentication(options =>
 {
@@ -104,7 +114,11 @@ app.MapHub<OrdersHub>("/hubs/orders");
 
 var seedFlag = Environment.GetEnvironmentVariable("SEED_DEMO_DATA")
     ?? builder.Configuration["SEED_DEMO_DATA"] ?? "true";
-await DbInitializer.InitializeAsync(app.Services, seedFlag.Equals("true", StringComparison.OrdinalIgnoreCase));
+if (usingDefaultSecret && app.Environment.IsProduction())
+    app.Logger.LogWarning("JWT_SECRET is unset or the development default; using an ephemeral secret. Tokens will reset on restart.");
+
+var seedDemo = seedFlag.Equals("true", StringComparison.OrdinalIgnoreCase);
+await DbInitializer.InitializeAsync(app.Services, seedDemo, app.Environment.IsProduction());
 await AssistantInitializer.InitializeAsync(app.Services);
 
 app.Run();

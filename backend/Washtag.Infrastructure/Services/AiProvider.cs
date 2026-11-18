@@ -115,7 +115,7 @@ public class AiProvider : IAiProvider
     private static float[] LocalEmbed(string text)
     {
         var vector = new float[AiConstants.EmbeddingDimensions];
-        var tokens = Regex.Matches(text.ToLowerInvariant(), "[a-z0-9]+")
+        var tokens = Regex.Matches(text.ToLowerInvariant(), @"[\p{L}\p{N}]+")
             .Select(match => match.Value).ToList();
 
         void Add(string token)

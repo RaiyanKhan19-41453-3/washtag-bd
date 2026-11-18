@@ -40,6 +40,12 @@ public interface IOrderService
     Task<ShopDto> UpdateShopAsync(Guid shopId, UpdateShopRequest request);
 }
 
+/// <summary>Atomically allocates the next per-shop order number.</summary>
+public interface IOrderNumberGenerator
+{
+    Task<string> NextAsync(Guid shopId, CancellationToken cancellationToken = default);
+}
+
 public interface IRealtimeNotifier
 {
     Task OrderUpdatedAsync(Order order, object ownerPayload, object customerPayload);

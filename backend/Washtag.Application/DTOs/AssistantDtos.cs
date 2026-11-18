@@ -36,6 +36,12 @@ public class AssistantStatusDto
     public string Message { get; set; } = string.Empty;
 }
 
+public class DocumentRef
+{
+    public string DocType { get; set; } = string.Empty;
+    public Guid RefId { get; set; }
+}
+
 public class DocumentMatch
 {
     public string DocType { get; set; } = string.Empty;

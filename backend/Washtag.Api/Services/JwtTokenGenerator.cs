@@ -27,7 +27,8 @@ public class JwtTokenGenerator : IJwtTokenGenerator
             new Claim("shopId", shop.Id.ToString()),
             new Claim(ClaimTypes.Name, user.Name),
             new Claim(ClaimTypes.Email, user.Email),
-            new Claim("role", user.Role.ToString())
+            new Claim("role", user.Role.ToString()),
+            new Claim(ClaimTypes.Role, user.Role.ToString())
         };
 
         var token = new JwtSecurityToken(

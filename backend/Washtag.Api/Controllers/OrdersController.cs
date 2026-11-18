@@ -66,6 +66,7 @@ public class OrdersController : ControllerBase
         return Ok(await _orders.RecordPaymentAsync(ShopId, id, request, Actor));
     }
 
+    [Authorize(Roles = "Owner")]
     [HttpDelete("{id:guid}")]
     public async Task<IActionResult> Cancel(Guid id)
     {

@@ -102,6 +102,20 @@ public class VectorStore : IVectorStore
         return Convert.ToInt32(await command.ExecuteScalarAsync(cancellationToken));
     }
 
+    public async Task<List<DocumentRef>> GetRefsAsync(Guid shopId, CancellationToken cancellationToken = default)
+    {
+        var refs = new List<DocumentRef>();
+        await using var connection = new NpgsqlConnection(_connectionString);
+        await connection.OpenAsync(cancellationToken);
+        await using var command = new NpgsqlCommand(
+            "SELECT doc_type, ref_id FROM shop_documents WHERE shop_id = @shop", connection);
+        command.Parameters.AddWithValue("shop", shopId);
+        await using var reader = await command.ExecuteReaderAsync(cancellationToken);
+        while (await reader.ReadAsync(cancellationToken))
+            refs.Add(new DocumentRef { DocType = reader.GetString(0), RefId = reader.GetGuid(1) });
+        return refs;
+    }
+
     public async Task DeleteAsync(Guid shopId, string docType, Guid refId, CancellationToken cancellationToken = default)
     {
         await using var connection = new NpgsqlConnection(_connectionString);
