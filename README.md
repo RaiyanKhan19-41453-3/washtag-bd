@@ -126,8 +126,13 @@ The dependency rule points inward: `Api → Infrastructure → Application → D
 - Type or **speak** (browser Web Speech API; mic button)
 - **RAG pipeline:** every order and customer becomes a vector document embedded into pgvector; questions are embedded and matched with cosine distance, then combined with deterministic database facts before answering
 - Answers are grounded in real data with clickable source records — never invented
-- Works fully **offline** with deterministic local embeddings and a grounded answer composer; optionally add `OPENAI_API_KEY` for LLM-phrased answers
+- **Conversation history** is saved per user, with thumbs up/down feedback and a clear-history action
+- Works fully **offline** with deterministic local embeddings and a grounded answer composer; optionally enable an `OPENAI_API_KEY` or `AI_GATEWAY_TOKEN` for LLM-phrased answers
 - Index rebuilds automatically on every order/status/payment change, with a manual "Rebuild index" button
+
+**Bengali UI**
+- `EN / বাং` toggle in the sidebar, login and customer tracking page; persists per browser
+- Documents, navigation, dashboard, order statuses, assistant and tracking page are translated; anything not yet translated falls back to English
 
 **Platform**
 - Multi-tenant isolation
@@ -171,7 +176,7 @@ Both scripts read `POSTGRES_USER` / `POSTGRES_DB` from `.env` (with the compose 
 Everything is in one solution; .NET and Node are only needed if you want to develop outside Docker.
 
 ```bash
-dotnet test WashtagBD.sln          # 28 xUnit tests (use cases, billing, auth + controllers)
+dotnet test WashtagBD.sln          # 29 xUnit tests (use cases, billing, auth, assistant + controllers)
 cd frontend && npm run build       # production bundle check
 ```
 
@@ -218,6 +223,9 @@ GitHub Actions runs build + tests + both Docker image builds on every push and P
 | GET | `/api/public/track/{token}` | public | Customer-facing tracking payload |
 | POST | `/api/assistant/ask` | JWT | Ask the RAG assistant a question |
 | GET | `/api/assistant/status` | JWT | Vector index/engine status |
+| GET | `/api/assistant/history` | JWT | Saved conversation for the current user |
+| DELETE | `/api/assistant/history` | JWT | Clear the conversation |
+| POST | `/api/assistant/feedback` | JWT | Rate an answer (thumbs up/down) |
 | POST | `/api/assistant/reindex` | JWT | Rebuild the shop's vector index |
 | GET | `/health` | public | API + database health check (503 when DB is down) |
 | WS | `/hubs/orders` | optional | SignalR realtime updates |
@@ -242,16 +250,23 @@ Access tokens live for 15 minutes; refresh tokens last 30 days, are stored hashe
 
 ## AI configuration
 
-The assistant runs with zero configuration using local hashed embeddings (384 dimensions) and grounded answers computed from your database. To have an LLM phrase the answers naturally, set these in `.env` and restart:
+The assistant runs with zero configuration using local hashed embeddings (384 dimensions) and grounded answers computed from your database. To have an LLM phrase the answers naturally, set **either** a direct OpenAI key **or** an AI Gateway token in `.env` and restart:
 
 ```env
+# Option A: direct / OpenAI-compatible endpoint
 OPENAI_API_KEY=sk-...
-OPENAI_BASE_URL=https://api.openai.com/v1   # or any OpenAI-compatible gateway
+OPENAI_BASE_URL=https://api.openai.com/v1
 OPENAI_EMBEDDING_MODEL=text-embedding-3-small
 OPENAI_CHAT_MODEL=gpt-4o-mini
+
+# Option B: AI Gateway (Vercel by default) — used when OPENAI_API_KEY is blank
+AI_GATEWAY_TOKEN=...
+AI_GATEWAY_URL=https://ai.gateway.vercel.app/v1
+AI_GATEWAY_EMBEDDING_MODEL=text-embedding-3-small
+AI_GATEWAY_CHAT_MODEL=gpt-4o-mini
 ```
 
-The embedding dimension stays at 384 in both modes, so the pgvector column never needs changing. If an API call fails, the assistant automatically falls back to the offline path.
+The embedding dimension stays at 384 in every mode, so the pgvector column never needs changing. If an API call fails, the assistant automatically falls back to the offline path. Conversations and feedback are stored per user in `AssistantMessages`.
 
 ---
 
