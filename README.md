@@ -161,8 +161,10 @@ The embedding dimension stays at 384 in both modes, so the pgvector column never
 
 ## Production checklist
 
-- Set a strong `JWT_SECRET` in `.env`.
+- Set a strong `JWT_SECRET` in `.env` — the API refuses to reuse the public development default in Production and generates an ephemeral secret instead (tokens reset on restart).
 - Change `POSTGRES_PASSWORD`.
+- Set `SEED_DEMO_DATA=false` so known demo passwords are not created on a real deployment.
+- Set `PUBLIC_BASE_URL` to your public origin so QR codes never depend on request `Host` headers.
 - Browser camera and microphone access (Scan QR / Assistant voice input) require `localhost` or HTTPS in production.
 - Put TLS in front of nginx (a reverse proxy such as Caddy/Traefik or a cloud load balancer).
 - Back up the `pgdata` volume.
