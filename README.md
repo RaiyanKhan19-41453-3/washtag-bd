@@ -135,7 +135,7 @@ The dependency rule points inward: `Api → Infrastructure → Application → D
 - Navigation, dashboard, order statuses, assistant chrome and the customer tracking page are translated; other screens still use English with automatic fallback per string (contributions to `frontend/src/i18n/translations.js` welcome)
 
 **Platform**
-- Multi-tenant isolation
+- Multi-tenant isolation and optimistic concurrency (conflicting updates return `409`)
 - QR receipts generated server-side with QRCoder (data URL + printable PNG); they encode the real public `/track/{token}` URL of whatever host serves the app, so they work on localhost, a VPS IP or a custom domain
 - Real-time push to both the owner dashboard and the customer tracking page
 - Health-checked dependencies with automatic restarts
@@ -187,7 +187,7 @@ dotnet tool install --global dotnet-ef --version 9.0.1
 dotnet ef migrations add MyChange --project backend/Washtag.Infrastructure --startup-project backend/Washtag.Api --output-dir Data/Migrations
 ```
 
-> Upgrading from an older checkout that used `EnsureCreated()`? Existing volumes have no migration history. Recreate them once with `docker compose down -v && docker compose up -d`.
+> Upgrading from an older checkout that used `EnsureCreated()`? Existing volumes have no `__EFMigrationsHistory`, so `Migrate()` would fail on `InitialCreate`. Either back up and recreate the volume, or baseline it: create the history table and insert the already-applied migration IDs (`20261118123245_InitialCreate`, `20261118131646_AddBilling`, `20261118144504_AddAssistantHistory`, `20261118185732_AddConcurrencyTokens`) before starting the new API.
 
 GitHub Actions runs build + tests + both Docker image builds on every push and PR to `main` (badge above).
 
