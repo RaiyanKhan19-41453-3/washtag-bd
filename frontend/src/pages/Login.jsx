@@ -23,7 +23,9 @@ export default function Login() {
     try {
       await login(email, password);
       toast.success('Welcome back to your workspace!');
-      navigate(location.state?.from || '/app', { replace: true });
+      const destination = location.state?.from || sessionStorage.getItem('washtag_from') || '/app';
+      sessionStorage.removeItem('washtag_from');
+      navigate(destination, { replace: true });
     } catch (error) {
       toast.error(error.message);
     } finally {

@@ -7,6 +7,7 @@ import {
 } from 'lucide-react';
 import api from '../api/client';
 import { useRealtime } from '../hooks/useRealtime';
+import { useAuth } from '../context/AuthContext';
 import { useLanguage } from '../context/LanguageContext';
 import { useToast } from '../context/ToastContext';
 import QRCode from '../components/QRCode';
@@ -25,6 +26,7 @@ export default function OrderDetail() {
   const navigate = useNavigate();
   const toast = useToast();
   const { t } = useLanguage();
+  const { user } = useAuth();
   const [order, setOrder] = useState(null);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
@@ -225,7 +227,7 @@ export default function OrderDetail() {
                 <CircleDollarSign size={15} /> {t('Record payment')}
               </button>
             )}
-            {!['Delivered', 'Cancelled'].includes(order.status) && (
+            {user?.role === 'Owner' && !['Delivered', 'Cancelled'].includes(order.status) && (
               <button className="btn btn-ghost btn-sm btn-block danger-text" onClick={cancelOrder}><XCircle size={15} /> {t('Cancel order')}</button>
             )}
           </section>

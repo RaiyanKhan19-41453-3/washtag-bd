@@ -101,7 +101,9 @@ export default function Settings() {
             <div className="input-with-icon"><ImageIcon size={17} /><input value={form.logoUrl} onChange={update('logoUrl')} placeholder="https://…/logo.png" /></div>
           </label>
 
-          <button className="btn btn-primary" type="submit" disabled={busy}><Save size={16} /> {busy ? 'Saving…' : 'Save changes'}</button>
+          {user?.role === 'Owner' && (
+            <button className="btn btn-primary" type="submit" disabled={busy}><Save size={16} /> {busy ? 'Saving…' : 'Save changes'}</button>
+          )}
         </form>
 
         <aside className="settings-aside">

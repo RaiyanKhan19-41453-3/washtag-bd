@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Users, UserPlus, Shield, UserRound, Trash2, CheckCircle2, CircleSlash } from 'lucide-react';
 import api from '../api/client';
+import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import Modal from '../components/Modal';
 import EmptyState from '../components/EmptyState';
@@ -16,6 +17,8 @@ export default function Team() {
   const [busy, setBusy] = useState(false);
   const [loading, setLoading] = useState(true);
   const toast = useToast();
+  const { user } = useAuth();
+  const isOwner = user?.role === 'Owner';
 
   const load = useCallback(() => {
     api.get('/staff').then(({ data }) => { setMembers(data); setLoading(false); })
@@ -84,19 +87,19 @@ export default function Team() {
                   <span className="muted team-date">{formatDate(member.createdAt)}</span>
                   {member.role === 'Owner' ? (
                     <span className="team-owner-note"><Shield size={15} /> Owner</span>
-                  ) : (
+                  ) : isOwner ? (
                     <div className="team-actions">
                       <button className="btn btn-ghost btn-sm" onClick={() => setEditing({ ...member })}>Edit</button>
                       <button className="icon-btn danger" onClick={() => deactivate(member)} title="Deactivate"><Trash2 size={16} /></button>
                     </div>
-                  )}
+                  ) : null}
                 </div>
               ))}
             </div>
           )}
         </section>
 
-        <aside className="card invite-card">
+        {isOwner && <aside className="card invite-card">
           <div className="section-title">
             <span className="section-icon"><UserPlus size={19} /></span>
             <div><h3>Invite staff</h3><p>They get their own login immediately.</p></div>
@@ -109,7 +112,7 @@ export default function Team() {
             <button className="btn btn-primary btn-block" disabled={busy}><UserPlus size={16} /> {busy ? 'Inviting…' : 'Invite staff'}</button>
             <p className="tiny-note">Share the credentials securely. Staff cannot edit shop settings, billing or cancel orders.</p>
           </form>
-        </aside>
+        </aside>}
       </div>
 
       <Modal

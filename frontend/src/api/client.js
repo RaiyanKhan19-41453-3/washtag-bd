@@ -40,7 +40,10 @@ async function refreshTokens() {
 
 function redirectToLogin() {
   clearTokens();
-  if (window.location.pathname.startsWith('/app')) window.location.replace('/login');
+  if (window.location.pathname.startsWith('/app')) {
+    sessionStorage.setItem('washtag_from', window.location.pathname + window.location.search);
+    window.location.replace('/login');
+  }
 }
 
 api.interceptors.response.use(
