@@ -24,6 +24,7 @@ public class AppDbContext : DbContext, IAppDbContext
         mb.Entity<Shop>(e =>
         {
             e.HasIndex(x => x.Email).IsUnique();
+            e.Property(x => x.RowVersion).IsRowVersion();
             e.Property(x => x.Name).HasMaxLength(150);
             e.Property(x => x.Email).HasMaxLength(150);
         });
@@ -49,6 +50,7 @@ public class AppDbContext : DbContext, IAppDbContext
             e.HasIndex(x => new { x.ShopId, x.Status });
             e.Property(x => x.TotalAmount).HasPrecision(18, 2);
             e.Property(x => x.PaidAmount).HasPrecision(18, 2);
+            e.Property(x => x.RowVersion).IsRowVersion();
             e.HasOne(x => x.Shop).WithMany(x => x.Orders).HasForeignKey(x => x.ShopId).OnDelete(DeleteBehavior.Cascade);
         });
 

@@ -191,7 +191,6 @@ public static class DbInitializer
                 logger.LogInformation("Applying {Count} database migration(s): {Migrations}", pending.Count, string.Join(", ", pending));
             db.Database.Migrate();
             logger.LogInformation("Database migrations applied.");
-            InitializationSucceeded = true;
             if (seedDemo)
             {
                 if (isProduction)
@@ -200,10 +199,12 @@ public static class DbInitializer
                 await BillingSeeder.SeedAsync(services);
                 logger.LogInformation("Demo data check complete.");
             }
+            InitializationSucceeded = true;
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, "Database initialization failed; the API will start but data operations may fail.");
+            InitializationSucceeded = false;
+            logger.LogError(ex, "Database initialization failed; /health will report unhealthy.");
         }
     }
 }

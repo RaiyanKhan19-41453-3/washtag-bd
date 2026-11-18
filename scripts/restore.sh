@@ -24,5 +24,13 @@ if [ "$confirmation" != "RESTORE" ]; then
   exit 1
 fi
 
-gzip -dc "$FILE" | docker compose exec -T postgres psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -v ON_ERROR_STOP=1
-echo "Restore complete. Restart the API to refresh caches: docker compose restart api"
+echo "Stopping the API so no writes race the restore..."
+docker compose stop api
+if gzip -dc "$FILE" | docker compose exec -T postgres psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -v ON_ERROR_STOP=1; then
+  docker compose start api
+  echo "Restore complete. The API has been restarted."
+else
+  docker compose start api
+  echo "Restore FAILED. The API has been restarted; check the database before use."
+  exit 1
+fi

@@ -227,6 +227,12 @@ namespace Washtag.Infrastructure.Data.Migrations
                     b.Property<Guid>("PublicToken")
                         .HasColumnType("uuid");
 
+                    b.Property<byte[]>("RowVersion")
+                        .IsConcurrencyToken()
+                        .IsRequired()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("bytea");
+
                     b.Property<Guid>("ShopId")
                         .HasColumnType("uuid");
 
@@ -404,6 +410,12 @@ namespace Washtag.Infrastructure.Data.Migrations
                     b.Property<string>("Plan")
                         .IsRequired()
                         .HasColumnType("text");
+
+                    b.Property<byte[]>("RowVersion")
+                        .IsConcurrencyToken()
+                        .IsRequired()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("bytea");
 
                     b.Property<DateTime>("SubscriptionEndsAt")
                         .HasColumnType("timestamp with time zone");

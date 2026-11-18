@@ -19,6 +19,7 @@ public class Shop
     public DateTime SubscriptionStartedAt { get; set; } = DateTime.UtcNow;
     public DateTime SubscriptionEndsAt { get; set; } = DateTime.UtcNow.AddYears(1);
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+    public byte[] RowVersion { get; set; } = Array.Empty<byte>();
 
     public ICollection<AppUser> Users { get; set; } = new List<AppUser>();
     public ICollection<Order> Orders { get; set; } = new List<Order>();
@@ -70,6 +71,7 @@ public class Order
     public DateTime? DeliveredAt { get; set; }
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
+    public byte[] RowVersion { get; set; } = Array.Empty<byte>();
 
     public Shop Shop { get; set; } = null!;
     public ICollection<OrderItem> Items { get; set; } = new List<OrderItem>();
