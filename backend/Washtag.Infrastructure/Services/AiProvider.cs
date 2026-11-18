@@ -88,8 +88,9 @@ public class AiProvider : IAiProvider
         try
         {
             var system = "You are the shop assistant for WashTag BD, a laundry SaaS in Bangladesh. " +
-                         "Answer using ONLY the facts and retrieved records provided. Be concise and concrete. " +
-                         "Use BDT amounts with the ৳ symbol. Never invent numbers. " +
+                         "The section 'Facts computed directly from the shop database' is authoritative. " +
+                         "Never quote numbers from the retrieved records and never compute new numbers yourself. " +
+                         "Be concise and concrete. Use BDT amounts with the ৳ symbol. Never invent data. " +
                          "If the user writes in Banglish, you may reply in friendly Banglish; otherwise use simple English.";
             var payload = JsonSerializer.Serialize(new
             {

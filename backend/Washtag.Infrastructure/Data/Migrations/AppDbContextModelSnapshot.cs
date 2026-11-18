@@ -72,10 +72,19 @@ namespace Washtag.Infrastructure.Data.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
+                    b.Property<bool>("AiPhrased")
+                        .HasColumnType("boolean");
+
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
 
                     b.Property<string>("FeedbackComment")
+                        .HasColumnType("text");
+
+                    b.Property<string>("Intent")
+                        .HasColumnType("text");
+
+                    b.Property<string>("Provider")
                         .HasColumnType("text");
 
                     b.Property<int?>("Rating")
@@ -89,6 +98,9 @@ namespace Washtag.Infrastructure.Data.Migrations
                         .HasColumnType("uuid");
 
                     b.Property<string>("SourcesJson")
+                        .HasColumnType("text");
+
+                    b.Property<string>("SuggestionsJson")
                         .HasColumnType("text");
 
                     b.Property<string>("Text")

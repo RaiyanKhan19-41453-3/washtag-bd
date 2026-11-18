@@ -131,6 +131,10 @@ public class AssistantMessage
     public string Role { get; set; } = "user";
     public string Text { get; set; } = string.Empty;
     public string? SourcesJson { get; set; }
+    public string? Intent { get; set; }
+    public bool AiPhrased { get; set; }
+    public string? Provider { get; set; }
+    public string? SuggestionsJson { get; set; }
     public int? Rating { get; set; }
     public string? FeedbackComment { get; set; }
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;

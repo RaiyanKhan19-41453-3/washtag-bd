@@ -53,11 +53,13 @@ public class AssistantService : IAssistantService
         try { phrased = await _ai.GenerateAnswerAsync(query, context, cancellationToken); }
         catch { /* Fall back to the grounded local answer. */ }
 
+        // Hashed offline embeddings cannot reliably separate relevant from unrelated
+        // documents, so never present them as cited sources.
+        var offline = _ai.Name.StartsWith("Local", StringComparison.OrdinalIgnoreCase);
+        var sources = offline ? new List<AssistantSourceDto>() : BuildSources(matches);
         var answer = string.IsNullOrWhiteSpace(phrased)
-            ? ComposeLocalAnswer(facts, matches, plan)
+            ? ComposeLocalAnswer(facts, matches, plan, offline)
             : phrased.Trim();
-
-        var sources = BuildSources(matches);
         var result = new AssistantAnswerDto
         {
             Answer = answer,
@@ -75,7 +77,11 @@ public class AssistantService : IAssistantService
             UserId = userId,
             Role = "assistant",
             Text = answer,
-            SourcesJson = sources.Count > 0 ? JsonSerializer.Serialize(sources) : null
+            SourcesJson = sources.Count > 0 ? JsonSerializer.Serialize(sources) : null,
+            Intent = plan.Intent,
+            AiPhrased = result.AiPhrased,
+            Provider = result.Provider,
+            SuggestionsJson = JsonSerializer.Serialize(Suggestions)
         };
         var savedAt = DateTime.UtcNow;
         _db.AssistantMessages.Add(new AssistantMessage
@@ -110,6 +116,12 @@ public class AssistantService : IAssistantService
             Answer = m.Text,
             Text = m.Text,
             Rating = m.Rating,
+            Intent = m.Intent ?? string.Empty,
+            AiPhrased = m.AiPhrased,
+            Provider = m.Provider ?? string.Empty,
+            Suggestions = string.IsNullOrEmpty(m.SuggestionsJson)
+                ? Suggestions
+                : JsonSerializer.Deserialize<List<string>>(m.SuggestionsJson) ?? Suggestions,
             Sources = string.IsNullOrEmpty(m.SourcesJson)
                 ? new List<AssistantSourceDto>()
                 : JsonSerializer.Deserialize<List<AssistantSourceDto>>(m.SourcesJson) ?? new List<AssistantSourceDto>(),
@@ -165,6 +177,16 @@ public class AssistantService : IAssistantService
     {
         var now = DateTime.UtcNow;
 
+        List<Order> InRange(List<Order> list) => list.Where(o =>
+            (!plan.FromUtc.HasValue || o.CreatedAt >= plan.FromUtc.Value) &&
+            (!plan.ToUtc.HasValue || o.CreatedAt < plan.ToUtc.Value)).ToList();
+
+        var period = !plan.FromUtc.HasValue ? "in total"
+            : plan.ToUtc.HasValue ? "for the selected day"
+            : plan.FromUtc.Value > now.AddDays(-2) ? "today"
+            : plan.FromUtc.Value > now.AddDays(-8) ? "in the last 7 days"
+            : "this month";
+
         switch (plan.Intent)
         {
             case "unpaid":
@@ -173,6 +195,7 @@ public class AssistantService : IAssistantService
                     .Where(o => o.ShopId == shopId && o.Status != OrderStatus.Cancelled &&
                                 o.PaymentStatus != PaymentStatus.Paid)
                     .OrderByDescending(o => o.CreatedAt).ToListAsync(ct);
+                orders = InRange(orders);
                 orders = Filter(orders, plan.CustomerName);
                 var amount = orders.Sum(o => o.TotalAmount - o.PaidAmount);
                 var names = string.Join(", ", orders.Take(8).Select(o => $"{o.CustomerName} (#{o.OrderNumber}, ৳{o.TotalAmount - o.PaidAmount:0})"));
@@ -216,19 +239,16 @@ public class AssistantService : IAssistantService
             {
                 var orders = await _db.Orders.AsNoTracking()
                     .Where(o => o.ShopId == shopId && o.Status != OrderStatus.Cancelled).ToListAsync(ct);
-                if (plan.Days.HasValue)
-                    orders = orders.Where(o => o.CreatedAt >= now.AddDays(-plan.Days.Value)).ToList();
-                else if (plan.MonthOnly)
-                {
-                    var local = now.AddHours(6);
-                    var monthStart = new DateTime(local.Year, local.Month, 1).AddHours(-6);
-                    orders = orders.Where(o => o.CreatedAt >= monthStart).ToList();
-                }
+                orders = InRange(orders);
                 orders = Filter(orders, plan.CustomerName);
-                var collected = orders.Sum(o => o.PaidAmount);
+                var orderIds = orders.Select(o => o.Id).ToList();
+                var payments = await _db.Payments.AsNoTracking()
+                    .Where(p => orderIds.Contains(p.OrderId) &&
+                                (!plan.FromUtc.HasValue || p.CreatedAt >= plan.FromUtc.Value) &&
+                                (!plan.ToUtc.HasValue || p.CreatedAt < plan.ToUtc.Value))
+                    .ToListAsync(ct);
+                var collected = payments.Sum(p => p.Amount);
                 var outstanding = orders.Sum(o => o.TotalAmount - o.PaidAmount);
-                var period = plan.Days.HasValue ? $"in the last {plan.Days.Value} day(s)"
-                    : plan.MonthOnly ? "this month" : "in total";
                 return new FactSet(
                     $"Amount collected {period} is ৳{collected:0} across {orders.Count} order(s). Outstanding balance: ৳{outstanding:0}.",
                     orders);
@@ -237,7 +257,9 @@ public class AssistantService : IAssistantService
             case "count":
             case "active":
             {
-                var orders = await _db.Orders.AsNoTracking().Where(o => o.ShopId == shopId).ToListAsync(ct);
+                var orders = await _db.Orders.AsNoTracking()
+                    .Where(o => o.ShopId == shopId && o.Status != OrderStatus.Cancelled).ToListAsync(ct);
+                orders = InRange(orders);
                 var active = orders.Count(o => o.Status is OrderStatus.Received or OrderStatus.Washing
                     or OrderStatus.Ironing or OrderStatus.ReadyForPickup);
                 var ready = orders.Count(o => o.Status == OrderStatus.ReadyForPickup);
@@ -255,7 +277,7 @@ public class AssistantService : IAssistantService
                     customers = customers.Where(c => c.Name.ToLower().Contains(plan.CustomerName.ToLower())).ToList();
                 var orders = await _db.Orders.AsNoTracking()
                     .Where(o => o.ShopId == shopId && o.Status != OrderStatus.Cancelled).ToListAsync(ct);
-                orders = Filter(orders, plan.CustomerName);
+                orders = InRange(orders);
                 var text = customers.Count == 0
                     ? $"No customer found matching '{plan.CustomerName ?? "that name"}'."
                     : string.Join("; ", customers.Take(8).Select(c =>
@@ -300,10 +322,10 @@ public class AssistantService : IAssistantService
         return sb.ToString();
     }
 
-    private static string ComposeLocalAnswer(FactSet facts, List<DocumentMatch> matches, QueryPlan plan)
+    private static string ComposeLocalAnswer(FactSet facts, List<DocumentMatch> matches, QueryPlan plan, bool offline)
     {
         var answer = facts.Summary;
-        if (plan.Intent == "general" && matches.Count > 0)
+        if (!offline && plan.Intent == "general" && matches.Count > 0)
         {
             answer += " Related records: " + string.Join("; ", matches.Take(2).Select(m => Truncate(m.Content, 120)));
         }
@@ -345,37 +367,65 @@ public class AssistantService : IAssistantService
         var daysMatch = Regex.Match(lower, @"(\d+)\s*(?:days?|din|d)\b");
         var days = daysMatch.Success && int.TryParse(daysMatch.Groups[1].Value, out var parsed) ? parsed : (int?)null;
         var name = ExtractName(question);
-        var monthOnly = Regex.IsMatch(lower, "this month|এই মাসে|এ মাসে|মাসের");
+        var now = DateTime.UtcNow;
+        var localNow = now.AddHours(6); // Bangladesh UTC+6
+        DateTime? from = days.HasValue ? now.AddDays(-days.Value) : null;
+        DateTime? to = null;
 
-        if (Regex.IsMatch(lower, @"\b(unpaid|due|baki|baaki|bill|bille?|payment|not paid|deya|dena|ostad)\b") ||
+        if (Regex.IsMatch(lower, @"\btoday\b|আজ"))
+        {
+            var start = new DateTime(localNow.Year, localNow.Month, localNow.Day, 0, 0, 0, DateTimeKind.Utc).AddHours(-6);
+            from = start; to = start.AddDays(1);
+        }
+        else if (Regex.IsMatch(lower, @"\byesterday\b|গতকাল"))
+        {
+            var todayStart = new DateTime(localNow.Year, localNow.Month, localNow.Day, 0, 0, 0, DateTimeKind.Utc).AddHours(-6);
+            from = todayStart.AddDays(-1); to = todayStart;
+        }
+        else if (Regex.IsMatch(lower, @"\bthis month\b|এই মাসে|এ মাসে|মাসের"))
+        {
+            from = new DateTime(localNow.Year, localNow.Month, 1, 0, 0, 0, DateTimeKind.Utc).AddHours(-6);
+        }
+        else if (Regex.IsMatch(lower, @"\b(last week|this week)\b|গত সপ্তাহ|এই সপ্তাহ"))
+        {
+            from = now.AddDays(-7);
+        }
+
+        if (Regex.IsMatch(lower, @"\b(unpaid|due|baki|baaki|bill|bille?|payment|not paid|haven'?t paid|deya|dena|ostad)\b") ||
             Regex.IsMatch(lower, "বাকি|বাকী|অপরিশোধিত|বিল|বিলের"))
-            return new QueryPlan("unpaid", days, name, monthOnly);
+            return new QueryPlan("unpaid", days, name, from, to);
         if (Regex.IsMatch(lower, @"\b(pick ?up|picked|collect|delivery|tola|waiting|ready|porchha|pore ?cha|kapor|kapur|joma|dhore)\b") ||
             Regex.IsMatch(lower, "তোলা|কাপড়|পোশাক|অপেক্ষা|প্রস্তুত"))
-            return new QueryPlan("pickup", days, name, monthOnly);
-        if (Regex.IsMatch(lower, @"\b(revenue|collected|sales|income|money|taka|earnings?)\b") ||
+            return new QueryPlan("pickup", days, name, from, to);
+        if (Regex.IsMatch(lower, @"\b(revenue|collect(?:ed|ion|ions)?|sales|income|money|taka|earnings?)\b") ||
             Regex.IsMatch(lower, "আয়|সংগৃহীত|টাকা"))
-            return new QueryPlan("revenue", days, name, monthOnly);
-        if (Regex.IsMatch(lower, @"\b(how many|koto|koy|count|total orders?|number of orders?)\b") ||
-            Regex.IsMatch(lower, "কত|কয়টি|কতটি|অর্ডার"))
-            return new QueryPlan("count", days, name, monthOnly);
+            return new QueryPlan("revenue", days, name, from, to);
+        if (Regex.IsMatch(lower, @"\b(how many|koto|koy|count|total orders?|number of orders?|delivered)\b") ||
+            Regex.IsMatch(lower, "কত|কয়টি|কতটি|অর্ডার|ডেলিভারি"))
+            return new QueryPlan("count", days, name, from, to);
         if (name != null || Regex.IsMatch(lower, @"\b(customer|kustomar|client)\b") ||
             Regex.IsMatch(lower, "গ্রাহক|কাস্টমার"))
-            return new QueryPlan("customer", days, name, monthOnly);
+            return new QueryPlan("customer", days, name, from, to);
         if (Regex.IsMatch(lower, @"\b(pending|progress|washing|ironing|active|ongoing)\b"))
-            return new QueryPlan("active", days, name, monthOnly);
+            return new QueryPlan("active", days, name, from, to);
 
-        return new QueryPlan("general", days, name, monthOnly);
+        return new QueryPlan("general", days, name, from, to);
     }
 
     private static string? ExtractName(string question)
     {
-        var match = Regex.Match(question, @"\b(?:mr|mrs|ms|miss)\.?\s+([A-Za-z]+)", RegexOptions.IgnoreCase);
+        var match = Regex.Match(question, @"\b(?:mr|mrs|ms|miss)\.?\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)",
+            RegexOptions.IgnoreCase);
         if (match.Success) return match.Groups[1].Value;
-        match = Regex.Match(question, @"\b(?:for|of|customer)\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)?)");
+        match = Regex.Match(question, @"\b(?:for|of|customer)\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)?)",
+            RegexOptions.IgnoreCase);
+        if (match.Success) return match.Groups[1].Value;
+        // Banglish: "Tasnim Rahman er baki?" — name appears before the Bengali possessive.
+        match = Regex.Match(question, @"^([A-Z][a-z]+(?:\s+[A-Z][a-z]+)?)\s+er\b");
         return match.Success ? match.Groups[1].Value : null;
     }
 
-    private sealed record QueryPlan(string Intent, int? Days, string? CustomerName, bool MonthOnly = false);
+    private sealed record QueryPlan(string Intent, int? Days, string? CustomerName,
+        DateTime? FromUtc = null, DateTime? ToUtc = null);
     private sealed record FactSet(string Summary, List<Order> Orders);
 }

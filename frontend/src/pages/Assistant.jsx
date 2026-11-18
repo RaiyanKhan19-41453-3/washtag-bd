@@ -172,7 +172,8 @@ export default function Assistant() {
 
           <div className="chat-messages">
             {messages.map((message, index) => (
-              <div key={message.id || `${message.role}-${index}`} className={`chat-row ${message.role}`}>
+              <div key={message.id && message.id !== '00000000-0000-0000-0000-000000000000'
+                ? message.id : `${message.role}-${index}`} className={`chat-row ${message.role}`}>
                 <span className="chat-avatar">
                   {message.role === 'user' ? <UserRound size={17} /> : <Bot size={17} />}
                 </span>
