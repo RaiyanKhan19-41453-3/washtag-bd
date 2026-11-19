@@ -82,7 +82,22 @@ public class RefreshTokenStore : IRefreshTokenStore
             var result = await claim.ExecuteScalarAsync(cancellationToken);
             if (result == null || result == DBNull.Value)
             {
-                await transaction.RollbackAsync(cancellationToken);
+                // Replay of an already-rotated token: revoke the whole lineage so a
+                // stolen token cannot keep a session alive after the owner detects it.
+                await using var revoke = new NpgsqlCommand(
+                    """
+                    WITH RECURSIVE chain AS (
+                        SELECT "Id", "ReplacedBy" FROM "RefreshTokens" WHERE "TokenHash" = @old
+                        UNION ALL
+                        SELECT t."Id", t."ReplacedBy" FROM "RefreshTokens" t
+                        JOIN chain c ON t."TokenHash" = c."ReplacedBy"
+                    )
+                    UPDATE "RefreshTokens" SET "RevokedAt" = now()
+                    WHERE "Id" IN (SELECT "Id" FROM chain) AND "RevokedAt" IS NULL
+                    """, connection, transaction);
+                revoke.Parameters.AddWithValue("old", oldHash);
+                await revoke.ExecuteNonQueryAsync(cancellationToken);
+                await transaction.CommitAsync(cancellationToken);
                 return null;
             }
             userId = (Guid)result;
