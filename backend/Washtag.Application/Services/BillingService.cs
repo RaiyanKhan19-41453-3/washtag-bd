@@ -61,9 +61,7 @@ public class BillingService : IBillingService
             throw new AppException("This invoice was cancelled.");
 
         var reference = string.IsNullOrWhiteSpace(request.Reference) ? null : request.Reference.Trim();
-        var shop = await _db.Shops.FirstOrDefaultAsync(s => s.Id == shopId, cancellationToken);
-        var settled = await _invoices.SettleAsync(shopId, invoiceId, request.Method, reference,
-            Plans.MonthlyPrice(shop?.Plan), cancellationToken);
+        var settled = await _invoices.SettleAsync(shopId, invoiceId, request.Method, reference, cancellationToken);
         if (!settled)
             throw new AppException("The invoice state changed. Reload and try again.");
 

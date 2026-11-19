@@ -31,7 +31,7 @@ public record BillingDeadlineResult(int OverdueInvoices, int ShopsFlagged);
 public interface IInvoiceStore
 {
     Task<bool> SettleAsync(Guid shopId, Guid invoiceId, PaymentMethod method, string? reference,
-        decimal monthlyPrice, CancellationToken cancellationToken = default);
+        CancellationToken cancellationToken = default);
 
     /// <summary>Single authoritative transition for overdue invoices and expired terms.</summary>
     Task<BillingDeadlineResult> ApplyDeadlinesAsync(DateTime now, Guid? shopId = null,

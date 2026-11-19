@@ -14,7 +14,7 @@ public class InvoiceStore : IInvoiceStore
         _connectionString = configuration.GetConnectionString("Postgres") ?? string.Empty;
 
     public async Task<bool> SettleAsync(Guid shopId, Guid invoiceId, PaymentMethod method, string? reference,
-        decimal monthlyPrice, CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default)
     {
         await using var connection = new NpgsqlConnection(_connectionString);
         await connection.OpenAsync(cancellationToken);
@@ -29,6 +29,17 @@ public class InvoiceStore : IInvoiceStore
             lockShop.Parameters.AddWithValue("shop", shopId);
             await lockShop.ExecuteNonQueryAsync(cancellationToken);
         }
+
+        // Read the price under the same lock: a concurrent plan change must not be
+        // overtaken by a renewal invoice priced with the old plan.
+        string plan;
+        await using (var readPlan = new NpgsqlCommand(
+            "SELECT \"Plan\" FROM \"Shops\" WHERE \"Id\" = @shop", connection, transaction))
+        {
+            readPlan.Parameters.AddWithValue("shop", shopId);
+            plan = (await readPlan.ExecuteScalarAsync(cancellationToken) as string) ?? "Starter";
+        }
+        var monthlyPrice = Washtag.Domain.Plans.MonthlyPrice(plan);
 
         await using (var update = new NpgsqlCommand(
             """
@@ -117,7 +128,10 @@ public class InvoiceStore : IInvoiceStore
             """
             INSERT INTO "Invoices" ("Id", "ShopId", "InvoiceNumber", "PeriodFrom", "PeriodTo", "Amount", "Status", "Method", "CreatedAt")
             SELECT @id, @shop, @number, @from, @to, @amount, 0, 0, @now
-            WHERE NOT EXISTS (SELECT 1 FROM "Invoices" WHERE "ShopId" = @shop)
+            WHERE NOT EXISTS (
+                SELECT 1 FROM "Invoices"
+                WHERE "ShopId" = @shop AND "Status" IN (0, 2) AND "PeriodTo" > @now
+            )
             """, connection);
         command.Parameters.AddWithValue("id", Guid.NewGuid());
         command.Parameters.AddWithValue("shop", shopId);

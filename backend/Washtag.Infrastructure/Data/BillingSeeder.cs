@@ -17,11 +17,15 @@ public static class BillingSeeder
 
         foreach (var shop in shops)
         {
-            if (await db.Invoices.AnyAsync(i => i.ShopId == shop.Id)) continue;
+            // A restored backup may contain only old paid invoices. Such a shop still
+            // needs a current payable invoice or it can never renew after expiry.
+            if (await db.Invoices.AnyAsync(i => i.ShopId == shop.Id &&
+                    (i.Status == InvoiceStatus.Pending || i.Status == InvoiceStatus.Overdue) &&
+                    i.PeriodTo > DateTime.UtcNow)) continue;
 
             var price = Plans.MonthlyPrice(shop.Plan);
             var currentMonth = new DateTime(DateTime.UtcNow.Year, DateTime.UtcNow.Month, 1, 0, 0, 0, DateTimeKind.Utc);
-            var suffix = shop.Id.ToString("N")[..6].ToUpperInvariant();
+            var suffix = Guid.NewGuid().ToString("N")[..6].ToUpperInvariant();
 
             for (var offset = -2; offset <= 0; offset++)
             {
