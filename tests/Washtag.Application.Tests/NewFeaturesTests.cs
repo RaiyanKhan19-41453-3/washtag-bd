@@ -25,12 +25,18 @@ public class NewFeaturesTests
     {
         var (db, shopId) = NewDb();
         var service = new ServiceCatalogService(db);
+        var configured = await db.Shops.SingleAsync(s => s.Id == shopId);
+        configured.CatalogueInitialized = true;
+        await db.SaveChangesAsync();
         var created = await service.CreateAsync(shopId, new CreateServiceRequest { Name = "Dry Clean", DefaultPrice = 250 });
 
         Assert.Equal(250, created.DefaultPrice);
         await Assert.ThrowsAsync<AppException>(() => service.CreateAsync(shopId,
             new CreateServiceRequest { Name = "dry clean", DefaultPrice = 100 }));
-        Assert.Empty(await service.ListAsync(Guid.NewGuid()));
+        // Legacy shops get a one-time default catalogue on first read, and deleting
+        // all services later does not trigger a re-seed.
+        var (legacyDb, legacyShopId) = NewDb();
+        Assert.Equal(3, (await new ServiceCatalogService(legacyDb).ListAsync(legacyShopId)).Count);
 
         var updated = await service.UpdateAsync(shopId, created.Id,
             new UpdateServiceRequest { Name = "Dry Clean", DefaultPrice = 300, IsActive = false });

@@ -139,7 +139,7 @@ export default function Track() {
           </div>
           <div className="track-payment-row">
             <Wallet size={16} />
-            <span>{order.paymentStatus === 'Paid' ? 'All settled — thank you!' : 'Settle your payment at pickup.'}</span>
+            <span>{order.paymentStatus === 'Paid' ? 'All settled — thank you!' : (order.deliveryMode === 'Delivery' ? 'Payment is collected on delivery.' : 'Settle your payment at pickup.')}</span>
           </div>
         </section>
 
@@ -149,7 +149,7 @@ export default function Track() {
         </section>
 
         <footer className="track-footer">
-          <p>{t('Expected pickup')}: <strong>{order.dueDate ? formatDate(order.dueDate) : '—'}</strong></p>
+          <p>{order.deliveryMode === 'Delivery' ? (t('Delivery address') || 'Delivery address') : t('Expected pickup')}: <strong>{order.deliveryMode === 'Delivery' ? (order.deliveryAddress || '—') : (order.dueDate ? formatDate(order.dueDate) : '—')}</strong></p>
           {order.deliveredAt && <p>Delivered on <strong>{formatDateTime(order.deliveredAt)}</strong></p>}
           <p>{t('Questions? Call the shop at')} <strong>{shop.phone ? <a href={`tel:${shop.phone.replace(/[^\d+]/g, '')}`}>{shop.phone}</a> : '—'}</strong></p>
         </footer>

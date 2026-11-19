@@ -83,7 +83,7 @@ export const bn = {
   'Customer details': 'গ্রাহকের বিবরণ',
   Items: 'আইটেম',
   Quantity: 'পরিমাণ',
-  'Item': 'আইটেম',
+
   Price: 'মূল্য',
   'Order': 'অর্ডার',
   Date: 'তারিখ',
@@ -125,7 +125,7 @@ export const bn = {
   'Recent orders': 'সাম্প্রতিক অর্ডার',
   'View all': 'সব দেখুন',
   'Back to orders': 'অর্ডারে ফিরে যান',
-  Service: 'সার্ভিস',
+
   Qty: 'পরিমাণ',
   'Order total': 'অর্ডারের মোট',
   'Every step, recorded': 'প্রতিটি ধাপ রেকর্ড করা হয়',

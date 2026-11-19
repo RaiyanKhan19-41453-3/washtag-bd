@@ -8,7 +8,9 @@ import { money, formatDate } from '../utils/helpers';
 
 const today = new Date();
 const firstOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
-const iso = (d) => d.toISOString().slice(0, 10);
+const iso = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+// Business days are UTC+6 (Dhaka); send the day boundaries as UTC instants.
+const dayStartUtc = (day) => new Date(`${day}T00:00:00+06:00`).toISOString();
 
 export default function Reports() {
   const toast = useToast();
@@ -22,7 +24,7 @@ export default function Reports() {
     setBusy(true);
     try {
       const { data } = await api.get('/reports/daily', {
-        params: { from: new Date(from).toISOString(), to: new Date(to).toISOString() }
+        params: { from: dayStartUtc(from), to: dayStartUtc(to) }
       });
       setReport(data);
     } catch (error) { toast.error(error.message); }
@@ -33,7 +35,7 @@ export default function Reports() {
   const download = async () => {
     try {
       const response = await api.get('/reports/orders.csv', {
-        params: { from: new Date(from).toISOString(), to: new Date(to).toISOString() },
+        params: { from: dayStartUtc(from), to: dayStartUtc(to) },
         responseType: 'blob'
       });
       const url = URL.createObjectURL(new Blob([response.data], { type: 'text/csv' }));

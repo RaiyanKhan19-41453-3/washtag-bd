@@ -24,7 +24,14 @@ export default function NewOrder() {
 
   useEffect(() => {
     api.get('/customers').then(({ data }) => setCustomers(data)).catch(() => {});
-    api.get('/services').then(({ data }) => setServiceOptions(data.filter((s) => s.isActive))).catch(() => {});
+    api.get('/services').then(({ data }) => {
+      const active = data.filter((s) => s.isActive);
+      setServiceOptions(active);
+      if (active.length && active[0].name === 'Wash & Fold') {
+        setForm((current) => ({ ...current, items: current.items.map((it, i) => i === 0
+          ? { ...it, service: active[0].name, unitPrice: active[0].defaultPrice } : it) }));
+      }
+    }).catch(() => {});
   }, []);
 
   const setField = (key, value) => setForm((current) => ({ ...current, [key]: value }));
