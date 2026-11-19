@@ -3,6 +3,7 @@ name: CI
 on:
   push:
     branches: [main]
+    tags: ['v*']
   pull_request:
     branches: [main]
 
@@ -21,6 +22,11 @@ jobs:
         run: dotnet build WashtagBD.sln --no-restore --configuration Release
       - name: Test
         run: dotnet test WashtagBD.sln --no-build --configuration Release --verbosity normal
+      - name: Verify EF model has no pending changes
+        run: |
+          dotnet tool install --global dotnet-ef --version 9.0.1
+          export PATH="$PATH:$HOME/.dotnet/tools"
+          dotnet ef migrations has-pending-model-changes --project backend/Washtag.Infrastructure --startup-project backend/Washtag.Api
 
   frontend:
     name: Frontend (build)
@@ -58,3 +64,13 @@ jobs:
           context: ./frontend
           push: false
           tags: washtag-web:ci
+      - name: Validate Compose and smoke-test the stack
+        run: |
+          docker compose config -q
+          docker compose up -d --build
+          for i in $(seq 1 30); do
+            if curl -fsS http://127.0.0.1:${APP_PORT:-8081}/health | grep -q healthy; then break; fi
+            sleep 2
+          done
+          curl -fsS http://127.0.0.1:${APP_PORT:-8081}/health
+          docker compose logs api --tail=50
