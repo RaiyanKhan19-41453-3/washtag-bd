@@ -156,7 +156,12 @@ public sealed class FakeRefreshTokenStore : IRefreshTokenStore
         return Task.CompletedTask;
     }
 
-    public Task PurgeExpiredAsync(CancellationToken cancellationToken = default) => Task.CompletedTask;
+    public int PurgeCalls { get; private set; }
+    public Task PurgeExpiredAsync(CancellationToken cancellationToken = default)
+    {
+        PurgeCalls++;
+        return Task.CompletedTask;
+    }
 
     public Task<Guid?> RotateAsync(string oldHash, string newHash, DateTime expiresAt,
         CancellationToken cancellationToken = default)

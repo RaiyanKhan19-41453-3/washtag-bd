@@ -177,4 +177,20 @@ public class ControllerTests
         Authenticate(controller, Guid.NewGuid(), isAdmin: true);
         Assert.IsType<OkObjectResult>(await controller.Stats());
     }
+
+    [Fact]
+    public async Task MaintenanceRun_RequiresAdminClaim()
+    {
+        var service = new Mock<IMaintenanceService>();
+        service.Setup(s => s.RunAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new MaintenanceResultDto { ReindexedShops = 1 });
+        var controller = new MaintenanceController(service.Object);
+
+        Authenticate(controller, Guid.NewGuid());
+        Assert.IsType<ForbidResult>(await controller.Run());
+
+        Authenticate(controller, Guid.NewGuid(), isAdmin: true);
+        Assert.IsType<OkObjectResult>(await controller.Run());
+        service.Verify(s => s.RunAsync(It.IsAny<CancellationToken>()), Times.Once);
+    }
 }
