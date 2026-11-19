@@ -378,6 +378,9 @@ namespace Washtag.Infrastructure.Data.Migrations
                     b.Property<DateTime?>("RevokedAt")
                         .HasColumnType("timestamp with time zone");
 
+                    b.Property<string>("SessionHash")
+                        .HasColumnType("text");
+
                     b.Property<string>("TokenHash")
                         .IsRequired()
                         .HasColumnType("text");
@@ -404,6 +407,9 @@ namespace Washtag.Infrastructure.Data.Migrations
                     b.Property<string>("Address")
                         .IsRequired()
                         .HasColumnType("text");
+
+                    b.Property<bool>("CatalogueInitialized")
+                        .HasColumnType("boolean");
 
                     b.Property<string>("City")
                         .IsRequired()

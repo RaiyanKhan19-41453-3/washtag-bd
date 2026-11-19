@@ -102,6 +102,8 @@ public class OrderService : IOrderService
             throw new AppException("Add at least one item to the order.");
         if (string.IsNullOrWhiteSpace(request.CustomerName) || string.IsNullOrWhiteSpace(request.CustomerPhone))
             throw new AppException("Customer name and phone are required.");
+        if (!Enum.IsDefined(request.DeliveryMode))
+            throw new AppException("Invalid delivery mode.");
         if (request.DeliveryMode == DeliveryMode.Delivery && string.IsNullOrWhiteSpace(request.DeliveryAddress))
             throw new AppException("A delivery address is required for delivery orders.");
 
@@ -246,7 +248,9 @@ public class OrderService : IOrderService
         if (_messages.IsConfigured && request.Status is OrderStatus.ReadyForPickup or OrderStatus.Delivered)
         {
             var message = request.Status == OrderStatus.ReadyForPickup
-                ? $"Order {order.OrderNumber} is ready for pickup. Track: {_urls.Build(order.PublicToken)}"
+                ? order.DeliveryMode == DeliveryMode.Delivery
+                    ? $"Order {order.OrderNumber} is out for delivery. Track: {_urls.Build(order.PublicToken)}"
+                    : $"Order {order.OrderNumber} is ready for pickup. Track: {_urls.Build(order.PublicToken)}"
                 : $"Order {order.OrderNumber} has been delivered. Thank you!";
             await _messages.SendAsync(order.CustomerPhone, message);
         }
@@ -639,6 +643,7 @@ public class OrderService : IOrderService
             DueDate = order.DueDate,
             DeliveredAt = order.DeliveredAt,
             DeliveryMode = order.DeliveryMode,
+            DeliveryAddress = order.DeliveryAddress,
             TrackingUrl = _urls.Build(order.PublicToken),
             Items = order.Items.Select(MapItem).ToList()
         },
