@@ -138,7 +138,8 @@ The dependency rule points inward: `Api → Infrastructure → Application → D
 - Multi-tenant isolation and optimistic concurrency (conflicting updates return `409`)
 - QR receipts generated server-side with QRCoder (data URL + printable PNG); they encode the real public `/track/{token}` URL of whatever host serves the app, so they work on localhost, a VPS IP or a custom domain
 - Real-time push to both the owner dashboard and the customer tracking page
-- Health-checked dependencies with automatic restarts
+- Health-checked dependencies with automatic restarts, EF connection resiliency and retried startup/background indexing
+- Redis-backed idempotency keys so duplicate order submissions are rejected even across API restarts
 - Swagger UI at `/swagger` (disabled by default; set `ENABLE_SWAGGER=true` to explore the API)
 
 ---
