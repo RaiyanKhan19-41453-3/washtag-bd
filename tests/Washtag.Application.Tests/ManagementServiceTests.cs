@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Washtag.Domain;
 using Washtag.Application.DTOs;
 using Washtag.Application.Services;
 using Washtag.Domain.Entities;
@@ -286,5 +287,47 @@ public class ManagementServiceTests
         await Assert.ThrowsAsync<AppException>(() => auth.RefreshAsync(login.RefreshToken));
         await Assert.ThrowsAsync<AppException>(() => auth.LoginAsync(new LoginRequest { Email = "owner@test.com", Password = "secret123" }));
         Assert.NotNull(await auth.LoginAsync(new LoginRequest { Email = "owner@test.com", Password = "newpass123" }));
+    }
+
+    [Fact]
+    public void SubscriptionPolicy_LocksExpiredPastDueAndCancelled()
+    {
+        var now = DateTime.UtcNow;
+        var shop = new Shop
+        {
+            IsActive = true, SubscriptionStatus = SubscriptionStatus.Active, SubscriptionEndsAt = now.AddDays(5)
+        };
+        Assert.False(SubscriptionPolicy.IsLocked(shop, now));
+
+        shop.SubscriptionEndsAt = now.AddDays(-1);
+        Assert.True(SubscriptionPolicy.IsLocked(shop, now));
+
+        shop.SubscriptionEndsAt = now.AddDays(5);
+        shop.SubscriptionStatus = SubscriptionStatus.PastDue;
+        Assert.True(SubscriptionPolicy.IsLocked(shop, now));
+
+        shop.SubscriptionStatus = SubscriptionStatus.Cancelled;
+        Assert.True(SubscriptionPolicy.IsLocked(shop, now));
+
+        shop.SubscriptionStatus = SubscriptionStatus.Active;
+        shop.IsActive = false;
+        Assert.True(SubscriptionPolicy.IsLocked(shop, now));
+    }
+
+    [Fact]
+    public async Task Admin_CanSuspendAndCancelShop()
+    {
+        var h = new Harness();
+        var service = new AdminService(h.Db);
+
+        var suspended = await service.SetShopActiveAsync(h.ShopId, false);
+        Assert.False(suspended.IsActive);
+
+        var cancelled = await service.CancelShopSubscriptionAsync(h.ShopId);
+        Assert.Equal(SubscriptionStatus.Cancelled, cancelled.SubscriptionStatus);
+
+        var reactivated = await service.SetShopActiveAsync(h.ShopId, true);
+        Assert.True(reactivated.IsActive);
+        Assert.Equal(SubscriptionStatus.Active, reactivated.SubscriptionStatus);
     }
 }

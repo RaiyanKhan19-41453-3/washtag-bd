@@ -264,4 +264,8 @@ public sealed class FakeAdmin : IAdminService
 {
     public Task<AdminStatsDto> GetStatsAsync(CancellationToken cancellationToken = default) =>
         Task.FromResult(new AdminStatsDto { ShopCount = 1 });
+    public Task<ShopDto> SetShopActiveAsync(Guid shopId, bool active, CancellationToken cancellationToken = default) =>
+        Task.FromResult(new ShopDto { Id = shopId, IsActive = active });
+    public Task<ShopDto> CancelShopSubscriptionAsync(Guid shopId, CancellationToken cancellationToken = default) =>
+        Task.FromResult(new ShopDto { Id = shopId, SubscriptionStatus = SubscriptionStatus.Cancelled });
 }
