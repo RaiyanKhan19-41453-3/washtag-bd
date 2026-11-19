@@ -2,12 +2,12 @@ import { useState } from 'react';
 import { Link, NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import {
   LayoutDashboard, Package, ScanLine, Users, Settings as SettingsIcon,
-  LogOut, Plus, Menu, Shirt, Sparkles, UserCog, CreditCard, Shield
+  LogOut, Plus, Menu, Shirt, Sparkles, UserCog, CreditCard, Shield, AlertCircle
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useLanguage } from '../context/LanguageContext';
 import LanguageToggle from './LanguageToggle';
-import { greeting, initials } from '../utils/helpers';
+import { greeting, initials, shopLocked } from '../utils/helpers';
 
 const navItems = [
   { to: '/app', label: 'Dashboard', icon: LayoutDashboard, end: true },
@@ -102,6 +102,12 @@ export default function Layout() {
       {open && <div className="sidebar-overlay" onClick={() => setOpen(false)} />}
 
       <div className="app-main">
+        {shopLocked(shop) && (
+          <div className="subscription-banner">
+            <AlertCircle size={17} /> <span>Your subscription is inactive. Renew to keep managing orders.</span>
+            <Link to="/app/billing" className="btn btn-sm">Renew now</Link>
+          </div>
+        )}
         <header className="topbar">
           <button className="icon-btn menu-btn" onClick={() => setOpen((value) => !value)} aria-label="Toggle menu">
             <Menu size={21} />

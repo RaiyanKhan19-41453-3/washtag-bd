@@ -83,6 +83,13 @@ export function trackingUrl(token) {
   return `${window.location.origin}/track/${token}`;
 }
 
+export function shopLocked(shop) {
+  if (!shop) return false;
+  return !shop.isActive ||
+    ['PastDue', 'Cancelled'].includes(shop.subscriptionStatus) ||
+    (shop.subscriptionEndsAt && new Date(shop.subscriptionEndsAt) <= new Date());
+}
+
 export function greeting() {
   const hour = new Date().getHours();
   if (hour < 12) return 'Good morning';
