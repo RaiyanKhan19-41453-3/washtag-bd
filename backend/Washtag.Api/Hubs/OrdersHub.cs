@@ -26,7 +26,21 @@ public class OrdersHub : Hub
     public async Task JoinTokenGroup(string token)
     {
         if (!Guid.TryParse(token, out var tokenId)) return;
-        if (await _db.Orders.AnyAsync(o => o.PublicToken == tokenId))
-            await Groups.AddToGroupAsync(Context.ConnectionId, $"token_{tokenId}");
+
+        var rawShopId = Context.User?.FindFirst("shopId")?.Value;
+        var query = _db.Orders.AsNoTracking().Where(o => o.PublicToken == tokenId);
+
+        if (Guid.TryParse(rawShopId, out var shopId))
+        {
+            // Authenticated owner/staff may only follow their own shop's orders.
+            if (!await query.AnyAsync(o => o.ShopId == shopId)) return;
+        }
+        else if (!await query.AnyAsync())
+        {
+            // Anonymous customer tracking: the token itself is the capability.
+            return;
+        }
+
+        await Groups.AddToGroupAsync(Context.ConnectionId, $"token_{tokenId}");
     }
 }
