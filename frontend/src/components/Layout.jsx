@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Link, NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import {
   LayoutDashboard, Package, ScanLine, Users, Settings as SettingsIcon,
-  LogOut, Plus, Menu, Shirt, Sparkles, UserCog, CreditCard, Shield, AlertCircle
+  LogOut, Plus, Menu, Shirt, Sparkles, UserCog, CreditCard, Shield, AlertCircle, BarChart3
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useLanguage } from '../context/LanguageContext';
@@ -19,6 +19,7 @@ const navItems = [
   { to: '/app/customers', label: 'Customers', icon: Users },
   { to: '/app/team', label: 'Team', icon: UserCog },
   { to: '/app/billing', label: 'Billing', icon: CreditCard },
+  { to: '/app/reports', label: 'Reports', icon: BarChart3 },
   { to: '/app/settings', label: 'Settings', icon: SettingsIcon }
 ];
 
@@ -32,6 +33,7 @@ function titleFor(pathname) {
   if (pathname.startsWith('/app/customers')) return 'Customers';
   if (pathname.startsWith('/app/team')) return 'Team';
   if (pathname.startsWith('/app/billing')) return 'Billing';
+  if (pathname.startsWith('/app/reports')) return 'Reports';
   if (pathname.startsWith('/app/admin')) return 'Platform Admin';
   if (pathname.startsWith('/app/settings')) return 'Settings';
   return 'WORKSPACE';

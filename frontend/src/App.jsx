@@ -21,6 +21,7 @@ const Billing = lazy(() => import('./pages/Billing'));
 const Settings = lazy(() => import('./pages/Settings'));
 const Assistant = lazy(() => import('./pages/Assistant'));
 const Admin = lazy(() => import('./pages/Admin'));
+const Reports = lazy(() => import('./pages/Reports'));
 const PrintReceipt = lazy(() => import('./pages/PrintReceipt'));
 const Track = lazy(() => import('./pages/Track'));
 const NotFound = lazy(() => import('./pages/NotFound'));
@@ -50,6 +51,7 @@ export default function App() {
                     <Route path="customers" element={<Customers />} />
                     <Route path="team" element={<Team />} />
                     <Route path="billing" element={<Billing />} />
+                    <Route path="reports" element={<Reports />} />
                     <Route path="admin" element={<Admin />} />
                     <Route path="assistant" element={<Assistant />} />
                     <Route path="settings" element={<Settings />} />
