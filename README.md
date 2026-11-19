@@ -141,6 +141,7 @@ The dependency rule points inward: `Api → Infrastructure → Application → D
 - Real-time push to both the owner dashboard and the customer tracking page
 - Health-checked dependencies with automatic restarts, EF connection resiliency and retried startup/background indexing
 - Database-backed idempotency keys stored on the order itself, so duplicate submissions are rejected atomically — even across API crashes and restarts — and replays return the original order
+- Scheduled maintenance worker: marks overdue invoices and expired subscriptions, prunes old chat messages and refresh tokens, and reindexes shops so stale vector documents are removed — all idempotent and configurable with `MAINTENANCE_*` variables
 - Swagger UI at `/swagger` (disabled by default; set `ENABLE_SWAGGER=true` to explore the API)
 
 ---
@@ -178,7 +179,7 @@ Both scripts read `POSTGRES_USER` / `POSTGRES_DB` from `.env` (with the compose 
 Everything is in one solution; .NET and Node are only needed if you want to develop outside Docker.
 
 ```bash
-dotnet test WashtagBD.sln          # 60 xUnit tests (use cases, billing, auth, assistant, subscription, admin + controllers)
+dotnet test WashtagBD.sln          # 67 xUnit tests (use cases, billing, auth, assistant, subscription, admin, maintenance + controllers)
 cd frontend && npm run build       # production bundle check
 ```
 
@@ -226,6 +227,7 @@ GitHub Actions runs build + tests + both Docker image builds on every push and P
 | GET | `/api/admin/stats` | Platform admin | Cross-shop overview |
 | PATCH | `/api/admin/shops/{id}/active` | Platform admin | Suspend (`active: false`) or reactivate (`active: true`) a shop |
 | PATCH | `/api/admin/shops/{id}/cancel` | Platform admin | Cancel a shop's subscription (locks the shop) |
+| POST | `/api/admin/maintenance/run` | Platform admin | Run scheduled housekeeping immediately (idempotent) |
 | GET | `/api/public/track/{token}` | public | Customer-facing tracking payload |
 | POST | `/api/assistant/ask` | JWT | Ask the RAG assistant a question |
 | GET | `/api/assistant/status` | JWT | Vector index/engine status |
@@ -251,6 +253,12 @@ ADMIN_EMAILS=demo@washtagbd.com
 
 # Hide interactive API docs in production
 ENABLE_SWAGGER=false
+
+# Scheduled housekeeping (defaults shown)
+MAINTENANCE_ENABLED=true
+MAINTENANCE_INTERVAL_MINUTES=60
+MAINTENANCE_RUN_ON_STARTUP=true
+MAINTENANCE_CHAT_RETENTION_DAYS=90
 ```
 
 Emails listed in `ADMIN_EMAILS` are reserved and cannot be self-registered. Deactivating an account or changing a password invalidates its existing access tokens immediately. Access tokens live for 15 minutes; refresh tokens last 30 days, are stored hashed, and rotate on every use. The client refreshes transparently on a 401. Auth endpoints are rate-limited to 6 attempts per minute per IP. Team management, plan changes, invoice settlement and order cancellation require the Owner role; `/api/admin/*` requires the `isAdmin` claim.
