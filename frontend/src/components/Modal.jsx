@@ -4,20 +4,24 @@ import { X } from 'lucide-react';
 export default function Modal({ open, onClose, title, subtitle, children, footer, size = 'md' }) {
   const dialogRef = useRef(null);
   const previousFocus = useRef(null);
+  // Callers pass a fresh inline arrow each render; depending on it would refocus
+  // the dialog on every keystroke and steal focus from modal inputs.
+  const onCloseRef = useRef(onClose);
+  onCloseRef.current = onClose;
 
   useEffect(() => {
     if (!open) return undefined;
     previousFocus.current = document.activeElement;
     dialogRef.current?.focus();
     const handleKey = (event) => {
-      if (event.key === 'Escape') onClose?.();
+      if (event.key === 'Escape') onCloseRef.current?.();
     };
     document.addEventListener('keydown', handleKey);
     return () => {
       document.removeEventListener('keydown', handleKey);
       previousFocus.current?.focus?.();
     };
-  }, [open, onClose]);
+  }, [open]);
 
   if (!open) return null;
   return (

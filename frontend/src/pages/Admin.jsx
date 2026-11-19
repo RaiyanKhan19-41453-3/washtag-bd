@@ -28,6 +28,7 @@ export default function Admin() {
     try {
       await api.request({ url: `/admin/shops/${path}`, method, data: body });
       toast.success(message);
+      window.dispatchEvent(new CustomEvent('washtag:subscription-locked'));
       load();
     } catch (err) { toast.error(err.message); }
     finally { setBusyId(null); }

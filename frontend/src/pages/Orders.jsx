@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Plus, Search, PackageOpen, ChevronLeft, ChevronRight, RefreshCw } from 'lucide-react';
 import api from '../api/client';
@@ -22,13 +22,18 @@ export default function Orders() {
   const [error, setError] = useState('');
   const token = localStorage.getItem('washtag_token');
   const { t } = useLanguage();
+  const requestId = useRef(0);
 
   const load = useCallback(() => {
+    const id = ++requestId.current;
     setLoading(true);
     api.get('/orders', { params: { status, search, page, pageSize: PAGE_SIZE } })
-      .then(({ data }) => { setOrders(data.items); setTotal(data.total); setError(''); })
-      .catch((err) => setError(err.message))
-      .finally(() => setLoading(false));
+      .then(({ data }) => {
+        if (id !== requestId.current) return; // a newer query has already started
+        setOrders(data.items); setTotal(data.total); setError('');
+      })
+      .catch((err) => { if (id === requestId.current) setError(err.message); })
+      .finally(() => { if (id === requestId.current) setLoading(false); });
   }, [status, search, page]);
 
   useEffect(() => {

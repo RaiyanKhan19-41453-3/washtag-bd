@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import {
   ArrowLeft, Package, UserRound, Phone, CalendarDays, StickyNote,
@@ -28,15 +28,17 @@ export default function OrderDetail() {
   const { t } = useLanguage();
   const { user } = useAuth();
   const [order, setOrder] = useState(null);
+  const [loadedId, setLoadedId] = useState(null);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
+  const busyRef = useRef(false);
   const [paymentOpen, setPaymentOpen] = useState(false);
   const [payment, setPayment] = useState({ amount: '', method: 'Cash', reference: '' });
   const token = localStorage.getItem('washtag_token');
 
   const load = useCallback(() => {
     api.get(`/orders/${id}`)
-      .then(({ data }) => { setOrder(data); setError(''); })
+      .then(({ data }) => { setOrder(data); setLoadedId(id); setError(''); })
       .catch((err) => setError(err.message));
   }, [id]);
 
@@ -63,6 +65,10 @@ export default function OrderDetail() {
 
   const submitPayment = async (event) => {
     event.preventDefault();
+    // Guard synchronously: disabled={busy} applies a render later, so a quick
+    // double-click could otherwise record two partial payments.
+    if (busyRef.current) return;
+    busyRef.current = true;
     setBusy(true);
     try {
       await api.post(`/orders/${order.id}/payment`, {
@@ -77,6 +83,7 @@ export default function OrderDetail() {
     } catch (err) {
       toast.error(err.message);
     } finally {
+      busyRef.current = false;
       setBusy(false);
     }
   };
@@ -101,7 +108,17 @@ export default function OrderDetail() {
     }
   };
 
-  if (!order && !error) return <Loader full label="Loading order…" />;
+  if (!order || loadedId !== id) {
+    if (error) {
+      return (
+        <div className="card error-card">
+          <p>{error}</p>
+          <div className="form-actions"><button className="btn btn-primary" onClick={load}>Retry</button></div>
+        </div>
+      );
+    }
+    return <Loader full label="Loading order…" />;
+  }
   if (error && !order) {
     return (
       <div className="card error-card">

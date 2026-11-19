@@ -7,6 +7,7 @@ export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [shop, setShop] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [profileError, setProfileError] = useState('');
 
   useEffect(() => {
     let active = true;
@@ -23,7 +24,10 @@ export function AuthProvider({ children }) {
         setShop(data.shop);
       })
       // A transient 500/network error must not destroy a valid session.
-      .catch((error) => { if (error.response?.status === 401) clearTokens(); })
+      .catch((error) => {
+        if (error.response?.status === 401) clearTokens();
+        else setProfileError('Could not load your profile. Check your connection and retry.');
+      })
       .finally(() => { if (active) setLoading(false); });
 
     return () => { active = false; };
@@ -69,11 +73,25 @@ export function AuthProvider({ children }) {
     clearTokens();
     setUser(null);
     setShop(null);
+    setProfileError('');
+  };
+
+  const retryProfile = async () => {
+    setProfileError('');
+    setLoading(true);
+    try {
+      const { data } = await api.get('/auth/me');
+      setUser(data.user);
+      setShop(data.shop);
+    } catch (error) {
+      if (error.response?.status === 401) clearTokens();
+      else setProfileError('Could not load your profile. Check your connection and retry.');
+    } finally { setLoading(false); }
   };
 
   return (
     <AuthContext.Provider
-      value={{ user, shop, loading, login, register, logout, setShop, isAuthenticated: !!user }}
+      value={{ user, shop, loading, profileError, retryProfile, login, register, logout, setShop, isAuthenticated: !!user }}
     >
       {children}
     </AuthContext.Provider>
