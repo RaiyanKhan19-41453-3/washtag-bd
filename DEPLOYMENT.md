@@ -154,3 +154,4 @@ If you need multiple replicas: add a shared secret, a Postgres advisory lock aro
 - Bengali translations are partial (English fallback per string).
 - The assistant uses deterministic local embeddings by default; an LLM is optional. Reindexing is a synchronous, one-embedding-per-document operation capped at 500 orders and 500 customers per shop (newest first), so very large shops should reindex off-peak. Mixing embedding models/providers without rebuilding the index degrades retrieval quality (facts are still computed from the database).
 - Domain "not found" errors are returned as HTTP 400 rather than 404 for historical compatibility.
+- EF-backed queries retry transient database errors, but the raw Npgsql atomic stores (payments, invoice settlement, token rotation, vector search) do not; a Postgres restart can surface a short burst of 500s on those actions even though the app recovers.
