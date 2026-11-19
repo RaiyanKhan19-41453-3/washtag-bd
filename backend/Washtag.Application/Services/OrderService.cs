@@ -101,11 +101,7 @@ public class OrderService : IOrderService
         {
             var replay = await LoadOrderAsync(o => o.ShopId == shopId && o.IdempotencyKey == key);
             if (replay != null)
-            {
-                var existing = MapDetail(replay);
-                existing.Replayed = true;
-                return existing;
-            }
+                return await FinishCreateAsync(replay, true);
         }
 
         var orderNumber = await _numbers.NextAsync(shopId);
@@ -163,18 +159,21 @@ public class OrderService : IOrderService
             // A concurrent request with the same key won the unique-index race.
             var winner = await LoadOrderAsync(o => o.ShopId == shopId && o.IdempotencyKey == key);
             if (winner != null)
-            {
-                var existing = MapDetail(winner);
-                existing.Replayed = true;
-                return existing;
-            }
+                return await FinishCreateAsync(winner, true);
             throw;
         }
-        await _customers.EnsureAsync(shopId, order.CustomerName, order.CustomerPhone, now);
+        return await FinishCreateAsync(order, false);
+    }
 
+    /// <summary>Idempotent post-commit work; also runs on a replay in case the first
+    /// request died after the insert but before these side effects.</summary>
+    private async Task<OrderDetailDto> FinishCreateAsync(Order order, bool replayed)
+    {
+        await _customers.EnsureAsync(order.ShopId, order.CustomerName, order.CustomerPhone, order.CreatedAt);
         var dto = MapDetail(order);
         await IndexAsync(order);
         await NotifyAsync(order, dto, BuildPublicTrack(order));
+        dto.Replayed = replayed;
         return dto;
     }
 
@@ -236,7 +235,9 @@ public class OrderService : IOrderService
         if (!recorded)
             throw new AppException("The order balance changed. Reload the order and try again.");
 
-        var fresh = await LoadOrderAsync(q => q.Id == id && q.ShopId == shopId)
+        // The payment was applied by raw SQL, so a tracked entity would still show the
+        // pre-payment amounts. Reload without tracking to get the real balance.
+        var fresh = await LoadOrderNoTrackingAsync(q => q.Id == id && q.ShopId == shopId)
             ?? throw new AppException("Order not found.");
         await InvalidateCacheAsync(order.PublicToken);
         await IndexAsync(fresh);
@@ -404,6 +405,16 @@ public class OrderService : IOrderService
     private async Task<Order?> LoadOrderAsync(Expression<Func<Order, bool>> predicate)
     {
         return await _db.Orders
+            .Include(o => o.Shop)
+            .Include(o => o.Items)
+            .Include(o => o.StatusHistory)
+            .Include(o => o.Payments)
+            .FirstOrDefaultAsync(predicate);
+    }
+
+    private async Task<Order?> LoadOrderNoTrackingAsync(Expression<Func<Order, bool>> predicate)
+    {
+        return await _db.Orders.AsNoTracking()
             .Include(o => o.Shop)
             .Include(o => o.Items)
             .Include(o => o.StatusHistory)
