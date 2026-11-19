@@ -23,6 +23,7 @@ public class ControllerTests
             new Claim("sub", Guid.NewGuid().ToString()),
             new Claim(ClaimTypes.Name, "Owner"),
             new Claim(ClaimTypes.Role, "Owner"),
+            new Claim(ClaimTypes.Email, isAdmin ? "admin@test.com" : "owner@test.com"),
             new Claim("isAdmin", isAdmin ? "true" : "false")
         }, "Test");
         controller.ControllerContext = new ControllerContext
@@ -169,7 +170,9 @@ public class ControllerTests
         var service = new Mock<IAdminService>();
         service.Setup(s => s.GetStatsAsync(It.IsAny<CancellationToken>()))
             .ReturnsAsync(new AdminStatsDto { ShopCount = 1 });
-        var controller = new AdminController(service.Object);
+        var settings = new Mock<IAdminSettings>();
+        settings.Setup(s => s.IsAdmin("admin@test.com")).Returns(true);
+        var controller = new AdminController(service.Object, settings.Object);
 
         Authenticate(controller, Guid.NewGuid());
         Assert.IsType<ForbidResult>(await controller.Stats());
@@ -184,7 +187,9 @@ public class ControllerTests
         var service = new Mock<IMaintenanceService>();
         service.Setup(s => s.RunAsync(It.IsAny<CancellationToken>()))
             .ReturnsAsync(new MaintenanceResultDto { ReindexedShops = 1 });
-        var controller = new MaintenanceController(service.Object);
+        var settings = new Mock<IAdminSettings>();
+        settings.Setup(s => s.IsAdmin("admin@test.com")).Returns(true);
+        var controller = new MaintenanceController(service.Object, settings.Object);
 
         Authenticate(controller, Guid.NewGuid());
         Assert.IsType<ForbidResult>(await controller.Run());

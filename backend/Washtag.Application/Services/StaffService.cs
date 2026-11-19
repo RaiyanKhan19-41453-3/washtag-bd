@@ -10,8 +10,13 @@ namespace Washtag.Application.Services;
 public class StaffService : IStaffService
 {
     private readonly IAppDbContext _db;
+    private readonly IAdminSettings _admin;
 
-    public StaffService(IAppDbContext db) => _db = db;
+    public StaffService(IAppDbContext db, IAdminSettings admin)
+    {
+        _db = db;
+        _admin = admin;
+    }
 
     public async Task<List<StaffDto>> ListAsync(Guid shopId, CancellationToken cancellationToken = default)
     {
@@ -36,6 +41,10 @@ public class StaffService : IStaffService
             throw new AppException("Only staff accounts can be created from the team page.");
 
         var email = request.Email.Trim().ToLowerInvariant();
+        // Otherwise any shop owner could invite an address listed in ADMIN_EMAILS
+        // and hand themselves platform-admin privileges on the next login.
+        if (_admin.IsAdmin(email))
+            throw new AppException("This email address is reserved for platform administration.");
         var existing = await _db.Users.FirstOrDefaultAsync(
             u => u.ShopId == shopId && u.Email.ToLower() == email, cancellationToken);
         if (existing != null)

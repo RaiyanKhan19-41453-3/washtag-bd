@@ -1,3 +1,4 @@
+using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Washtag.Application.DTOs;
@@ -11,10 +12,19 @@ namespace Washtag.Api.Controllers;
 public class AdminController : ControllerBase
 {
     private readonly IAdminService _admin;
+    private readonly IAdminSettings _settings;
 
-    public AdminController(IAdminService admin) => _admin = admin;
+    public AdminController(IAdminService admin, IAdminSettings settings)
+    {
+        _admin = admin;
+        _settings = settings;
+    }
 
-    private bool IsPlatformAdmin => User.FindFirst("isAdmin")?.Value == "true";
+    // Re-check the live configuration as well as the signed claim so removing an
+    // address from ADMIN_EMAILS takes effect immediately instead of after token expiry.
+    private bool IsPlatformAdmin =>
+        User.FindFirst("isAdmin")?.Value == "true" &&
+        User.FindFirst(ClaimTypes.Email)?.Value is { } email && _settings.IsAdmin(email);
 
     [HttpGet("stats")]
     public async Task<IActionResult> Stats()
@@ -35,5 +45,12 @@ public class AdminController : ControllerBase
     {
         if (!IsPlatformAdmin) return Forbid();
         return Ok(await _admin.CancelShopSubscriptionAsync(id, HttpContext.RequestAborted));
+    }
+
+    [HttpPatch("shops/{id:guid}/restore")]
+    public async Task<IActionResult> RestoreSubscription(Guid id)
+    {
+        if (!IsPlatformAdmin) return Forbid();
+        return Ok(await _admin.RestoreSubscriptionAsync(id, HttpContext.RequestAborted));
     }
 }
