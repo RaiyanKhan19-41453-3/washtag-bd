@@ -10,3 +10,5 @@
 *.log
 .DS_Store
 backups/
+**/playwright-report/
+**/test-results/

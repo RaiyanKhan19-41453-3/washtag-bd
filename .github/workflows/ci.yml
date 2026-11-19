@@ -20,13 +20,29 @@ jobs:
         run: dotnet restore WashtagBD.sln --locked-mode
       - name: Build
         run: dotnet build WashtagBD.sln --no-restore --configuration Release
-      - name: Test
-        run: dotnet test WashtagBD.sln --no-build --configuration Release --verbosity normal
+      - name: Unit tests
+        run: |
+          dotnet test tests/Washtag.Application.Tests/Washtag.Application.Tests.csproj --no-build --configuration Release --verbosity normal
+          dotnet test tests/Washtag.Api.Tests/Washtag.Api.Tests.csproj --no-build --configuration Release --verbosity normal
       - name: Verify EF model has no pending changes
         run: |
           dotnet tool install --global dotnet-ef --version 9.0.1
           export PATH="$PATH:$HOME/.dotnet/tools"
           dotnet ef migrations has-pending-model-changes --project backend/Washtag.Infrastructure --startup-project backend/Washtag.Api
+
+  integration:
+    name: Integration (real Postgres via Testcontainers)
+    runs-on: ubuntu-latest
+    needs: [backend]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 9.0.x
+      - name: Restore
+        run: dotnet restore WashtagBD.sln --locked-mode
+      - name: Integration tests
+        run: dotnet test tests/Washtag.Integration.Tests/Washtag.Integration.Tests.csproj --no-restore --configuration Release --nologo
 
   frontend:
     name: Frontend (build)
@@ -74,3 +90,34 @@ jobs:
           done
           curl -fsS http://127.0.0.1:${APP_PORT:-8081}/health
           docker compose logs api --tail=50
+
+  e2e:
+    name: Browser E2E (Playwright)
+    runs-on: ubuntu-latest
+    needs: [docker]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Install dependencies and browser
+        working-directory: frontend
+        run: |
+          npm ci
+          npx playwright install --with-deps chromium
+      - name: Start stack
+        run: |
+          docker compose up -d --build
+          for i in $(seq 1 30); do
+            if curl -fsS http://127.0.0.1:${APP_PORT:-8081}/health | grep -q healthy; then exit 0; fi
+            sleep 2
+          done
+          exit 1
+      - name: Run E2E tests
+        working-directory: frontend
+        run: npm run test:e2e
+      - name: Stop stack
+        if: always()
+        run: docker compose down -v

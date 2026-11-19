@@ -180,7 +180,10 @@ Both scripts read `POSTGRES_USER` / `POSTGRES_DB` from `.env` (with the compose 
 Everything is in one solution; .NET and Node are only needed if you want to develop outside Docker.
 
 ```bash
-dotnet test WashtagBD.sln          # 73 xUnit tests (use cases, billing, auth, assistant, subscription, admin, maintenance + controllers)
+dotnet test tests/Washtag.Application.Tests/Washtag.Application.Tests.csproj   # 58 unit tests
+dotnet test tests/Washtag.Api.Tests/Washtag.Api.Tests.csproj                   # 15 unit tests
+# Integration tests (real Postgres + pgvector via Testcontainers — requires a running Docker daemon)
+dotnet test tests/Washtag.Integration.Tests/Washtag.Integration.Tests.csproj   # 8 real-database tests
 cd frontend && npm run build       # production bundle check
 ```
 
