@@ -23,7 +23,13 @@ public class TrackingUrlProvider : ITrackingUrlProvider
         var request = _accessor.HttpContext?.Request;
         if (request == null) return $"http://localhost:8081/track/{token}";
 
-        var scheme = request.Headers["X-Forwarded-Proto"].FirstOrDefault() ?? request.Scheme;
-        return $"{scheme}://{request.Host}/track/{token}";
+        var forwarded = request.Headers["X-Forwarded-Proto"].FirstOrDefault();
+        var scheme = forwarded is "http" or "https" ? forwarded : request.Scheme;
+        // Use the parsed host/port instead of the raw header so a crafted Host value
+        // cannot inject a path or credentials into a printed QR URL.
+        var host = request.Host.Host;
+        var port = request.Host.Port;
+        var authority = port.HasValue && port is not (80 or 443) ? $"{host}:{port}" : host;
+        return $"{scheme}://{authority}/track/{token}";
     }
 }

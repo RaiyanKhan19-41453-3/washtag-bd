@@ -39,12 +39,15 @@ var maintenance = new MaintenanceOptions
 builder.Services.AddSingleton(maintenance);
 if (maintenance.Enabled) builder.Services.AddHostedService<MaintenanceWorker>();
 
-// Never run Production on the source-checked development secret: mint an
-// ephemeral one instead so tokens cannot be forged with a publicly known key.
+// Never run Production on a weak or source-checked secret: mint an ephemeral one
+// instead so tokens cannot be forged. Note that this logs everyone out on restart,
+// so a real deployment must set a strong shared JWT_SECRET.
 const string defaultSecret = "washtagbd-development-secret-change-this-in-production-2026";
-var configuredSecret = builder.Configuration["JWT_SECRET"];
-var usingDefaultSecret = string.IsNullOrWhiteSpace(configuredSecret) || configuredSecret == defaultSecret;
-if (usingDefaultSecret && builder.Environment.IsProduction())
+var configuredSecret = builder.Configuration["JWT_SECRET"]?.Trim();
+var usingWeakSecret = string.IsNullOrWhiteSpace(configuredSecret) ||
+    configuredSecret.Equals(defaultSecret, StringComparison.Ordinal) ||
+    (builder.Environment.IsProduction() && configuredSecret.Length < 32);
+if (usingWeakSecret && builder.Environment.IsProduction())
 {
     configuredSecret = Convert.ToBase64String(RandomNumberGenerator.GetBytes(48));
     builder.Configuration["JWT_SECRET"] = configuredSecret;
@@ -199,6 +202,18 @@ builder.Services.Configure<ForwardedHeadersOptions>(options =>
 
 var app = builder.Build();
 
+if (app.Environment.IsProduction() &&
+    app.Configuration.GetValue("SEED_DEMO_DATA", true) &&
+    app.Configuration.GetValue("ADMIN_EMAILS", string.Empty).Contains("demo@washtagbd.com", StringComparison.OrdinalIgnoreCase))
+{
+    app.Logger.LogCritical(
+        "Production is running with demo seeding and the public demo admin address. " +
+        "Anyone can log in as demo@washtagbd.com / demo1234 with platform-admin rights. " +
+        "Use docker-compose.prod.yml with a fresh pgdata volume and your own ADMIN_EMAILS.");
+}
+if (app.Environment.IsProduction() && string.IsNullOrWhiteSpace(app.Configuration["PUBLIC_BASE_URL"]))
+    app.Logger.LogWarning("PUBLIC_BASE_URL is unset; QR codes will use the request host. Set it to https://your.domain for stable, trustworthy links.");
+
 app.UseForwardedHeaders();
 app.UseMiddleware<ExceptionMiddleware>();
 // Swagger is opt-in; set ENABLE_SWAGGER=true to expose interactive API docs.
@@ -259,8 +274,8 @@ app.MapGet("/health", async (IServiceProvider services) =>
 
 var seedFlag = Environment.GetEnvironmentVariable("SEED_DEMO_DATA")
     ?? builder.Configuration["SEED_DEMO_DATA"] ?? "true";
-if (usingDefaultSecret && app.Environment.IsProduction())
-    app.Logger.LogWarning("JWT_SECRET is unset or the development default; using an ephemeral secret. Tokens will reset on restart.");
+if (usingWeakSecret && app.Environment.IsProduction())
+    app.Logger.LogWarning("JWT_SECRET is unset, weak, or the development default; using an ephemeral secret. Tokens will reset on restart.");
 
 var seedDemo = seedFlag.Equals("true", StringComparison.OrdinalIgnoreCase);
 foreach (var delay in new[] { 0, 2, 5, 10, 20 })
