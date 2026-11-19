@@ -56,6 +56,12 @@ public static class DbSeeder
 
         db.Users.AddRange(owner, staff);
 
+        db.ShopServices.AddRange(
+            new ShopService { Shop = shop, Name = "Wash & Fold", DefaultPrice = 120, SortOrder = 0 },
+            new ShopService { Shop = shop, Name = "Dry Clean", DefaultPrice = 250, SortOrder = 1 },
+            new ShopService { Shop = shop, Name = "Ironing", DefaultPrice = 80, SortOrder = 2 },
+            new ShopService { Shop = shop, Name = "Tailor Repair", DefaultPrice = 300, SortOrder = 3 });
+
         var people = new[]
         {
             ("Tasnim Rahman", "+880 1813-220011"),

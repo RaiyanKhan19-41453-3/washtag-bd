@@ -17,6 +17,7 @@ public interface IAppDbContext
     DbSet<Invoice> Invoices { get; }
     DbSet<RefreshToken> RefreshTokens { get; }
     DbSet<AssistantMessage> AssistantMessages { get; }
+    DbSet<ShopService> ShopServices { get; }
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
 }
 

@@ -3,23 +3,28 @@ import { useNavigate } from 'react-router-dom';
 import { UserRound, Phone, CalendarDays, NotebookPen, Plus, Trash2, ArrowLeft, Shirt, Info } from 'lucide-react';
 import api from '../api/client';
 import { useToast } from '../context/ToastContext';
+import { useLanguage } from '../context/LanguageContext';
 import { SERVICES, money } from '../utils/helpers';
 
 const emptyItem = () => ({ name: '', service: 'Wash & Fold', quantity: 1, unitPrice: 120, notes: '' });
 
 export default function NewOrder() {
   const [form, setForm] = useState({
-    customerName: '', customerPhone: '', notes: '', dueDate: '', items: [emptyItem()]
+    customerName: '', customerPhone: '', notes: '', dueDate: '',
+    deliveryMode: 'Pickup', deliveryAddress: '', items: [emptyItem()]
   });
   const [customers, setCustomers] = useState([]);
+  const [serviceOptions, setServiceOptions] = useState([]);
   const [busy, setBusy] = useState(false);
   const toast = useToast();
+  const { t } = useLanguage();
   const navigate = useNavigate();
   // The key is bound to the exact draft payload. A reload after a lost response
   // keeps the same key (safe retry), but editing into a different order gets a new one.
 
   useEffect(() => {
     api.get('/customers').then(({ data }) => setCustomers(data)).catch(() => {});
+    api.get('/services').then(({ data }) => setServiceOptions(data.filter((s) => s.isActive))).catch(() => {});
   }, []);
 
   const setField = (key, value) => setForm((current) => ({ ...current, [key]: value }));
@@ -49,6 +54,8 @@ export default function NewOrder() {
         customerPhone: form.customerPhone.trim(),
         notes: form.notes?.trim() || null,
         dueDate: form.dueDate ? new Date(`${form.dueDate}T23:59:00`).toISOString() : null,
+        deliveryMode: form.deliveryMode,
+        deliveryAddress: form.deliveryMode === 'Delivery' ? form.deliveryAddress.trim() : null,
         items: validItems.map((item) => ({
           name: item.name.trim(),
           service: item.service,
@@ -119,6 +126,19 @@ export default function NewOrder() {
                 <div className="input-with-icon"><NotebookPen size={17} /><input value={form.notes} onChange={(e) => setField('notes', e.target.value)} placeholder="Special instructions…" /></div>
               </label>
             </div>
+            <div className="form-row">
+              <label className="field">
+                <span>{t('Delivery mode')}</span>
+                <select value={form.deliveryMode} onChange={(e) => setField('deliveryMode', e.target.value)}>
+                  <option value="Pickup">{t('Customer pickup')}</option>
+                  <option value="Delivery">{t('Home delivery')}</option>
+                </select>
+              </label>
+              <label className="field">
+                <span>{t('Delivery address')} {form.deliveryMode === 'Delivery' ? <em>{t('(required)')}</em> : <em>{t('(optional)')}</em>}</span>
+                <input value={form.deliveryAddress} onChange={(e) => setField('deliveryAddress', e.target.value)} placeholder="House, road, area…" />
+              </label>
+            </div>
           </section>
 
           <section className="card form-section">
@@ -141,8 +161,14 @@ export default function NewOrder() {
                   </label>
                   <label className="field">
                     <span>Service</span>
-                    <select value={item.service} onChange={(e) => setItem(index, 'service', e.target.value)}>
-                      {SERVICES.map((service) => <option key={service} value={service}>{service}</option>)}
+                    <select value={item.service} onChange={(e) => {
+                      const chosen = serviceOptions.find((s) => s.name === e.target.value);
+                      setForm((current) => ({ ...current, items: current.items.map((it, i) => i === index
+                        ? { ...it, service: e.target.value, unitPrice: chosen?.defaultPrice ?? it.unitPrice }
+                        : it) }));
+                    }}>
+                      {(serviceOptions.length ? serviceOptions.map((s) => s.name) : SERVICES)
+                        .map((service) => <option key={service} value={service}>{service}</option>)}
                     </select>
                   </label>
                   <label className="field field-small">

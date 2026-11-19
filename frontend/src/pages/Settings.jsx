@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { useLanguage } from '../context/LanguageContext';
 import { Store, MapPin, Phone, Image as ImageIcon, Save, ShieldCheck, BadgeCheck, Mail, Info, KeyRound } from 'lucide-react';
 import api from '../api/client';
 import { useAuth } from '../context/AuthContext';
@@ -11,10 +12,13 @@ export default function Settings() {
   const { user, shop, setShop, logout } = useAuth();
   const navigate = useNavigate();
   const toast = useToast();
+  const { t } = useLanguage();
   const [form, setForm] = useState(null);
   const [loadError, setLoadError] = useState('');
   const [busy, setBusy] = useState(false);
   const [passwords, setPasswords] = useState({ currentPassword: '', newPassword: '' });
+  const [services, setServices] = useState([]);
+  const [newService, setNewService] = useState({ name: '', defaultPrice: 120 });
 
   const loadShop = useCallback(() => {
     setLoadError('');
@@ -25,6 +29,38 @@ export default function Settings() {
   }, [toast]);
 
   useEffect(() => { loadShop(); }, [loadShop]);
+
+  const loadServices = useCallback(() => {
+    api.get('/services').then(({ data }) => setServices(data)).catch(() => {});
+  }, []);
+  useEffect(() => { loadServices(); }, [loadServices]);
+
+  const addService = async (event) => {
+    event.preventDefault();
+    if (!newService.name.trim()) return;
+    try {
+      await api.post('/services', newService);
+      setNewService({ name: '', defaultPrice: 120 });
+      loadServices();
+      toast.success('Service added.');
+    } catch (error) { toast.error(error.message); }
+  };
+
+  const updateService = async (service, patch) => {
+    try {
+      await api.put(`/services/${service.id}`, { name: service.name, defaultPrice: service.defaultPrice,
+        isActive: service.isActive, sortOrder: service.sortOrder, ...patch });
+      loadServices();
+    } catch (error) { toast.error(error.message); }
+  };
+
+  const removeService = async (service) => {
+    if (!window.confirm(`Remove service "${service.name}"?`)) return;
+    try {
+      await api.delete(`/services/${service.id}`);
+      loadServices();
+    } catch (error) { toast.error(error.message); }
+  };
 
   const update = (key) => (event) => setForm((current) => ({ ...current, [key]: event.target.value }));
 
@@ -109,6 +145,36 @@ export default function Settings() {
             <button className="btn btn-primary" type="submit" disabled={busy}><Save size={16} /> {busy ? 'Saving…' : 'Save changes'}</button>
           )}
         </form>
+
+        {user?.role === 'Owner' && (
+          <section className="card">
+            <div className="card-head"><div><h3>{t('Your services')}</h3><p>{t('Prices autofill when creating an order')}</p></div></div>
+            <div className="table-scroll">
+              <table className="data-table">
+                <thead><tr><th>{t('Service')}</th><th>{t('Default price')}</th><th>{t('Active')}</th><th /></tr></thead>
+                <tbody>
+                  {services.map((service) => (
+                    <tr key={service.id}>
+                      <td>{service.name}</td>
+                      <td>
+                        <input type="number" min="0" defaultValue={service.defaultPrice}
+                          onBlur={(e) => Number(e.target.value) !== service.defaultPrice &&
+                            updateService(service, { defaultPrice: Number(e.target.value) })} />
+                      </td>
+                      <td><button className="btn btn-ghost btn-sm" onClick={() => updateService(service, { isActive: !service.isActive })}>{service.isActive ? 'Yes' : 'No'}</button></td>
+                      <td><button className="btn btn-ghost btn-sm danger-text" onClick={() => removeService(service)}>{t('Remove')}</button></td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            <form onSubmit={addService} className="form-row" style={{ marginTop: 12 }}>
+              <label className="field"><span>{t('New service')}</span><input value={newService.name} onChange={(e) => setNewService({ ...newService, name: e.target.value })} placeholder="e.g. Saree Dry Clean" required /></label>
+              <label className="field"><span>{t('Default price')}</span><input type="number" min="0" value={newService.defaultPrice} onChange={(e) => setNewService({ ...newService, defaultPrice: Number(e.target.value) })} /></label>
+              <button className="btn btn-primary" type="submit">{t('Add service')}</button>
+            </form>
+          </section>
+        )}
 
         <aside className="settings-aside">
           <section className="card info-panel">

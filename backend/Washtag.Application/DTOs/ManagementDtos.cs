@@ -97,6 +97,52 @@ public class AdminShopDto
     public decimal Collected { get; set; }
 }
 
+public class DailyReportDto
+{
+    public int OrderCount { get; set; }
+    public decimal Collected { get; set; }
+    public decimal Outstanding { get; set; }
+    public List<PaymentMethodTotalDto> ByMethod { get; set; } = new();
+    public List<DayTotalDto> ByDay { get; set; } = new();
+}
+
+public class PaymentMethodTotalDto
+{
+    public PaymentMethod Method { get; set; }
+    public decimal Amount { get; set; }
+}
+
+public class DayTotalDto
+{
+    public DateTime Date { get; set; }
+    public int Orders { get; set; }
+    public decimal Collected { get; set; }
+}
+
+public class ServiceDto
+{
+    public Guid Id { get; set; }
+    public string Name { get; set; } = string.Empty;
+    public decimal DefaultPrice { get; set; }
+    public bool IsActive { get; set; }
+    public int SortOrder { get; set; }
+}
+
+public class CreateServiceRequest
+{
+    [Required, MaxLength(100)] public string Name { get; set; } = string.Empty;
+    [Range(0, 1000000)] public decimal DefaultPrice { get; set; }
+    public int SortOrder { get; set; }
+}
+
+public class UpdateServiceRequest
+{
+    [Required, MaxLength(100)] public string Name { get; set; } = string.Empty;
+    [Range(0, 1000000)] public decimal DefaultPrice { get; set; }
+    public bool IsActive { get; set; } = true;
+    public int SortOrder { get; set; }
+}
+
 public class AdminShopActiveRequest
 {
     public bool Active { get; set; }

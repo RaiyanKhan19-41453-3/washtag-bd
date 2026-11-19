@@ -3,7 +3,7 @@ import { Link, useNavigate, useParams } from 'react-router-dom';
 import {
   ArrowLeft, Package, UserRound, Phone, CalendarDays, StickyNote,
   QrCode, Copy, ExternalLink, CheckCircle2, XCircle, CircleDollarSign,
-  Printer, Clock3, RefreshCw
+  Printer, Clock3, RefreshCw, Store
 } from 'lucide-react';
 import api from '../api/client';
 import { useRealtime } from '../hooks/useRealtime';
@@ -219,6 +219,7 @@ export default function OrderDetail() {
               <div><UserRound size={16} /><span>{order.customerName}</span></div>
               <div><Phone size={16} /><span>{order.customerPhone}</span></div>
               <div><CalendarDays size={16} /><span>{t('Expected pickup')}: {formatDate(order.dueDate)}</span></div>
+              <div><Store size={16} /><span>{order.deliveryMode === 'Delivery' ? `Delivery: ${order.deliveryAddress || '—'}` : 'Customer pickup'}</span></div>
               {order.notes && <div><StickyNote size={16} /><span>{order.notes}</span></div>}
             </div>
           </section>

@@ -102,6 +102,8 @@ public class OrderService : IOrderService
             throw new AppException("Add at least one item to the order.");
         if (string.IsNullOrWhiteSpace(request.CustomerName) || string.IsNullOrWhiteSpace(request.CustomerPhone))
             throw new AppException("Customer name and phone are required.");
+        if (request.DeliveryMode == DeliveryMode.Delivery && string.IsNullOrWhiteSpace(request.DeliveryAddress))
+            throw new AppException("A delivery address is required for delivery orders.");
 
         var key = string.IsNullOrWhiteSpace(idempotencyKey) ? null : idempotencyKey.Trim();
         if (key != null)
@@ -123,6 +125,9 @@ public class OrderService : IOrderService
             CustomerPhone = request.CustomerPhone.Trim(),
             Notes = string.IsNullOrWhiteSpace(request.Notes) ? null : request.Notes.Trim(),
             DueDate = request.DueDate,
+            DeliveryMode = request.DeliveryMode,
+            DeliveryAddress = request.DeliveryMode == DeliveryMode.Delivery && !string.IsNullOrWhiteSpace(request.DeliveryAddress)
+                ? request.DeliveryAddress.Trim() : null,
             Status = OrderStatus.Received,
             PaymentStatus = PaymentStatus.Unpaid,
             CreatedAt = now,
@@ -552,6 +557,7 @@ public class OrderService : IOrderService
         var dto = new OrderDetailDto
         {
             Notes = order.Notes,
+            DeliveryAddress = order.DeliveryAddress,
             DeliveredAt = order.DeliveredAt,
             TrackingUrl = url,
             QrDataUrl = _qr.GenerateDataUrl(url),
@@ -576,6 +582,7 @@ public class OrderService : IOrderService
         dto.PaidAmount = order.PaidAmount;
         dto.ItemCount = order.Items.Count;
         dto.DueDate = order.DueDate;
+        dto.DeliveryMode = order.DeliveryMode;
         dto.CreatedAt = order.CreatedAt;
         dto.UpdatedAt = order.UpdatedAt;
     }
@@ -631,6 +638,7 @@ public class OrderService : IOrderService
             CreatedAt = order.CreatedAt,
             DueDate = order.DueDate,
             DeliveredAt = order.DeliveredAt,
+            DeliveryMode = order.DeliveryMode,
             TrackingUrl = _urls.Build(order.PublicToken),
             Items = order.Items.Select(MapItem).ToList()
         },

@@ -54,6 +54,18 @@ public class Customer
     public Shop Shop { get; set; } = null!;
 }
 
+public class ShopService
+{
+    public Guid Id { get; set; } = Guid.NewGuid();
+    public Guid ShopId { get; set; }
+    public string Name { get; set; } = string.Empty;
+    public decimal DefaultPrice { get; set; }
+    public bool IsActive { get; set; } = true;
+    public int SortOrder { get; set; }
+    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+    public Shop Shop { get; set; } = null!;
+}
+
 public class Order
 {
     public Guid Id { get; set; } = Guid.NewGuid();
@@ -70,6 +82,8 @@ public class Order
     public decimal PaidAmount { get; set; }
     public DateTime? DueDate { get; set; }
     public DateTime? DeliveredAt { get; set; }
+    public DeliveryMode DeliveryMode { get; set; } = DeliveryMode.Pickup;
+    public string? DeliveryAddress { get; set; }
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
     public byte[] RowVersion { get; set; } = Array.Empty<byte>();

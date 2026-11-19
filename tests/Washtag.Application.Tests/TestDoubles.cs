@@ -21,6 +21,7 @@ public sealed class TestDbContext : DbContext, IAppDbContext
     public DbSet<Invoice> Invoices => Set<Invoice>();
     public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
     public DbSet<AssistantMessage> AssistantMessages => Set<AssistantMessage>();
+    public DbSet<ShopService> ShopServices => Set<ShopService>();
 
     protected override void OnModelCreating(ModelBuilder mb)
     {

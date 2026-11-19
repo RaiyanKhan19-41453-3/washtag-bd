@@ -81,6 +81,8 @@ public class CreateOrderRequest
     [Required, MaxLength(30)] public string CustomerPhone { get; set; } = string.Empty;
     [MaxLength(1000)] public string? Notes { get; set; }
     public DateTime? DueDate { get; set; }
+    public DeliveryMode DeliveryMode { get; set; } = DeliveryMode.Pickup;
+    [MaxLength(300)] public string? DeliveryAddress { get; set; }
     [MinLength(1), MaxLength(100)] public List<CreateOrderItemRequest> Items { get; set; } = new();
 }
 
@@ -110,6 +112,7 @@ public class OrderListDto
     public decimal PaidAmount { get; set; }
     public int ItemCount { get; set; }
     public DateTime? DueDate { get; set; }
+    public DeliveryMode DeliveryMode { get; set; }
     public DateTime CreatedAt { get; set; }
     public DateTime UpdatedAt { get; set; }
 }
@@ -149,6 +152,7 @@ public class OrderDetailDto : OrderListDto
 {
     public bool Replayed { get; set; }
     public string? Notes { get; set; }
+    public string? DeliveryAddress { get; set; }
     public DateTime? DeliveredAt { get; set; }
     public string TrackingUrl { get; set; } = string.Empty;
     public string QrDataUrl { get; set; } = string.Empty;
@@ -192,6 +196,7 @@ public class PublicOrderDto
     public DateTime CreatedAt { get; set; }
     public DateTime? DueDate { get; set; }
     public DateTime? DeliveredAt { get; set; }
+    public DeliveryMode DeliveryMode { get; set; }
     public string TrackingUrl { get; set; } = string.Empty;
     public List<OrderItemDto> Items { get; set; } = new();
 }

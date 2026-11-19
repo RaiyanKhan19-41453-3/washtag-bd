@@ -3,6 +3,20 @@ using Washtag.Domain.Enums;
 
 namespace Washtag.Application.Interfaces;
 
+public interface IReportService
+{
+    Task<DailyReportDto> DailyAsync(Guid shopId, DateTime from, DateTime to, CancellationToken cancellationToken = default);
+    Task<byte[]> OrdersCsvAsync(Guid shopId, DateTime from, DateTime to, CancellationToken cancellationToken = default);
+}
+
+public interface IServiceCatalogService
+{
+    Task<List<ServiceDto>> ListAsync(Guid shopId, CancellationToken cancellationToken = default);
+    Task<ServiceDto> CreateAsync(Guid shopId, CreateServiceRequest request, CancellationToken cancellationToken = default);
+    Task<ServiceDto> UpdateAsync(Guid shopId, Guid id, UpdateServiceRequest request, CancellationToken cancellationToken = default);
+    Task DeleteAsync(Guid shopId, Guid id, CancellationToken cancellationToken = default);
+}
+
 /// <summary>Configures which email addresses get platform-admin privileges.</summary>
 public interface IAdminSettings
 {

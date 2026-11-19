@@ -227,6 +227,12 @@ namespace Washtag.Infrastructure.Data.Migrations
                     b.Property<DateTime?>("DeliveredAt")
                         .HasColumnType("timestamp with time zone");
 
+                    b.Property<string>("DeliveryAddress")
+                        .HasColumnType("text");
+
+                    b.Property<int>("DeliveryMode")
+                        .HasColumnType("integer");
+
                     b.Property<DateTime?>("DueDate")
                         .HasColumnType("timestamp with time zone");
 
@@ -462,6 +468,41 @@ namespace Washtag.Infrastructure.Data.Migrations
                     b.ToTable("Shops");
                 });
 
+            modelBuilder.Entity("Washtag.Domain.Entities.ShopService", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<decimal>("DefaultPrice")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<Guid>("ShopId")
+                        .HasColumnType("uuid");
+
+                    b.Property<int>("SortOrder")
+                        .HasColumnType("integer");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ShopId", "Name")
+                        .IsUnique();
+
+                    b.ToTable("ShopServices");
+                });
+
             modelBuilder.Entity("Washtag.Domain.Entities.StatusEvent", b =>
                 {
                     b.Property<Guid>("Id")
@@ -584,6 +625,17 @@ namespace Washtag.Infrastructure.Data.Migrations
                         .IsRequired();
 
                     b.Navigation("User");
+                });
+
+            modelBuilder.Entity("Washtag.Domain.Entities.ShopService", b =>
+                {
+                    b.HasOne("Washtag.Domain.Entities.Shop", "Shop")
+                        .WithMany()
+                        .HasForeignKey("ShopId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Shop");
                 });
 
             modelBuilder.Entity("Washtag.Domain.Entities.StatusEvent", b =>

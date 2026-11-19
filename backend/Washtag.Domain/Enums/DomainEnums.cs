@@ -1,5 +1,7 @@
 namespace Washtag.Domain.Enums;
 
+public enum DeliveryMode { Pickup = 0, Delivery = 1 }
+
 public enum OrderStatus
 {
     Received,
