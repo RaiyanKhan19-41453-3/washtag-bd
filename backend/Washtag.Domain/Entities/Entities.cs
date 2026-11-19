@@ -62,6 +62,7 @@ public class Order
     public Guid PublicToken { get; set; } = Guid.NewGuid();
     public string CustomerName { get; set; } = string.Empty;
     public string CustomerPhone { get; set; } = string.Empty;
+    public string? IdempotencyKey { get; set; }
     public string? Notes { get; set; }
     public OrderStatus Status { get; set; } = OrderStatus.Received;
     public PaymentStatus PaymentStatus { get; set; } = PaymentStatus.Unpaid;

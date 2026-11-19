@@ -146,6 +146,7 @@ public class PaymentDto
 
 public class OrderDetailDto : OrderListDto
 {
+    public bool Replayed { get; set; }
     public string? Notes { get; set; }
     public DateTime? DeliveredAt { get; set; }
     public string TrackingUrl { get; set; } = string.Empty;

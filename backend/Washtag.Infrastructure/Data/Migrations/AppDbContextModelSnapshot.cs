@@ -224,6 +224,9 @@ namespace Washtag.Infrastructure.Data.Migrations
                     b.Property<DateTime?>("DueDate")
                         .HasColumnType("timestamp with time zone");
 
+                    b.Property<string>("IdempotencyKey")
+                        .HasColumnType("text");
+
                     b.Property<string>("Notes")
                         .HasColumnType("text");
 
@@ -266,6 +269,9 @@ namespace Washtag.Infrastructure.Data.Migrations
                         .IsUnique();
 
                     b.HasIndex("ShopId", "CreatedAt");
+
+                    b.HasIndex("ShopId", "IdempotencyKey")
+                        .IsUnique();
 
                     b.HasIndex("ShopId", "OrderNumber")
                         .IsUnique();

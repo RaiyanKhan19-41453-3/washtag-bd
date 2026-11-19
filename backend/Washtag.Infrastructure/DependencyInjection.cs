@@ -35,7 +35,6 @@ public static class DependencyInjection
         services.AddScoped<IRefreshTokenStore, RefreshTokenStore>();
         services.AddScoped<IPaymentStore, PaymentStore>();
         services.AddScoped<IInvoiceStore, InvoiceStore>();
-        services.AddSingleton<IIdempotencyStore, IdempotencyStore>();
 
         return services;
     }

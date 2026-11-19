@@ -151,6 +151,25 @@ public class OrderServiceTests
     }
 
     [Fact]
+    public async Task SameIdempotencyKeyReturnsExistingOrderWithoutDuplicate()
+    {
+        var h = new Harness();
+        var request = new CreateOrderRequest
+        {
+            CustomerName = "Idem Customer", CustomerPhone = "+880 1700-000000",
+            Items = new List<CreateOrderItemRequest> { new() { Name = "Shirt", Quantity = 1, UnitPrice = 100 } }
+        };
+
+        var first = await h.Service.CreateOrderAsync(h.ShopId, request, "Tester", "key-123");
+        var replay = await h.Service.CreateOrderAsync(h.ShopId, request, "Tester", "key-123");
+
+        Assert.False(first.Replayed);
+        Assert.True(replay.Replayed);
+        Assert.Equal(first.Id, replay.Id);
+        Assert.Equal(1, h.Db.Orders.Count());
+    }
+
+    [Fact]
     public async Task MutationsInvalidatePublicTrackingCache()
     {
         var h = new Harness();

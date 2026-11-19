@@ -34,7 +34,7 @@ public interface IOrderService
     Task<PagedResult<OrderListDto>> GetOrdersAsync(Guid shopId, string? status, string? search, int page, int pageSize);
     Task<OrderDetailDto> GetOrderAsync(Guid shopId, Guid id);
     Task<OrderDetailDto> GetOrderByTokenAsync(Guid shopId, string token);
-    Task<OrderDetailDto> CreateOrderAsync(Guid shopId, CreateOrderRequest request, string actor);
+    Task<OrderDetailDto> CreateOrderAsync(Guid shopId, CreateOrderRequest request, string actor, string? idempotencyKey = null);
     Task<OrderDetailDto> UpdateStatusAsync(Guid shopId, Guid id, UpdateStatusRequest request, string actor);
     Task<OrderDetailDto> RecordPaymentAsync(Guid shopId, Guid id, RecordPaymentRequest request, string actor);
     Task CancelOrderAsync(Guid shopId, Guid id, string actor);

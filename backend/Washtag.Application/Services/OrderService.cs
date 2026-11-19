@@ -88,12 +88,25 @@ public class OrderService : IOrderService
         return MapDetail(order ?? throw new AppException("No order matches this QR code."));
     }
 
-    public async Task<OrderDetailDto> CreateOrderAsync(Guid shopId, CreateOrderRequest request, string actor)
+    public async Task<OrderDetailDto> CreateOrderAsync(Guid shopId, CreateOrderRequest request, string actor,
+        string? idempotencyKey = null)
     {
         if (request.Items == null || request.Items.Count == 0)
             throw new AppException("Add at least one item to the order.");
         if (string.IsNullOrWhiteSpace(request.CustomerName) || string.IsNullOrWhiteSpace(request.CustomerPhone))
             throw new AppException("Customer name and phone are required.");
+
+        var key = string.IsNullOrWhiteSpace(idempotencyKey) ? null : idempotencyKey.Trim();
+        if (key != null)
+        {
+            var replay = await LoadOrderAsync(o => o.ShopId == shopId && o.IdempotencyKey == key);
+            if (replay != null)
+            {
+                var existing = MapDetail(replay);
+                existing.Replayed = true;
+                return existing;
+            }
+        }
 
         var orderNumber = await _numbers.NextAsync(shopId);
         var now = DateTime.UtcNow;
@@ -102,6 +115,7 @@ public class OrderService : IOrderService
             ShopId = shopId,
             OrderNumber = orderNumber,
             PublicToken = Guid.NewGuid(),
+            IdempotencyKey = key,
             CustomerName = request.CustomerName.Trim(),
             CustomerPhone = request.CustomerPhone.Trim(),
             Notes = string.IsNullOrWhiteSpace(request.Notes) ? null : request.Notes.Trim(),
@@ -140,7 +154,22 @@ public class OrderService : IOrderService
         });
 
         _db.Orders.Add(order);
-        await _db.SaveChangesAsync();
+        try
+        {
+            await _db.SaveChangesAsync();
+        }
+        catch (DbUpdateException) when (key != null)
+        {
+            // A concurrent request with the same key won the unique-index race.
+            var winner = await LoadOrderAsync(o => o.ShopId == shopId && o.IdempotencyKey == key);
+            if (winner != null)
+            {
+                var existing = MapDetail(winner);
+                existing.Replayed = true;
+                return existing;
+            }
+            throw;
+        }
         await _customers.EnsureAsync(shopId, order.CustomerName, order.CustomerPhone, now);
 
         var dto = MapDetail(order);

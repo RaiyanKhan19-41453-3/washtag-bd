@@ -12,13 +12,8 @@ namespace Washtag.Api.Controllers;
 public class OrdersController : ControllerBase
 {
     private readonly IOrderService _orders;
-    private readonly IIdempotencyStore _idempotency;
 
-    public OrdersController(IOrderService orders, IIdempotencyStore idempotency)
-    {
-        _orders = orders;
-        _idempotency = idempotency;
-    }
+    public OrdersController(IOrderService orders) => _orders = orders;
 
     private Guid ShopId => Guid.Parse(User.FindFirstValue("shopId")!);
     private string Actor => User.FindFirstValue(ClaimTypes.Name) ?? "Staff";
@@ -54,22 +49,10 @@ public class OrdersController : ControllerBase
     {
         if (!ModelState.IsValid) return ValidationProblem(ModelState);
         var key = Request.Headers["Idempotency-Key"].FirstOrDefault();
-        var claimed = !string.IsNullOrWhiteSpace(key) &&
-            await _idempotency.TryClaimAsync(key!, ShopId, HttpContext.RequestAborted);
-        if (!string.IsNullOrWhiteSpace(key) && !claimed)
-            return Conflict(new { message = "Duplicate request. This order was already created." });
-
-        try
-        {
-            var result = await _orders.CreateOrderAsync(ShopId, request, Actor);
-            return CreatedAtAction(nameof(Get), new { id = result.Id }, result);
-        }
-        catch
-        {
-            if (claimed && !string.IsNullOrWhiteSpace(key))
-                await _idempotency.ReleaseAsync(key!, ShopId, HttpContext.RequestAborted);
-            throw;
-        }
+        var result = await _orders.CreateOrderAsync(ShopId, request, Actor, key);
+        return result.Replayed
+            ? Ok(result)
+            : CreatedAtAction(nameof(Get), new { id = result.Id }, result);
     }
 
     [HttpPatch("{id:guid}/status")]

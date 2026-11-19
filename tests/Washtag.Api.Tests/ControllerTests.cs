@@ -15,25 +15,6 @@ namespace Washtag.Api.Tests;
 
 public class ControllerTests
 {
-    private sealed class FakeIdempotencyStore : IIdempotencyStore
-    {
-        public bool Result { get; set; } = true;
-        public string? LastKey { get; private set; }
-        public Guid LastShopId { get; private set; }
-        public int Calls { get; private set; }
-
-        public Task<bool> TryClaimAsync(string key, Guid shopId, CancellationToken cancellationToken = default)
-        {
-            Calls++;
-            LastKey = key;
-            LastShopId = shopId;
-            return Task.FromResult(Result);
-        }
-
-        public Task ReleaseAsync(string key, Guid shopId, CancellationToken cancellationToken = default) =>
-            Task.CompletedTask;
-    }
-
     private static void Authenticate(ControllerBase controller, Guid shopId, bool isAdmin = false)
     {
         var identity = new ClaimsIdentity(new[]
@@ -57,7 +38,7 @@ public class ControllerTests
         var service = new Mock<IOrderService>();
         service.Setup(s => s.GetOrdersAsync(shopId, null, null, 1, 20))
             .ReturnsAsync(new PagedResult<OrderListDto> { Total = 0 });
-        var controller = new OrdersController(service.Object, new FakeIdempotencyStore());
+        var controller = new OrdersController(service.Object);
         Authenticate(controller, shopId);
 
         var result = await controller.List(null, null, 1, 20);
@@ -121,14 +102,15 @@ public class ControllerTests
     }
 
     [Fact]
-    public async Task CreateWithDuplicateIdempotencyKeyReturnsConflict()
+    public async Task CreatePassesIdempotencyKeyToService()
     {
         var shopId = Guid.NewGuid();
         var service = new Mock<IOrderService>();
-        var store = new FakeIdempotencyStore { Result = false };
-        var controller = new OrdersController(service.Object, store);
+        service.Setup(s => s.CreateOrderAsync(shopId, It.IsAny<CreateOrderRequest>(), It.IsAny<string>(), "abc-key"))
+            .ReturnsAsync(new OrderDetailDto { Id = Guid.NewGuid(), OrderNumber = "WT-00001" });
+        var controller = new OrdersController(service.Object);
         Authenticate(controller, shopId);
-        controller.HttpContext.Request.Headers["Idempotency-Key"] = "duplicate-key";
+        controller.HttpContext.Request.Headers["Idempotency-Key"] = "abc-key";
 
         var result = await controller.Create(new CreateOrderRequest
         {
@@ -136,10 +118,27 @@ public class ControllerTests
             Items = new List<CreateOrderItemRequest> { new() { Name = "Shirt" } }
         });
 
-        Assert.IsType<ConflictObjectResult>(result);
-        Assert.Equal("duplicate-key", store.LastKey);
-        Assert.Equal(shopId, store.LastShopId);
-        service.Verify(s => s.CreateOrderAsync(It.IsAny<Guid>(), It.IsAny<CreateOrderRequest>(), It.IsAny<string>()), Times.Never);
+        Assert.IsType<CreatedAtActionResult>(result);
+        service.VerifyAll();
+    }
+
+    [Fact]
+    public async Task ReplayedOrderReturns200InsteadOf201()
+    {
+        var shopId = Guid.NewGuid();
+        var service = new Mock<IOrderService>();
+        service.Setup(s => s.CreateOrderAsync(shopId, It.IsAny<CreateOrderRequest>(), It.IsAny<string>(), It.IsAny<string?>()))
+            .ReturnsAsync(new OrderDetailDto { Id = Guid.NewGuid(), OrderNumber = "WT-00001", Replayed = true });
+        var controller = new OrdersController(service.Object);
+        Authenticate(controller, shopId);
+
+        var result = await controller.Create(new CreateOrderRequest
+        {
+            CustomerName = "X", CustomerPhone = "1",
+            Items = new List<CreateOrderItemRequest> { new() { Name = "Shirt" } }
+        });
+
+        Assert.IsType<OkObjectResult>(result);
     }
 
     [Fact]
