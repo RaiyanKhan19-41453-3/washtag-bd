@@ -9,24 +9,17 @@ namespace Washtag.Application.Services;
 public class AdminService : IAdminService
 {
     private readonly IAppDbContext _db;
+    private readonly IInvoiceStore _invoices;
 
-    public AdminService(IAppDbContext db) => _db = db;
+    public AdminService(IAppDbContext db, IInvoiceStore invoices)
+    {
+        _db = db;
+        _invoices = invoices;
+    }
 
     public async Task<AdminStatsDto> GetStatsAsync(CancellationToken cancellationToken = default)
     {
-        var now = DateTime.UtcNow;
-        var overdue = await _db.Invoices
-            .Where(i => i.Status == InvoiceStatus.Pending && i.PeriodTo < now).ToListAsync(cancellationToken);
-        if (overdue.Count > 0)
-        {
-            foreach (var invoice in overdue) invoice.Status = InvoiceStatus.Overdue;
-            var affectedIds = overdue.Select(i => i.ShopId).ToHashSet();
-            var affected = await _db.Shops.Where(s => affectedIds.Contains(s.Id)).ToListAsync(cancellationToken);
-            foreach (var shop in affected)
-                if (shop.SubscriptionStatus is SubscriptionStatus.Trial or SubscriptionStatus.Active)
-                    shop.SubscriptionStatus = SubscriptionStatus.PastDue;
-            await _db.SaveChangesAsync(cancellationToken);
-        }
+        await _invoices.ApplyDeadlinesAsync(DateTime.UtcNow, null, cancellationToken);
 
         var shops = await _db.Shops.AsNoTracking().ToListAsync(cancellationToken);
         var users = await _db.Users.AsNoTracking().ToListAsync(cancellationToken);
@@ -67,9 +60,9 @@ public class AdminService : IAdminService
     {
         var shop = await _db.Shops.FirstOrDefaultAsync(s => s.Id == shopId, cancellationToken)
             ?? throw new AppException("Shop not found.");
+        // Suspend/reactivate only toggles access. It must never change billing state:
+        // otherwise a cancelled shop could be resurrected by a suspend/reactivate pair.
         shop.IsActive = active;
-        if (active && shop.SubscriptionStatus == SubscriptionStatus.Cancelled)
-            shop.SubscriptionStatus = SubscriptionStatus.Active;
         await _db.SaveChangesAsync(cancellationToken);
         return AuthService.MapShop(shop);
     }
@@ -79,6 +72,17 @@ public class AdminService : IAdminService
         var shop = await _db.Shops.FirstOrDefaultAsync(s => s.Id == shopId, cancellationToken)
             ?? throw new AppException("Shop not found.");
         shop.SubscriptionStatus = SubscriptionStatus.Cancelled;
+        await _db.SaveChangesAsync(cancellationToken);
+        return AuthService.MapShop(shop);
+    }
+
+    public async Task<ShopDto> RestoreSubscriptionAsync(Guid shopId, CancellationToken cancellationToken = default)
+    {
+        var shop = await _db.Shops.FirstOrDefaultAsync(s => s.Id == shopId, cancellationToken)
+            ?? throw new AppException("Shop not found.");
+        shop.SubscriptionStatus = SubscriptionStatus.Active;
+        if (shop.SubscriptionEndsAt <= DateTime.UtcNow)
+            shop.SubscriptionEndsAt = DateTime.UtcNow.AddMonths(1);
         await _db.SaveChangesAsync(cancellationToken);
         return AuthService.MapShop(shop);
     }

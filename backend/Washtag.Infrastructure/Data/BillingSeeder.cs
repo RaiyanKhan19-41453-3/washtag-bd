@@ -41,7 +41,7 @@ public static class BillingSeeder
                     Notes = paid ? null : "Current billing period"
                 });
             }
-            shop.SubscriptionStatus = SubscriptionStatus.Trial;
+            // Seeding invoices must never overwrite a real subscription state.
         }
 
         await db.SaveChangesAsync();

@@ -21,6 +21,15 @@ public class InvoiceStore : IInvoiceStore
         await using var transaction = await connection.BeginTransactionAsync(cancellationToken);
         var now = DateTime.UtcNow;
 
+        // Serialize settlements per shop. Without this, two concurrent payments can
+        // both see the other's invoice as unpaid and neither creates the renewal.
+        await using (var lockShop = new NpgsqlCommand(
+            "SELECT 1 FROM \"Shops\" WHERE \"Id\" = @shop FOR UPDATE", connection, transaction))
+        {
+            lockShop.Parameters.AddWithValue("shop", shopId);
+            await lockShop.ExecuteNonQueryAsync(cancellationToken);
+        }
+
         await using (var update = new NpgsqlCommand(
             """
             UPDATE "Invoices"
@@ -52,10 +61,15 @@ public class InvoiceStore : IInvoiceStore
             if (remaining == 0)
             {
                 var renewal = now.AddMonths(1);
+                // A cancelled subscription is terminal. Paying an old invoice must not
+                // silently resurrect it or mint a fresh billing period; an admin has to
+                // restore it explicitly.
                 await using var shopUpdate = new NpgsqlCommand(
                     """
                     UPDATE "Shops"
-                    SET "SubscriptionStatus" = 1, "SubscriptionStartedAt" = @now, "SubscriptionEndsAt" = @end
+                    SET "SubscriptionStatus" = CASE WHEN "SubscriptionStatus" = 3 THEN 3 ELSE 1 END,
+                        "SubscriptionStartedAt" = CASE WHEN "SubscriptionStatus" = 3 THEN "SubscriptionStartedAt" ELSE @now END,
+                        "SubscriptionEndsAt" = CASE WHEN "SubscriptionStatus" = 3 THEN "SubscriptionEndsAt" ELSE @end END
                     WHERE "Id" = @shop
                     """, connection, transaction);
                 shopUpdate.Parameters.AddWithValue("now", now);
@@ -66,7 +80,8 @@ public class InvoiceStore : IInvoiceStore
                 await using var nextInvoice = new NpgsqlCommand(
                     """
                     INSERT INTO "Invoices" ("Id", "ShopId", "InvoiceNumber", "PeriodFrom", "PeriodTo", "Amount", "Status", "Method", "CreatedAt")
-                    VALUES (@id, @shop, @number, @from, @to, @amount, 0, @method, @now)
+                    SELECT @id, @shop, @number, @from, @to, @amount, 0, @method, @now
+                    FROM "Shops" WHERE "Id" = @shop AND "SubscriptionStatus" <> 3
                     """, connection, transaction);
                 nextInvoice.Parameters.AddWithValue("id", Guid.NewGuid());
                 nextInvoice.Parameters.AddWithValue("shop", shopId);
@@ -82,5 +97,44 @@ public class InvoiceStore : IInvoiceStore
 
         await transaction.CommitAsync(cancellationToken);
         return true;
+    }
+
+    public async Task<BillingDeadlineResult> ApplyDeadlinesAsync(DateTime now, Guid? shopId = null,
+        CancellationToken cancellationToken = default)
+    {
+        await using var connection = new NpgsqlConnection(_connectionString);
+        await connection.OpenAsync(cancellationToken);
+        await using var transaction = await connection.BeginTransactionAsync(cancellationToken);
+
+        await using var overdue = new NpgsqlCommand(
+            """
+            UPDATE "Invoices" SET "Status" = 2
+            WHERE "Status" = 0 AND "PeriodTo" < @now AND (@shop::uuid IS NULL OR "ShopId" = @shop)
+            """, connection, transaction);
+        overdue.Parameters.AddWithValue("now", now);
+        overdue.Parameters.AddWithValue("shop", (object?)shopId ?? DBNull.Value);
+        var overdueCount = await overdue.ExecuteNonQueryAsync(cancellationToken);
+
+        // Only flag a shop whose term actually ended and which has no paid invoice
+        // covering the current period. This keeps an admin restore durable and avoids
+        // locking a healthy shop because of one stale invoice.
+        await using var flag = new NpgsqlCommand(
+            """
+            UPDATE "Shops" AS s SET "SubscriptionStatus" = 2
+            WHERE s."IsActive" = true
+              AND s."SubscriptionStatus" IN (0, 1)
+              AND s."SubscriptionEndsAt" < @now
+              AND (@shop::uuid IS NULL OR s."Id" = @shop)
+              AND NOT EXISTS (
+                  SELECT 1 FROM "Invoices" i
+                  WHERE i."ShopId" = s."Id" AND i."Status" = 1 AND i."PeriodTo" >= @now
+              )
+            """, connection, transaction);
+        flag.Parameters.AddWithValue("now", now);
+        flag.Parameters.AddWithValue("shop", (object?)shopId ?? DBNull.Value);
+        var flagged = await flag.ExecuteNonQueryAsync(cancellationToken);
+
+        await transaction.CommitAsync(cancellationToken);
+        return new BillingDeadlineResult(overdueCount, flagged);
     }
 }

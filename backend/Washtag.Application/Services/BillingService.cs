@@ -21,21 +21,13 @@ public class BillingService : IBillingService
 
     public async Task<BillingOverviewDto> GetOverviewAsync(Guid shopId, CancellationToken cancellationToken = default)
     {
-        var shop = await _db.Shops.FirstOrDefaultAsync(s => s.Id == shopId, cancellationToken)
+        var shop = await _db.Shops.AsNoTracking().FirstOrDefaultAsync(s => s.Id == shopId, cancellationToken)
             ?? throw new AppException("Shop not found.");
 
-        // Lazily transition invoices whose billing period has ended.
-        var now = DateTime.UtcNow;
-        var overdue = await _db.Invoices
-            .Where(i => i.ShopId == shopId && i.Status == InvoiceStatus.Pending && i.PeriodTo < now)
-            .ToListAsync(cancellationToken);
-        if (overdue.Count > 0)
-        {
-            foreach (var invoice in overdue) invoice.Status = InvoiceStatus.Overdue;
-            if (shop.SubscriptionStatus is SubscriptionStatus.Trial or SubscriptionStatus.Active)
-                shop.SubscriptionStatus = SubscriptionStatus.PastDue;
-            await _db.SaveChangesAsync(cancellationToken);
-        }
+        // Apply billing deadlines atomically; a stale tracked read must never be able
+        // to overwrite a payment that settled concurrently.
+        await _invoices.ApplyDeadlinesAsync(DateTime.UtcNow, shopId, cancellationToken);
+        shop = await _db.Shops.AsNoTracking().FirstOrDefaultAsync(s => s.Id == shopId, cancellationToken) ?? shop;
 
         var invoices = await _db.Invoices.AsNoTracking()
             .Where(i => i.ShopId == shopId)

@@ -255,6 +255,41 @@ public sealed class FakeInvoiceStore : IInvoiceStore
         await _db.SaveChangesAsync(cancellationToken);
         return true;
     }
+
+    public async Task<BillingDeadlineResult> ApplyDeadlinesAsync(DateTime now, Guid? shopId = null,
+        CancellationToken cancellationToken = default)
+    {
+        var overdue = await _db.Invoices
+            .Where(i => i.Status == InvoiceStatus.Pending && i.PeriodTo < now &&
+                        (shopId == null || i.ShopId == shopId))
+            .ToListAsync(cancellationToken);
+        foreach (var invoice in overdue) invoice.Status = InvoiceStatus.Overdue;
+
+        var candidates = overdue.Select(i => i.ShopId).ToHashSet();
+        var expired = await _db.Shops
+            .Where(s => s.IsActive && s.SubscriptionEndsAt < now &&
+                        (s.SubscriptionStatus == SubscriptionStatus.Trial ||
+                         s.SubscriptionStatus == SubscriptionStatus.Active))
+            .Select(s => s.Id).ToListAsync(cancellationToken);
+        candidates.UnionWith(expired);
+
+        var flagged = 0;
+        foreach (var candidateId in candidates)
+        {
+            if (await _db.Invoices.AnyAsync(
+                    i => i.ShopId == candidateId && i.Status == InvoiceStatus.Paid && i.PeriodTo >= now,
+                    cancellationToken)) continue;
+            var shop = await _db.Shops.FirstOrDefaultAsync(
+                s => s.Id == candidateId && s.IsActive && s.SubscriptionEndsAt < now &&
+                     (s.SubscriptionStatus == SubscriptionStatus.Trial ||
+                      s.SubscriptionStatus == SubscriptionStatus.Active), cancellationToken);
+            if (shop == null) continue;
+            shop.SubscriptionStatus = SubscriptionStatus.PastDue;
+            flagged++;
+        }
+        if (overdue.Count > 0 || flagged > 0) await _db.SaveChangesAsync(cancellationToken);
+        return new BillingDeadlineResult(overdue.Count, flagged);
+    }
 }
 
 public sealed class FakeAdminSettings : IAdminSettings
@@ -273,4 +308,6 @@ public sealed class FakeAdmin : IAdminService
         Task.FromResult(new ShopDto { Id = shopId, IsActive = active });
     public Task<ShopDto> CancelShopSubscriptionAsync(Guid shopId, CancellationToken cancellationToken = default) =>
         Task.FromResult(new ShopDto { Id = shopId, SubscriptionStatus = SubscriptionStatus.Cancelled });
+    public Task<ShopDto> RestoreSubscriptionAsync(Guid shopId, CancellationToken cancellationToken = default) =>
+        Task.FromResult(new ShopDto { Id = shopId, SubscriptionStatus = SubscriptionStatus.Active });
 }

@@ -26,8 +26,14 @@ public interface IPaymentStore
 }
 
 /// <summary>Atomically settles an invoice and advances the subscription once.</summary>
+public record BillingDeadlineResult(int OverdueInvoices, int ShopsFlagged);
+
 public interface IInvoiceStore
 {
     Task<bool> SettleAsync(Guid shopId, Guid invoiceId, PaymentMethod method, string? reference,
         decimal monthlyPrice, CancellationToken cancellationToken = default);
+
+    /// <summary>Single authoritative transition for overdue invoices and expired terms.</summary>
+    Task<BillingDeadlineResult> ApplyDeadlinesAsync(DateTime now, Guid? shopId = null,
+        CancellationToken cancellationToken = default);
 }

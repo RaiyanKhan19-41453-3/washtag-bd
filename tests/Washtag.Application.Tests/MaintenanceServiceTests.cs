@@ -15,6 +15,7 @@ public class MaintenanceServiceTests
         public TestDbContext Db { get; }
         public FakeRefreshTokenStore Tokens { get; } = new();
         public FakeIndexer Indexer { get; } = new();
+        public FakeInvoiceStore Invoices { get; private set; } = null!;
         public MaintenanceOptions Options { get; } = new();
 
         public Harness()
@@ -22,6 +23,7 @@ public class MaintenanceServiceTests
             var options = new DbContextOptionsBuilder<TestDbContext>()
                 .UseInMemoryDatabase(Guid.NewGuid().ToString()).Options;
             Db = new TestDbContext(options);
+            Invoices = new FakeInvoiceStore(Db);
             Db.Shops.Add(new Shop
             {
                 Id = ShopId, Name = "Test Shop", Plan = "Starter",
@@ -30,13 +32,14 @@ public class MaintenanceServiceTests
             Db.SaveChanges();
         }
 
-        public MaintenanceService Service() => new(Db, Tokens, Indexer, Options);
+        public MaintenanceService Service() => new(Db, Tokens, Indexer, Invoices, Options);
     }
 
     [Fact]
     public async Task MarksOverdueInvoicesAndFlagsShopPastDue()
     {
         var h = new Harness();
+        h.Db.Shops.Single().SubscriptionEndsAt = DateTime.UtcNow.AddDays(-1);
         h.Db.Invoices.Add(new Invoice
         {
             ShopId = h.ShopId, InvoiceNumber = "INV-OLD",

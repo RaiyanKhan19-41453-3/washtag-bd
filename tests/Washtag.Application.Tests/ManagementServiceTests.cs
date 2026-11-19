@@ -30,7 +30,7 @@ public class ManagementServiceTests
         }
     }
 
-    private static StaffService Staff(Harness h) => new(h.Db);
+    private static StaffService Staff(Harness h) => new(h.Db, new FakeAdminSettings());
     private static BillingService Billing(Harness h) => new(h.Db, new FakeInvoiceStore(h.Db));
 
     [Fact]
@@ -138,6 +138,7 @@ public class ManagementServiceTests
             PeriodFrom = DateTime.UtcNow.AddDays(-40),
             PeriodTo = DateTime.UtcNow.AddDays(-10)
         });
+        h.Db.Shops.Single().SubscriptionEndsAt = DateTime.UtcNow.AddDays(-1);
         await h.Db.SaveChangesAsync();
 
         var overview = await Billing(h).GetOverviewAsync(h.ShopId);
@@ -235,7 +236,7 @@ public class ManagementServiceTests
         });
         await h.Db.SaveChangesAsync();
 
-        var stats = await new AdminService(h.Db).GetStatsAsync();
+        var stats = await new AdminService(h.Db, new FakeInvoiceStore(h.Db)).GetStatsAsync();
 
         Assert.Equal(1, stats.ShopCount);
         Assert.Equal(1, stats.OrderCount);
@@ -318,7 +319,7 @@ public class ManagementServiceTests
     public async Task Admin_CanSuspendAndCancelShop()
     {
         var h = new Harness();
-        var service = new AdminService(h.Db);
+        var service = new AdminService(h.Db, new FakeInvoiceStore(h.Db));
 
         var suspended = await service.SetShopActiveAsync(h.ShopId, false);
         Assert.False(suspended.IsActive);
@@ -328,6 +329,21 @@ public class ManagementServiceTests
 
         var reactivated = await service.SetShopActiveAsync(h.ShopId, true);
         Assert.True(reactivated.IsActive);
-        Assert.Equal(SubscriptionStatus.Active, reactivated.SubscriptionStatus);
+        Assert.Equal(SubscriptionStatus.Cancelled, reactivated.SubscriptionStatus);
+
+        var restored = await service.RestoreSubscriptionAsync(h.ShopId);
+        Assert.Equal(SubscriptionStatus.Active, restored.SubscriptionStatus);
+    }
+
+    [Fact]
+    public async Task Staff_InviteCannotCreateAnAdminIdentity()
+    {
+        var h = new Harness();
+        await Assert.ThrowsAsync<AppException>(() => new StaffService(h.Db, new FakeAdminSettings("admin@example.com"))
+            .CreateAsync(h.ShopId, new CreateStaffRequest
+            {
+                Name = "Admin", Email = "ADMIN@example.com", Password = "secret123"
+            }));
+        Assert.Empty(h.Db.Users);
     }
 }

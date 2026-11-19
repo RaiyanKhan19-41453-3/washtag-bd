@@ -14,14 +14,16 @@ public sealed class MaintenanceService : IMaintenanceService
     private readonly IAppDbContext _db;
     private readonly IRefreshTokenStore _tokens;
     private readonly IDocumentIndexer _indexer;
+    private readonly IInvoiceStore _invoices;
     private readonly MaintenanceOptions _options;
 
     public MaintenanceService(IAppDbContext db, IRefreshTokenStore tokens,
-        IDocumentIndexer indexer, MaintenanceOptions options)
+        IDocumentIndexer indexer, IInvoiceStore invoices, MaintenanceOptions options)
     {
         _db = db;
         _tokens = tokens;
         _indexer = indexer;
+        _invoices = invoices;
         _options = options;
     }
 
@@ -30,33 +32,12 @@ public sealed class MaintenanceService : IMaintenanceService
         var now = DateTime.UtcNow;
         var result = new MaintenanceResultDto { RanAt = now };
 
-        // Billing periods that ended without payment become overdue.
-        var overdue = await _db.Invoices
-            .Where(i => i.Status == InvoiceStatus.Pending && i.PeriodTo < now)
-            .ToListAsync(cancellationToken);
-        foreach (var invoice in overdue) invoice.Status = InvoiceStatus.Overdue;
-        result.OverdueInvoices = overdue.Count;
-
-        // Subscriptions whose term elapsed are expired, even if no invoice flagged them.
-        var expired = await _db.Shops
-            .Where(s => s.IsActive && s.SubscriptionEndsAt <= now &&
-                        (s.SubscriptionStatus == SubscriptionStatus.Trial ||
-                         s.SubscriptionStatus == SubscriptionStatus.Active))
-            .ToListAsync(cancellationToken);
-        result.ExpiredSubscriptions = expired.Count;
-
-        // One shop can be affected by both an overdue invoice and an expired term; count it once.
-        var affectedIds = overdue.Select(i => i.ShopId).Concat(expired.Select(s => s.Id)).ToHashSet();
-        var toFlag = await _db.Shops
-            .Where(s => s.IsActive && affectedIds.Contains(s.Id) &&
-                        (s.SubscriptionStatus == SubscriptionStatus.Trial ||
-                         s.SubscriptionStatus == SubscriptionStatus.Active))
-            .ToListAsync(cancellationToken);
-        foreach (var shop in toFlag) shop.SubscriptionStatus = SubscriptionStatus.PastDue;
-        result.ShopsMarkedPastDue = toFlag.Count;
-
-        if (overdue.Count > 0 || toFlag.Count > 0)
-            await _db.SaveChangesAsync(cancellationToken);
+        // One atomic transition shared with the lazy request-time paths, so nothing
+        // writes an invoice status from a stale tracked entity.
+        var deadlines = await _invoices.ApplyDeadlinesAsync(now, null, cancellationToken);
+        result.OverdueInvoices = deadlines.OverdueInvoices;
+        result.ExpiredSubscriptions = deadlines.ShopsFlagged;
+        result.ShopsMarkedPastDue = deadlines.ShopsFlagged;
 
         // Retention: old assistant conversations are dropped in bulk instead of one chat at a time.
         var cutoff = now.AddDays(-_options.ChatRetentionDays);
