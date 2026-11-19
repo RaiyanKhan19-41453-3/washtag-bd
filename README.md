@@ -139,7 +139,7 @@ The dependency rule points inward: `Api → Infrastructure → Application → D
 - QR receipts generated server-side with QRCoder (data URL + printable PNG); they encode the real public `/track/{token}` URL of whatever host serves the app, so they work on localhost, a VPS IP or a custom domain
 - Real-time push to both the owner dashboard and the customer tracking page
 - Health-checked dependencies with automatic restarts, EF connection resiliency and retried startup/background indexing
-- Redis-backed idempotency keys so duplicate order submissions are rejected even across API restarts
+- Database-backed idempotency keys stored on the order itself, so duplicate submissions are rejected atomically — even across API crashes and restarts — and replays return the original order
 - Swagger UI at `/swagger` (disabled by default; set `ENABLE_SWAGGER=true` to explore the API)
 
 ---
@@ -177,7 +177,7 @@ Both scripts read `POSTGRES_USER` / `POSTGRES_DB` from `.env` (with the compose 
 Everything is in one solution; .NET and Node are only needed if you want to develop outside Docker.
 
 ```bash
-dotnet test WashtagBD.sln          # 56 xUnit tests (use cases, billing, auth, assistant, middleware + controllers)
+dotnet test WashtagBD.sln          # 58 xUnit tests (use cases, billing, auth, assistant, middleware + controllers)
 cd frontend && npm run build       # production bundle check
 ```
 
