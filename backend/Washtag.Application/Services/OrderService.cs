@@ -178,7 +178,7 @@ public class OrderService : IOrderService
         dto.Replayed = replayed;
         await IndexAsync(order);
         // A replay must not re-broadcast an event for the same logical order.
-        if (!replayed) await NotifyAsync(order, dto, BuildPublicTrack(order));
+        if (!replayed) await NotifyAsync(order, MapRealtime(order), BuildPublicTrack(order));
         return dto;
     }
 
@@ -220,7 +220,7 @@ public class OrderService : IOrderService
         await _db.SaveChangesAsync();
         await InvalidateCacheAsync(order.PublicToken);
         await IndexAsync(order);
-        await NotifyAsync(order, MapDetail(order), BuildPublicTrack(order));
+        await NotifyAsync(order, MapRealtime(order), BuildPublicTrack(order));
         return MapDetail(order);
     }
 
@@ -246,7 +246,7 @@ public class OrderService : IOrderService
             ?? throw new AppException("Order not found.");
         await InvalidateCacheAsync(order.PublicToken);
         await IndexAsync(fresh);
-        await NotifyAsync(fresh, MapDetail(fresh), BuildPublicTrack(fresh));
+        await NotifyAsync(fresh, MapRealtime(fresh), BuildPublicTrack(fresh));
         return MapDetail(fresh);
     }
 
@@ -288,7 +288,7 @@ public class OrderService : IOrderService
         await _db.SaveChangesAsync();
         await InvalidateCacheAsync(order.PublicToken);
         await IndexAsync(order);
-        await NotifyAsync(order, MapDetail(order), BuildPublicTrack(order));
+        await NotifyAsync(order, MapRealtime(order), BuildPublicTrack(order));
     }
 
     public async Task<PublicTrackDto?> TrackAsync(string token)
@@ -508,6 +508,19 @@ public class OrderService : IOrderService
         FillBase(order, dto);
         return dto;
     }
+
+    // Realtime clients only need a refresh signal plus key fields; sending the full
+    // detail DTO (with a base64 QR image) to every dashboard is wasteful.
+    private static object MapRealtime(Order order) => new
+    {
+        order.Id,
+        order.OrderNumber,
+        order.Status,
+        order.PaymentStatus,
+        order.PaidAmount,
+        order.TotalAmount,
+        order.UpdatedAt
+    };
 
     private OrderDetailDto MapDetail(Order order)
     {
