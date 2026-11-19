@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { Store, MapPin, Phone, Image as ImageIcon, Save, ShieldCheck, BadgeCheck, Mail, Info, KeyRound } from 'lucide-react';
 import api from '../api/client';
 import { useAuth } from '../context/AuthContext';
@@ -8,7 +8,8 @@ import Loader from '../components/Loader';
 import { formatDate, shopLocked } from '../utils/helpers';
 
 export default function Settings() {
-  const { user, shop, setShop } = useAuth();
+  const { user, shop, setShop, logout } = useAuth();
+  const navigate = useNavigate();
   const toast = useToast();
   const [form, setForm] = useState(null);
   const [loadError, setLoadError] = useState('');
@@ -47,7 +48,10 @@ export default function Settings() {
     try {
       await api.post('/auth/change-password', passwords);
       setPasswords({ currentPassword: '', newPassword: '' });
-      toast.success('Password changed. Other sessions were signed out.');
+      // Changing the password invalidates the current token too — sign in again.
+      logout();
+      navigate('/login', { replace: true, state: { from: '/app/settings' } });
+      toast.success('Password changed. Please sign in again with your new password.');
     } catch (error) {
       toast.error(error.message);
     } finally {

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { CreditCard, ReceiptText, CheckCircle2, CalendarDays, BadgeCheck } from 'lucide-react';
+import { CreditCard, ReceiptText, CheckCircle2, CalendarDays, BadgeCheck, AlertCircle } from 'lucide-react';
 import api from '../api/client';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
@@ -96,7 +96,12 @@ export default function Billing() {
             <div><BadgeCheck size={16} /><span>Renews {formatDate(data.renewalDate)}</span></div>
             <div><ReceiptText size={16} /><span>Subscription due: <strong>{money(data.outstanding)}</strong></span></div>
           </div>
-          {isOwner && (
+          {data.status === 'Cancelled' && (
+            <div className="subscription-banner">
+              <AlertCircle size={17} /> <span>This plan was cancelled by the platform admin. Paying an invoice cannot restore access — contact support to have it restored.</span>
+            </div>
+          )}
+          {isOwner && data.status !== 'Cancelled' && (
             <div className="plan-change">
               <label className="field">
                 <span>Change plan</span>
@@ -122,7 +127,7 @@ export default function Billing() {
                     <td className="align-right strong">{money(invoice.amount)}</td>
                     <td><span className={`badge payment-${invoice.status}`}>{invoice.status}</span></td>
                     <td className="align-right">
-                      {invoice.status !== 'Paid' && isOwner && (
+                      {invoice.status !== 'Paid' && isOwner && data.status !== 'Cancelled' && (
                         <button className="btn btn-outline btn-sm" onClick={() => setPaying(invoice)}><CreditCard size={14} /> Settle</button>
                       )}
                       {invoice.status === 'Paid' && <span className="paid-note"><CheckCircle2 size={14} /> {formatDate(invoice.paidAt)}</span>}
