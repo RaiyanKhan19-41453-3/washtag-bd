@@ -184,27 +184,20 @@ public static class DbInitializer
         using var scope = services.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
         var logger = scope.ServiceProvider.GetRequiredService<ILoggerFactory>().CreateLogger("DbInitializer");
-        try
+        InitializationSucceeded = false;
+        var pending = (await db.Database.GetPendingMigrationsAsync()).ToList();
+        if (pending.Count > 0)
+            logger.LogInformation("Applying {Count} database migration(s): {Migrations}", pending.Count, string.Join(", ", pending));
+        db.Database.Migrate();
+        logger.LogInformation("Database migrations applied.");
+        if (seedDemo)
         {
-            var pending = (await db.Database.GetPendingMigrationsAsync()).ToList();
-            if (pending.Count > 0)
-                logger.LogInformation("Applying {Count} database migration(s): {Migrations}", pending.Count, string.Join(", ", pending));
-            db.Database.Migrate();
-            logger.LogInformation("Database migrations applied.");
-            if (seedDemo)
-            {
-                if (isProduction)
-                    logger.LogWarning("Demo accounts are enabled in Production. Set SEED_DEMO_DATA=false for real deployments.");
-                await DbSeeder.SeedAsync(services);
-                await BillingSeeder.SeedAsync(services);
-                logger.LogInformation("Demo data check complete.");
-            }
-            InitializationSucceeded = true;
+            if (isProduction)
+                logger.LogWarning("Demo accounts are enabled in Production. Set SEED_DEMO_DATA=false for real deployments.");
+            await DbSeeder.SeedAsync(services);
+            await BillingSeeder.SeedAsync(services);
+            logger.LogInformation("Demo data check complete.");
         }
-        catch (Exception ex)
-        {
-            InitializationSucceeded = false;
-            logger.LogError(ex, "Database initialization failed; /health will report unhealthy.");
-        }
+        InitializationSucceeded = true;
     }
 }

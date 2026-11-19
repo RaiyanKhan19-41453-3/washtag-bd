@@ -54,10 +54,22 @@ public class OrdersController : ControllerBase
     {
         if (!ModelState.IsValid) return ValidationProblem(ModelState);
         var key = Request.Headers["Idempotency-Key"].FirstOrDefault();
-        if (!string.IsNullOrWhiteSpace(key) && !_idempotency.TryClaim(key, ShopId))
+        var claimed = !string.IsNullOrWhiteSpace(key) &&
+            await _idempotency.TryClaimAsync(key!, ShopId, HttpContext.RequestAborted);
+        if (!string.IsNullOrWhiteSpace(key) && !claimed)
             return Conflict(new { message = "Duplicate request. This order was already created." });
-        var result = await _orders.CreateOrderAsync(ShopId, request, Actor);
-        return CreatedAtAction(nameof(Get), new { id = result.Id }, result);
+
+        try
+        {
+            var result = await _orders.CreateOrderAsync(ShopId, request, Actor);
+            return CreatedAtAction(nameof(Get), new { id = result.Id }, result);
+        }
+        catch
+        {
+            if (claimed && !string.IsNullOrWhiteSpace(key))
+                await _idempotency.ReleaseAsync(key!, ShopId, HttpContext.RequestAborted);
+            throw;
+        }
     }
 
     [HttpPatch("{id:guid}/status")]

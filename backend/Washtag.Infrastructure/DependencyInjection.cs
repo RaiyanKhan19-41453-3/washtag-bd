@@ -14,7 +14,8 @@ public static class DependencyInjection
     {
         services.AddDbContext<AppDbContext>(options =>
         {
-            options.UseNpgsql(configuration.GetConnectionString("Postgres"));
+            options.UseNpgsql(configuration.GetConnectionString("Postgres"),
+                npgsql => npgsql.EnableRetryOnFailure(maxRetryCount: 5, maxRetryDelay: TimeSpan.FromSeconds(3), errorCodesToAdd: null));
             options.ConfigureWarnings(warnings =>
                 warnings.Ignore(RelationalEventId.MultipleCollectionIncludeWarning));
         });

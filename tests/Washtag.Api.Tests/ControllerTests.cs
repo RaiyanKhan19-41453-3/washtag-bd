@@ -22,13 +22,16 @@ public class ControllerTests
         public Guid LastShopId { get; private set; }
         public int Calls { get; private set; }
 
-        public bool TryClaim(string key, Guid shopId)
+        public Task<bool> TryClaimAsync(string key, Guid shopId, CancellationToken cancellationToken = default)
         {
             Calls++;
             LastKey = key;
             LastShopId = shopId;
-            return Result;
+            return Task.FromResult(Result);
         }
+
+        public Task ReleaseAsync(string key, Guid shopId, CancellationToken cancellationToken = default) =>
+            Task.CompletedTask;
     }
 
     private static void Authenticate(ControllerBase controller, Guid shopId, bool isAdmin = false)

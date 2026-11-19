@@ -209,7 +209,9 @@ app.MapGet("/health", async (IServiceProvider services) =>
         using var scope = services.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<IAppDbContext>();
         await db.Shops.AnyAsync();
-        return Results.Json(new { status = "healthy", checkedAt = DateTime.UtcNow });
+        if (!DbInitializer.InitializationSucceeded)
+            return Results.Json(new { status = "unhealthy", reason = "database initialization incomplete" }, statusCode: 503);
+        return Results.Json(new { status = "healthy", initialized = true, checkedAt = DateTime.UtcNow });
     }
     catch
     {
@@ -223,15 +225,38 @@ if (usingDefaultSecret && app.Environment.IsProduction())
     app.Logger.LogWarning("JWT_SECRET is unset or the development default; using an ephemeral secret. Tokens will reset on restart.");
 
 var seedDemo = seedFlag.Equals("true", StringComparison.OrdinalIgnoreCase);
-await DbInitializer.InitializeAsync(app.Services, seedDemo, app.Environment.IsProduction());
+foreach (var delay in new[] { 0, 2, 5, 10, 20 })
+{
+    if (delay > 0) await Task.Delay(TimeSpan.FromSeconds(delay));
+    try
+    {
+        await DbInitializer.InitializeAsync(app.Services, seedDemo, app.Environment.IsProduction());
+        break;
+    }
+    catch (Exception ex)
+    {
+        app.Logger.LogError(ex, "Database initialization attempt failed (next retry in {Delay}s).", delay);
+    }
+}
 
 // Index in the background so AI/gateway latency never blocks readiness.
 app.Lifetime.ApplicationStarted.Register(() =>
 {
     _ = Task.Run(async () =>
     {
-        try { await AssistantInitializer.InitializeAsync(app.Services); }
-        catch (Exception ex) { app.Logger.LogError(ex, "Background assistant index failed."); }
+        foreach (var delay in new[] { 0, 5, 15 })
+        {
+            if (delay > 0) await Task.Delay(TimeSpan.FromSeconds(delay));
+            try
+            {
+                await AssistantInitializer.InitializeAsync(app.Services);
+                return;
+            }
+            catch (Exception ex)
+            {
+                app.Logger.LogError(ex, "Background assistant index attempt failed (next retry in {Delay}s).", delay);
+            }
+        }
     });
 });
 
