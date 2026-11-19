@@ -104,8 +104,8 @@ export default function Layout() {
       <div className="app-main">
         {shopLocked(shop) && (
           <div className="subscription-banner">
-            <AlertCircle size={17} /> <span>Your subscription is inactive. Renew to keep managing orders.</span>
-            <Link to="/app/billing" className="btn btn-sm">Renew now</Link>
+            <AlertCircle size={17} /> <span>{t('Your subscription is inactive. Renew to keep managing orders.')}</span>
+            <Link to="/app/billing" className="btn btn-sm">{t('Renew now')}</Link>
           </div>
         )}
         <header className="topbar">

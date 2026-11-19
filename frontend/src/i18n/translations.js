@@ -122,6 +122,8 @@ export const bn = {
   'Expected pickup': 'নির্ধারিত তোলার সময়',
   'Questions? Call the shop at': 'প্রশ্ন আছে? দোকানে কল করুন',
   'Scan for live status': 'লাইভ স্ট্যাটাসের জন্য স্ক্যান করুন',
+  'Your subscription is inactive. Renew to keep managing orders.': 'আপনার সাবস্ক্রিপশন নিষ্ক্রিয়। অর্ডার পরিচালনা চালু রাখতে নবায়ন করুন।',
+  'Renew now': 'এখন নবায়ন করুন',
   'Thank you!': 'ধন্যবাদ!',
   'Live QR tracking': 'লাইভ কিউআর ট্র্যাকিং',
   'Powered by': 'চালিত হয়',
