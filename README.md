@@ -180,7 +180,7 @@ Both scripts read `POSTGRES_USER` / `POSTGRES_DB` from `.env` (with the compose 
 Everything is in one solution; .NET and Node are only needed if you want to develop outside Docker.
 
 ```bash
-dotnet test tests/Washtag.Application.Tests/Washtag.Application.Tests.csproj   # 58 unit tests
+dotnet test tests/Washtag.Application.Tests/Washtag.Application.Tests.csproj   # 60 unit tests
 dotnet test tests/Washtag.Api.Tests/Washtag.Api.Tests.csproj                   # 15 unit tests
 # Integration tests (real Postgres + pgvector via Testcontainers — requires a running Docker daemon)
 dotnet test tests/Washtag.Integration.Tests/Washtag.Integration.Tests.csproj   # 8 real-database tests
@@ -301,6 +301,7 @@ AI_GATEWAY_CHAT_MODEL=gpt-4o-mini
 - Start with `docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build`, register your owner account, then set `ADMIN_EMAILS` to that address, restart the API and **log out and back in** so the new `isAdmin` claim is minted into the token.
 - Use a TLS proxy on 80/443 and forward `X-Forwarded-For` / `X-Forwarded-Proto`; the web container binds only to `127.0.0.1:8081`.
 - Browser camera and microphone access (Scan QR / Assistant voice input) require `localhost` or HTTPS in production.
+- Production defaults `MANUAL_PAYMENT_ENABLED=false`: owners cannot mark their own invoices paid (there is no gateway verification). A platform admin settles invoices from the admin page instead. Keep it `true` only for a local demo.
 - Schedule `scripts/backup.sh` and store dumps off-server.
 - Run **one API replica** — the maintenance worker, SignalR groups and rate limits are per-process.
 

@@ -31,6 +31,7 @@ POSTGRES_DB=washtagdb
 JWT_SECRET=<strong generated value>
 APP_PORT=8081
 SEED_DEMO_DATA=false
+MANUAL_PAYMENT_ENABLED=false
 ADMIN_EMAILS=
 ALLOWED_ORIGINS=https://wash.example.com
 PUBLIC_BASE_URL=https://wash.example.com
@@ -153,7 +154,7 @@ If you need multiple replicas: add a shared secret, a Postgres advisory lock aro
 
 ## 8. Known product limitations
 
-- Invoice settlement is **self-declared** (cash/bKash/card reference, no gateway webhook). A shop owner can mark an invoice paid to renew. Add a verified payment provider before charging real money.
+- Production disables self-service invoice settlement (`MANUAL_PAYMENT_ENABLED=false`): there is no gateway webhook to verify a bKash/cash reference, so only a platform admin can settle invoices, via the admin page's "Settle invoice" action. Enabling it lets an owner mark an invoice paid and renew without real payment — add a verified provider first.
 - Tokens are stored in `localStorage`; XSS is mitigated by a strict CSP but HttpOnly cookie auth with CSRF protection would be stronger.
 - Bengali translations are partial (English fallback per string).
 - The assistant uses deterministic local embeddings by default; an LLM is optional. Reindexing is a synchronous, one-embedding-per-document operation capped at 500 orders and 500 customers per shop (newest first), so very large shops should reindex off-peak. Mixing embedding models/providers without rebuilding the index degrades retrieval quality (facts are still computed from the database).
