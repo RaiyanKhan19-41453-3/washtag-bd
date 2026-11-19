@@ -14,7 +14,16 @@ export default function Modal({ open, onClose, title, subtitle, children, footer
     previousFocus.current = document.activeElement;
     dialogRef.current?.focus();
     const handleKey = (event) => {
-      if (event.key === 'Escape') onCloseRef.current?.();
+      if (event.key === 'Escape') { onCloseRef.current?.(); return; }
+      if (event.key !== 'Tab') return;
+      // Keep keyboard focus inside the dialog until it closes.
+      const focusable = dialogRef.current?.querySelectorAll(
+        'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])');
+      if (!focusable?.length) return;
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last.focus(); }
+      else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first.focus(); }
     };
     document.addEventListener('keydown', handleKey);
     return () => {

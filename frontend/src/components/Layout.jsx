@@ -6,6 +6,8 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useLanguage } from '../context/LanguageContext';
+import { useToast } from '../context/ToastContext';
+import { useRealtime } from '../hooks/useRealtime';
 import LanguageToggle from './LanguageToggle';
 import { greeting, initials, shopLocked } from '../utils/helpers';
 
@@ -41,6 +43,18 @@ export default function Layout() {
   const { t } = useLanguage();
   const location = useLocation();
   const navigate = useNavigate();
+  const toast = useToast();
+  const token = localStorage.getItem('washtag_token');
+
+  // The shell is always mounted, so order events are visible even when the owner
+  // is on a page that does not subscribe to realtime itself.
+  useRealtime({
+    token,
+    onUpdate: () => {
+      if (!location.pathname.startsWith('/app/orders') && !location.pathname.startsWith('/app/scan'))
+        toast.info('An order was updated. Open Orders to see the latest.');
+    }
+  });
 
   const handleLogout = () => {
     logout();

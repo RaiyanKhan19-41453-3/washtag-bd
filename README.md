@@ -104,7 +104,8 @@ The dependency rule points inward: `Api → Infrastructure → Application → D
 - Create orders with multiple items, per-item service, quantity and price
 - Auto-generated order number and unique QR receipt
 - Status workflow: `Received → Washing → Ironing → Ready for Pickup → Delivered`
-- Camera QR scanning with manual token fallback
+- Camera QR scanning with manual token fallback; the scan screen can record payment and open the printable receipt inline
+- Keyboard-accessible dialogs with focus trapping, visible focus rings, higher-contrast actions and reduced-motion support
 - One-click 80mm thermal receipt with the QR at `/print/{token}` (print button uses the browser print dialog)
 - Partial/full payment recording (Cash, Card, bKash, Nagad, Bank Transfer)
 - Customer directory with totals and unpaid balances

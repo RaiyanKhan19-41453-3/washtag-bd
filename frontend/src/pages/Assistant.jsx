@@ -170,7 +170,7 @@ export default function Assistant() {
             </div>
           </header>
 
-          <div className="chat-messages">
+          <div className="chat-messages" role="log" aria-live="polite" aria-relevant="additions">
             {messages.map((message, index) => (
               <div key={message.id && message.id !== '00000000-0000-0000-0000-000000000000'
                 ? message.id : `${message.role}-${index}`} className={`chat-row ${message.role}`}>
@@ -232,7 +232,7 @@ export default function Assistant() {
             {busy && (
               <div className="chat-row assistant">
                 <span className="chat-avatar"><Bot size={17} /></span>
-                <div className="chat-bubble"><span className="typing"><i /><i /><i /></span></div>
+                <div className="chat-bubble"><span className="typing" role="status" aria-label="Assistant is thinking"><i /><i /><i /></span></div>
               </div>
             )}
             <div ref={bottomRef} />

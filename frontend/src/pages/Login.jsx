@@ -64,7 +64,7 @@ export default function Login() {
             <div className="login-top-row">
               <div>
                 <h2>{t('Log in to your shop')}</h2>
-                <p>Enter your account details to continue.</p>
+                <p>{t('Enter your account details to continue.')}</p>
               </div>
               <LanguageToggle compact />
             </div>
@@ -72,7 +72,7 @@ export default function Login() {
 
           <form onSubmit={submit} className="form-stack">
             <label className="field">
-              <span>Email address</span>
+              <span>{t('Email address')}</span>
               <div className="input-with-icon">
                 <Mail size={17} />
                 <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@shop.com" required autoComplete="email" />
@@ -80,7 +80,7 @@ export default function Login() {
             </label>
 
             <label className="field">
-              <span>Password</span>
+              <span>{t('Password')}</span>
               <div className="input-with-icon">
                 <Lock size={17} />
                 <input
@@ -98,13 +98,13 @@ export default function Login() {
             </label>
 
             <button type="submit" className="btn btn-primary btn-block btn-lg" disabled={busy}>
-              {busy ? 'Signing in…' : <>Log in <ArrowRight size={18} /></>}
+              {busy ? t('Signing in…') : <>{t('Log in')} <ArrowRight size={18} /></>}
             </button>
           </form>
 
           <button className="demo-hint" onClick={useDemo} type="button">
             <Sparkles size={15} />
-            <span><strong>Try the demo:</strong> demo@washtagbd.com / demo1234</span>
+            <span><strong>{t('Try the demo:')}</strong> demo@washtagbd.com / demo1234</span>
           </button>
 
           <p className="auth-switch">

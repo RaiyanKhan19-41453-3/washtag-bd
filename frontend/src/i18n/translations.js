@@ -172,8 +172,13 @@ export const bn = {
 
   // Login / register
   'Log in to your shop': 'আপনার দোকানে লগ ইন করুন',
+  'Enter your account details to continue.': 'চালু রাখতে আপনার অ্যাকাউন্টের তথ্য দিন।',
+  'Email address': 'ইমেইল ঠিকানা',
+  'Password': 'পাসওয়ার্ড',
   'Create your shop': 'আপনার দোকান তৈরি করুন',
   'Log in': 'লগ ইন',
+  'Signing in…': 'সাইন ইন করা হচ্ছে…',
+  'Try the demo:': 'ডেমো ব্যবহার করুন:',
   'Your counter, under control.': 'আপনার কাউন্টার, আপনার নিয়ন্ত্রণে।',
   'New to WashTag BD?': 'WashTag BD-তে নতুন?',
   'Create a shop': 'দোকান তৈরি করুন',
