@@ -113,7 +113,8 @@ The dependency rule points inward: `Api → Infrastructure → Application → D
 **Subscription & platform**
 - Subscription state (plan, status, renewal date) with monthly invoices for Starter/Growth/Pro
 - Owners can change plans and record manual invoice settlements (bKash/cash/card/bank); an online gateway can be added later
-- Platform admin view (`/app/admin`) listing every shop, its plan, subscription and revenue
+- Platform admin view (`/app/admin`) listing every shop, its plan, subscription and revenue, with Suspend / Reactivate / Cancel controls
+- Subscription enforcement: expired, PastDue, Cancelled or suspended shops are locked from daily operations (403) but can still reach auth, billing and shop settings to renew — with a banner directing owners to the Billing page
 - CORS origin allowlist, auth rate limiting (6 attempts/minute) and secure refresh-token rotation
 
 **Customer**
@@ -177,7 +178,7 @@ Both scripts read `POSTGRES_USER` / `POSTGRES_DB` from `.env` (with the compose 
 Everything is in one solution; .NET and Node are only needed if you want to develop outside Docker.
 
 ```bash
-dotnet test WashtagBD.sln          # 58 xUnit tests (use cases, billing, auth, assistant, middleware + controllers)
+dotnet test WashtagBD.sln          # 60 xUnit tests (use cases, billing, auth, assistant, subscription, admin + controllers)
 cd frontend && npm run build       # production bundle check
 ```
 
@@ -223,6 +224,8 @@ GitHub Actions runs build + tests + both Docker image builds on every push and P
 | PUT | `/api/billing/plan` | Owner | Change subscription plan |
 | POST | `/api/billing/invoices/{id}/pay` | Owner | Record manual invoice settlement |
 | GET | `/api/admin/stats` | Platform admin | Cross-shop overview |
+| PATCH | `/api/admin/shops/{id}/active` | Platform admin | Suspend (`active: false`) or reactivate (`active: true`) a shop |
+| PATCH | `/api/admin/shops/{id}/cancel` | Platform admin | Cancel a shop's subscription (locks the shop) |
 | GET | `/api/public/track/{token}` | public | Customer-facing tracking payload |
 | POST | `/api/assistant/ask` | JWT | Ask the RAG assistant a question |
 | GET | `/api/assistant/status` | JWT | Vector index/engine status |
