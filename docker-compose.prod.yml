@@ -1,0 +1,44 @@
+# Production overrides — use together with the base compose file:
+#   docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
+#
+# All ${...} values come from .env. See DEPLOYMENT.md for the bootstrap sequence.
+services:
+  api:
+    environment:
+      SEED_DEMO_DATA: "false"
+      ADMIN_EMAILS: "${ADMIN_EMAILS:-}"
+      ALLOWED_ORIGINS: "${ALLOWED_ORIGINS:-}"
+      PUBLIC_BASE_URL: "${PUBLIC_BASE_URL:-}"
+      JWT_SECRET: "${JWT_SECRET:?Set a strong JWT_SECRET (at least 32 characters) in .env}"
+      ENABLE_SWAGGER: "false"
+      MAINTENANCE_ENABLED: "${MAINTENANCE_ENABLED:-true}"
+      MAINTENANCE_INTERVAL_MINUTES: "${MAINTENANCE_INTERVAL_MINUTES:-60}"
+      MAINTENANCE_RUN_ON_STARTUP: "${MAINTENANCE_RUN_ON_STARTUP:-true}"
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  web:
+    ports:
+      - "127.0.0.1:${APP_PORT:-8081}:80"
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  postgres:
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  redis:
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"

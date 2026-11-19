@@ -42,7 +42,7 @@ flowchart LR
 ## Quick start
 
 ```bash
-cp .env.example .env      # optional — sensible defaults are built in
+cp .env.example .env      # optional for local demo; required for production (see DEPLOYMENT.md)
 docker compose up --build -d
 ```
 
@@ -113,7 +113,7 @@ The dependency rule points inward: `Api → Infrastructure → Application → D
 **Subscription & platform**
 - Subscription state (plan, status, renewal date) with monthly invoices for Starter/Growth/Pro
 - Owners can change plans and record manual invoice settlements (bKash/cash/card/bank); an online gateway can be added later
-- Platform admin view (`/app/admin`) listing every shop, its plan, subscription and revenue, with Suspend / Reactivate / Cancel controls
+- Platform admin view (`/app/admin`) listing every shop, its plan, subscription and revenue, with Suspend / Reactivate / Cancel / Restore controls (cancel is final until explicitly restored)
 - Subscription enforcement: expired, PastDue, Cancelled or suspended shops are locked from daily operations (403) but can still reach auth, billing and shop settings to renew — with a banner directing owners to the Billing page
 - CORS origin allowlist, auth rate limiting (6 attempts/minute) and secure refresh-token rotation
 
@@ -179,7 +179,7 @@ Both scripts read `POSTGRES_USER` / `POSTGRES_DB` from `.env` (with the compose 
 Everything is in one solution; .NET and Node are only needed if you want to develop outside Docker.
 
 ```bash
-dotnet test WashtagBD.sln          # 67 xUnit tests (use cases, billing, auth, assistant, subscription, admin, maintenance + controllers)
+dotnet test WashtagBD.sln          # 68 xUnit tests (use cases, billing, auth, assistant, subscription, admin, maintenance + controllers)
 cd frontend && npm run build       # production bundle check
 ```
 
@@ -192,7 +192,7 @@ dotnet tool install --global dotnet-ef --version 9.0.1
 dotnet ef migrations add MyChange --project backend/Washtag.Infrastructure --startup-project backend/Washtag.Api --output-dir Data/Migrations
 ```
 
-> Upgrading from an older checkout that used `EnsureCreated()`? Existing volumes have no `__EFMigrationsHistory`, so `Migrate()` would fail on `InitialCreate`. Either back up and recreate the volume, or baseline it: create the history table and insert the already-applied migration IDs (`20261118123245_InitialCreate`, `20261118131646_AddBilling`, `20261118144504_AddAssistantHistory`, `20261118185732_AddConcurrencyTokens`) before starting the new API.
+> Upgrading from an older checkout that used `EnsureCreated()`? Existing volumes have no `__EFMigrationsHistory`, so `Migrate()` would fail on `InitialCreate`. Either back up and recreate the volume, or baseline it: create the history table and insert all seven already-applied migration IDs (`20261118123245_InitialCreate`, `20261118131646_AddBilling`, `20261118144504_AddAssistantHistory`, `20261118185732_AddConcurrencyTokens`, `20261118191841_AddAssistantMessageMetadata`, `20261118210340_AddAssistantMessageForeignKeys`, `20261119092024_AddOrderIdempotencyKey`) before starting the new API.
 
 GitHub Actions runs build + tests + both Docker image builds on every push and PR to `main` (badge above).
 
@@ -227,6 +227,7 @@ GitHub Actions runs build + tests + both Docker image builds on every push and P
 | GET | `/api/admin/stats` | Platform admin | Cross-shop overview |
 | PATCH | `/api/admin/shops/{id}/active` | Platform admin | Suspend (`active: false`) or reactivate (`active: true`) a shop |
 | PATCH | `/api/admin/shops/{id}/cancel` | Platform admin | Cancel a shop's subscription (locks the shop) |
+| PATCH | `/api/admin/shops/{id}/restore` | Platform admin | Restore a cancelled/past-due subscription (grants a fresh term) |
 | POST | `/api/admin/maintenance/run` | Platform admin | Run scheduled housekeeping immediately (idempotent) |
 | GET | `/api/public/track/{token}` | public | Customer-facing tracking payload |
 | POST | `/api/assistant/ask` | JWT | Ask the RAG assistant a question |
@@ -238,7 +239,7 @@ GitHub Actions runs build + tests + both Docker image builds on every push and P
 | GET | `/health` | public | API + database health check (503 when DB is down) |
 | WS | `/hubs/orders` | optional | SignalR realtime updates |
 
-Full interactive docs: **http://localhost:8081/swagger**
+Interactive docs are disabled by default. Set `ENABLE_SWAGGER=true` in `.env`, recreate the API container, then open **http://localhost:8081/swagger**.
 
 ---
 
@@ -289,15 +290,15 @@ AI_GATEWAY_CHAT_MODEL=gpt-4o-mini
 
 ## Production checklist
 
-- Set a strong `JWT_SECRET` in `.env` — the API refuses to reuse the public development default in Production and generates an ephemeral secret instead. Without a real secret, every production restart signs a new key and logs all users out.
-- Change `POSTGRES_PASSWORD`.
-- Set `SEED_DEMO_DATA=false` so known demo passwords are not created on a real deployment.
-- Set `PUBLIC_BASE_URL` to your public origin so QR codes never depend on request `Host` headers.
-- Set `ALLOWED_ORIGINS` and `ADMIN_EMAILS` to your own values (defaults are localhost-only).
+**Do not expose the default Compose setup publicly.** The demo account is a platform admin with a documented password. See [DEPLOYMENT.md](DEPLOYMENT.md) for the full procedure; the short version:
+
+- Copy `.env.example` to `.env` and set a strong `JWT_SECRET` (32+ characters), a strong `POSTGRES_PASSWORD`, `SEED_DEMO_DATA=false`, your `ADMIN_EMAILS`, `ALLOWED_ORIGINS=https://your.domain` and `PUBLIC_BASE_URL=https://your.domain` **before the first start**. Without a real JWT secret, every restart logs all users out.
+- Set DB credentials before the first start — changing `POSTGRES_PASSWORD` later does not change the existing volume's password but does break the API connection.
+- Start with `docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build`, register your owner account, then set `ADMIN_EMAILS` and restart the API.
+- Use a TLS proxy on 80/443 and forward `X-Forwarded-For` / `X-Forwarded-Proto`; the web container binds only to `127.0.0.1:8081`.
 - Browser camera and microphone access (Scan QR / Assistant voice input) require `localhost` or HTTPS in production.
-- Put TLS in front of nginx (a reverse proxy such as Caddy/Traefik or a cloud load balancer).
-- Back up the `pgdata` volume.
-- Point `APP_PORT` at the port your platform exposes.
+- Schedule `scripts/backup.sh` and store dumps off-server.
+- Run **one API replica** — the maintenance worker, SignalR groups and rate limits are per-process.
 
 ### Troubleshooting
 
