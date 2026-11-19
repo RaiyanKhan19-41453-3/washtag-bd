@@ -177,7 +177,8 @@ public class OrderService : IOrderService
         var dto = MapDetail(order);
         dto.Replayed = replayed;
         await IndexAsync(order);
-        await NotifyAsync(order, dto, BuildPublicTrack(order));
+        // A replay must not re-broadcast an event for the same logical order.
+        if (!replayed) await NotifyAsync(order, dto, BuildPublicTrack(order));
         return dto;
     }
 
@@ -297,6 +298,8 @@ public class OrderService : IOrderService
         var cacheKey = $"track:{guid}";
         var cached = await _cache.GetAsync<PublicTrackDto>(cacheKey);
         if (cached != null) return cached;
+        // Short negative cache stops random-GUID scans from hammering Postgres.
+        if (await _cache.GetAsync<string>($"track-missing:{guid}") == "1") return null;
 
         var order = await _db.Orders.AsNoTracking()
             .Include(o => o.Shop)
@@ -304,10 +307,22 @@ public class OrderService : IOrderService
             .Include(o => o.StatusHistory)
             .FirstOrDefaultAsync(o => o.PublicToken == guid);
 
-        if (order == null) return null;
+        if (order == null)
+        {
+            await _cache.SetAsync($"track-missing:{guid}", "1", TimeSpan.FromSeconds(5));
+            return null;
+        }
 
         var result = BuildPublicTrack(order);
-        await _cache.SetAsync(cacheKey, result, TimeSpan.FromSeconds(60));
+        // A mutation may have invalidated this key while we were reading. Never
+        // write a stale snapshot back over the fresh state for the full TTL.
+        var current = await _db.Orders.AsNoTracking()
+            .Where(o => o.Id == order.Id)
+            .Select(o => new { o.UpdatedAt, o.Status, o.PaidAmount })
+            .FirstOrDefaultAsync();
+        if (current != null && current.UpdatedAt == order.UpdatedAt &&
+            current.Status == order.Status && current.PaidAmount == order.PaidAmount)
+            await _cache.SetAsync(cacheKey, result, TimeSpan.FromSeconds(60));
         return result;
     }
 

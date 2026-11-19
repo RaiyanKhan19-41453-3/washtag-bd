@@ -78,14 +78,15 @@ public class DocumentIndexer : IDocumentIndexer
         try
         {
             var existing = await _vectors.GetRefsAsync(shopId, cancellationToken);
-            var orderIds = orders.Select(o => o.Id).ToHashSet();
-            var customerIds = customers.Select(c => c.Id).ToHashSet();
             foreach (var reference in existing)
             {
+                // Check the database at delete time. Comparing against the truncated
+                // reindex snapshot would delete valid documents for older records and
+                // for orders created by a concurrent request.
                 var stale = reference.DocType switch
                 {
-                    "order" => !orderIds.Contains(reference.RefId),
-                    "customer" => !customerIds.Contains(reference.RefId),
+                    "order" => !await _db.Orders.AnyAsync(o => o.Id == reference.RefId && o.ShopId == shopId, cancellationToken),
+                    "customer" => !await _db.Customers.AnyAsync(c => c.Id == reference.RefId && c.ShopId == shopId, cancellationToken),
                     _ => true
                 };
                 if (stale)
