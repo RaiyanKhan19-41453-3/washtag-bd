@@ -168,6 +168,7 @@ public class AuthService : IAuthService
         Plan = shop.Plan,
         LogoUrl = shop.LogoUrl,
         IsActive = shop.IsActive,
+        SubscriptionStatus = shop.SubscriptionStatus,
         SubscriptionEndsAt = shop.SubscriptionEndsAt,
         CreatedAt = shop.CreatedAt
     };

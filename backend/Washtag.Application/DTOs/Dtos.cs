@@ -52,6 +52,7 @@ public class ShopDto
     public string Plan { get; set; } = string.Empty;
     public string? LogoUrl { get; set; }
     public bool IsActive { get; set; }
+    public SubscriptionStatus SubscriptionStatus { get; set; }
     public DateTime SubscriptionEndsAt { get; set; }
     public DateTime CreatedAt { get; set; }
 }

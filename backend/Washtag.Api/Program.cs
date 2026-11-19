@@ -16,6 +16,7 @@ using Washtag.Application;
 using Washtag.Application.Interfaces;
 using Washtag.Infrastructure;
 using Washtag.Infrastructure.Data;
+using Washtag.Domain;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -80,10 +81,16 @@ builder.Services.AddAuthentication(options =>
             }
             var user = await db.Users.AsNoTracking().Include(u => u.Shop)
                 .FirstOrDefaultAsync(u => u.Id == userId, context.HttpContext.RequestAborted);
-            if (user == null || !user.IsActive || !user.Shop.IsActive)
+            if (user == null || !user.IsActive)
                 context.Fail("This account is inactive.");
             else if (context.Principal?.FindFirstValue("ver") != TokenVersion.From(user.PasswordHash))
                 context.Fail("Password has changed.");
+            else
+            {
+                context.HttpContext.Items["SubscriptionLocked"] = SubscriptionPolicy.IsLocked(user.Shop);
+                if (!user.Shop.IsActive)
+                    context.HttpContext.Items["SubscriptionLocked"] = true;
+            }
         }
     };
 });
@@ -196,6 +203,26 @@ if (builder.Configuration.GetValue("ENABLE_SWAGGER", builder.Environment.IsDevel
 app.UseCors("App");
 app.UseAuthentication();
 app.UseAuthorization();
+
+// Locked shops keep access to auth, billing and shop endpoints so the owner can
+// renew; everything else is blocked with a clear message.
+string[] renewalPaths = { "/api/auth", "/api/billing", "/api/shop", "/api/public", "/hubs", "/swagger", "/health" };
+app.Use(async (context, next) =>
+{
+    if (context.User?.Identity?.IsAuthenticated == true &&
+        context.Items.TryGetValue("SubscriptionLocked", out var locked) && locked is true &&
+        !renewalPaths.Any(path => context.Request.Path.StartsWithSegments(path)))
+    {
+        context.Response.StatusCode = StatusCodes.Status403Forbidden;
+        await context.Response.WriteAsJsonAsync(new
+        {
+            message = "Your subscription is inactive. Renew from the Billing page to continue."
+        });
+        return;
+    }
+    await next();
+});
+
 // Rate-limit after authentication so per-user partition keys are available.
 app.UseRateLimiter();
 app.MapControllers();
