@@ -38,13 +38,28 @@ public class ExceptionMiddleware
                 await context.Response.WriteAsJsonAsync(new { message = "The record changed. Reload and try again." });
             }
         }
-        catch (DbUpdateException)
+        catch (DbUpdateException ex)
         {
-            if (!context.Response.HasStarted)
+            // EF wraps every provider failure in DbUpdateException. Only a real unique
+            // violation is a conflict; everything else is an outage that must be logged.
+            if (ex.InnerException is Npgsql.PostgresException { SqlState: "23505" })
             {
-                context.Response.Clear();
-                context.Response.StatusCode = StatusCodes.Status409Conflict;
-                await context.Response.WriteAsJsonAsync(new { message = "A record with these details already exists." });
+                if (!context.Response.HasStarted)
+                {
+                    context.Response.Clear();
+                    context.Response.StatusCode = StatusCodes.Status409Conflict;
+                    await context.Response.WriteAsJsonAsync(new { message = "A record with these details already exists." });
+                }
+            }
+            else
+            {
+                _logger.LogError(ex, "Database write failed while processing {Path}", context.Request.Path);
+                if (!context.Response.HasStarted)
+                {
+                    context.Response.Clear();
+                    context.Response.StatusCode = StatusCodes.Status500InternalServerError;
+                    await context.Response.WriteAsJsonAsync(new { message = "Something went wrong. Please try again." });
+                }
             }
         }
         catch (Exception ex)

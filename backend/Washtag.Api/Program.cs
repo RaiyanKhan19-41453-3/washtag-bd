@@ -53,6 +53,9 @@ if (usingWeakSecret && builder.Environment.IsProduction())
     builder.Configuration["JWT_SECRET"] = configuredSecret;
 }
 var jwtSecret = configuredSecret ?? defaultSecret;
+// The token generator reads configuration directly — keep it in sync with the
+// value the validation key actually uses (including trimming).
+builder.Configuration["JWT_SECRET"] = jwtSecret;
 
 builder.Services.AddAuthentication(options =>
 {
@@ -181,8 +184,19 @@ builder.Services.AddRateLimiter(options =>
                 Window = TimeSpan.FromMinutes(1),
                 QueueLimit = 0
             }));
+    options.AddPolicy("public", context =>
+        RateLimitPartition.GetFixedWindowLimiter(
+            context.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+            _ => new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = 60,
+                Window = TimeSpan.FromMinutes(1),
+                QueueLimit = 0
+            }));
+
     options.OnRejected = async (context, token) =>
     {
+        context.HttpContext.Response.Headers.RetryAfter = "60";
         context.HttpContext.Response.StatusCode = StatusCodes.Status429TooManyRequests;
         await context.HttpContext.Response.WriteAsJsonAsync(
             new { message = "Too many attempts. Please try again in a minute." }, token);

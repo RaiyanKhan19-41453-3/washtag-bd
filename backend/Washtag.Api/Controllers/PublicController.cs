@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using Washtag.Application.Interfaces;
 
 namespace Washtag.Api.Controllers;
@@ -14,6 +15,7 @@ public class PublicController : ControllerBase
     public PublicController(IOrderService orders) => _orders = orders;
 
     [HttpGet("track/{token}")]
+    [EnableRateLimiting("public")]
     public async Task<IActionResult> Track(string token)
     {
         var result = await _orders.TrackAsync(token);

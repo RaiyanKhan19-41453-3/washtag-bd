@@ -42,11 +42,20 @@ public class ExceptionMiddlewareTests
     }
 
     [Fact]
-    public async Task UpdateException_Returns409()
+    public async Task DuplicateKeyException_Returns409()
     {
-        var (status, body) = await RunAsync(new DbUpdateException("duplicate"));
+        var duplicate = new Npgsql.PostgresException("duplicate key", "ERROR", "ERROR", "23505");
+        var (status, body) = await RunAsync(new DbUpdateException("duplicate", duplicate));
         Assert.Equal(409, status);
         Assert.Contains("already exists", body, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task OtherDatabaseFailures_Return500()
+    {
+        var (status, body) = await RunAsync(new DbUpdateException("connection lost"));
+        Assert.Equal(500, status);
+        Assert.Contains("Something went wrong", body);
     }
 
     [Fact]

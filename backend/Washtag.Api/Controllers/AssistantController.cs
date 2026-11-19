@@ -16,7 +16,7 @@ public class AssistantController : ControllerBase
 
     public AssistantController(IAssistantService assistant) => _assistant = assistant;
 
-    private Guid ShopId => Guid.Parse(User.FindFirstValue("shopId")!);
+    private Guid ShopId => Guid.TryParse(User.FindFirstValue("shopId"), out var id) ? id : Guid.Empty;
     private Guid UserId
     {
         get
