@@ -37,7 +37,7 @@ PUBLIC_BASE_URL=https://wash.example.com
 ENABLE_SWAGGER=false
 MAINTENANCE_ENABLED=true
 MAINTENANCE_INTERVAL_MINUTES=60
-MAINTENANCE_RUN_ON_STARTUP=true
+MAINTENANCE_RUN_ON_STARTUP=false
 ```
 
 **Important:** `POSTGRES_PASSWORD`, `POSTGRES_USER` and `POSTGRES_DB` are only read when the `pgdata` volume is first created. Changing them later does not change the database password but *does* change what the API tries to connect with, causing a total outage. If you must change it on an existing volume:
