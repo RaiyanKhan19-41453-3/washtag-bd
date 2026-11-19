@@ -271,7 +271,7 @@ AI_GATEWAY_EMBEDDING_MODEL=text-embedding-3-small
 AI_GATEWAY_CHAT_MODEL=gpt-4o-mini
 ```
 
-`/api/assistant/ask` and `/api/assistant/reindex` are limited to 20 requests/minute per user to bound AI costs. The embedding dimension stays at 384 in every mode, so the pgvector column never needs changing. If an API call fails, the assistant automatically falls back to the offline path. Conversations and feedback are stored per user in `AssistantMessages`.
+`/api/assistant/ask` is limited to 20 requests/minute per user and `/api/assistant/reindex` to 2/minute per user (capped at 500 documents each) to bound AI costs. The embedding dimension stays at 384 in every mode, so the pgvector column never needs changing. If an API call fails, the assistant automatically falls back to the offline path. Conversations and feedback are stored per user in `AssistantMessages`.
 
 ---
 
