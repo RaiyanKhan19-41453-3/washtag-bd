@@ -59,7 +59,7 @@ The first build downloads base images and NuGet/npm packages, so it can take a f
 
 The demo shop comes preloaded with customers, orders in every status, payment history and status timelines, so the dashboard looks alive on first login.
 
-To disable demo data, set `SEED_DEMO_DATA=false` in `.env` and recreate the `pgdata` volume.
+To disable demo data, set `SEED_DEMO_DATA=false` **before the first start on a fresh volume**. Changing the flag later does not remove existing demo users — delete those rows manually if needed. Never recreate `pgdata` on a deployment that has real data: `docker compose down -v` deletes the entire database.
 
 ---
 
@@ -192,7 +192,7 @@ dotnet tool install --global dotnet-ef --version 9.0.1
 dotnet ef migrations add MyChange --project backend/Washtag.Infrastructure --startup-project backend/Washtag.Api --output-dir Data/Migrations
 ```
 
-> Upgrading from an older checkout that used `EnsureCreated()`? Existing volumes have no `__EFMigrationsHistory`, so `Migrate()` would fail on `InitialCreate`. Either back up and recreate the volume, or baseline it: create the history table and insert all seven already-applied migration IDs (`20261118123245_InitialCreate`, `20261118131646_AddBilling`, `20261118144504_AddAssistantHistory`, `20261118185732_AddConcurrencyTokens`, `20261118191841_AddAssistantMessageMetadata`, `20261118210340_AddAssistantMessageForeignKeys`, `20261119092024_AddOrderIdempotencyKey`, `20261119131000_AddReportingIndexes`) before starting the new API.
+> Upgrading from an older checkout that used `EnsureCreated()`? Existing volumes have no `__EFMigrationsHistory`, so `Migrate()` would fail on `InitialCreate`. Either back up and recreate the volume, or baseline it: create the history table and insert **exactly the IDs your existing schema actually contains** (for a v1.6.1-era `EnsureCreated()` volume that is the first seven below; the eighth is applied automatically on startup) (`20261118123245_InitialCreate`, `20261118131646_AddBilling`, `20261118144504_AddAssistantHistory`, `20261118185732_AddConcurrencyTokens`, `20261118191841_AddAssistantMessageMetadata`, `20261118210340_AddAssistantMessageForeignKeys`, `20261119092024_AddOrderIdempotencyKey`, `20261119131000_AddReportingIndexes`) before starting the new API.
 
 GitHub Actions runs build + tests + both Docker image builds on every push and PR to `main` (badge above).
 
@@ -292,9 +292,9 @@ AI_GATEWAY_CHAT_MODEL=gpt-4o-mini
 
 **Do not expose the default Compose setup publicly.** The demo account is a platform admin with a documented password. See [DEPLOYMENT.md](DEPLOYMENT.md) for the full procedure; the short version:
 
-- Copy `.env.example` to `.env` and set a strong `JWT_SECRET` (32+ characters), a strong `POSTGRES_PASSWORD`, `SEED_DEMO_DATA=false`, your `ADMIN_EMAILS`, `ALLOWED_ORIGINS=https://your.domain` and `PUBLIC_BASE_URL=https://your.domain` **before the first start**. Without a real JWT secret, every restart logs all users out.
+- Copy `.env.example` to `.env` and set a strong `JWT_SECRET` (32+ characters), a strong `POSTGRES_PASSWORD`, `SEED_DEMO_DATA=false`, `ALLOWED_ORIGINS=https://your.domain` and `PUBLIC_BASE_URL=https://your.domain` **before the first start**. Leave `ADMIN_EMAILS` empty initially — see the bootstrap step below. Without a real JWT secret, every restart logs all users out.
 - Set DB credentials before the first start — changing `POSTGRES_PASSWORD` later does not change the existing volume's password but does break the API connection.
-- Start with `docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build`, register your owner account, then set `ADMIN_EMAILS` and restart the API.
+- Start with `docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build`, register your owner account, then set `ADMIN_EMAILS` to that address, restart the API and **log out and back in** so the new `isAdmin` claim is minted into the token.
 - Use a TLS proxy on 80/443 and forward `X-Forwarded-For` / `X-Forwarded-Proto`; the web container binds only to `127.0.0.1:8081`.
 - Browser camera and microphone access (Scan QR / Assistant voice input) require `localhost` or HTTPS in production.
 - Schedule `scripts/backup.sh` and store dumps off-server.

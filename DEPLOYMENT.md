@@ -59,7 +59,7 @@ docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
 
 1. Visit `https://wash.example.com`, register your real owner account.
 2. Set `ADMIN_EMAILS=you@example.com` in `.env`.
-3. Restart the API so the new setting is picked up (it is read at startup):
+3. Restart the API so the new setting is picked up (it is read at startup), then **log out and back in**: the admin UI is driven by `/auth/me`, but admin endpoints also require an `isAdmin` claim that is only minted when the token is issued.
 
 ```bash
 docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d api
@@ -104,6 +104,8 @@ server {
 ```
 Also redirect port 80 to 443. Do not skip the `X-Forwarded-*` headers: without them every visitor shares one auth rate-limit bucket and printed QR codes become plain HTTP links.
 
+The API only trusts `X-Forwarded-For` from private proxy networks (`Program.cs`). If your outer proxy/CDN has a public IP, add its CIDR to `KnownNetworks` (or its IP to `KnownProxies`) in `Program.cs` and rebuild, otherwise all clients share one rate-limit bucket and legitimate logins get 429s. Camera QR scanning also requires HTTPS on any non-localhost host.
+
 ## 5. Verify before going live
 
 - `curl https://wash.example.com/health` → `{"status":"healthy"}`.
@@ -133,7 +135,9 @@ git pull origin main
 docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
 ```
 
-EF migrations run automatically at API startup. For rollback, check out the previous release tag and rebuild; there is no image registry yet, so rollbacks are source-based.
+EF migrations run automatically at API startup. Use the two-file Compose command for **every** restart and upgrade: the base file alone re-enables demo seeding, the public demo admin and a weak JWT secret.
+
+For rollback, check out a **recent** patch tag (v1.7.2 or later) and rebuild with the same two-file command, keeping the database volume intact. Older tags (v1.6.1 and earlier) lack several security fixes and do not contain `docker-compose.prod.yml` — use the base file with explicit `.env` hardening if you must go that far. EF does not reverse migrations: the extra indexes from a newer version are harmless, but **never delete rows from `__EFMigrationsHistory`** while rolled back, or a later upgrade will try to recreate indexes that still exist.
 
 ## 7. Scaling limits — stay on one API replica
 

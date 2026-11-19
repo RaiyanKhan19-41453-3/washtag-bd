@@ -27,8 +27,8 @@ public class AiProvider : IAiProvider
     {
         _http = http;
         _logger = logger;
-        var openAiKey = configuration["OPENAI_API_KEY"];
-        var gatewayToken = configuration["AI_GATEWAY_TOKEN"];
+        var openAiKey = configuration["OPENAI_API_KEY"]?.Trim();
+        var gatewayToken = configuration["AI_GATEWAY_TOKEN"]?.Trim();
         _usingGateway = string.IsNullOrWhiteSpace(openAiKey) && !string.IsNullOrWhiteSpace(gatewayToken);
 
         _apiKey = _usingGateway ? gatewayToken! : (openAiKey ?? string.Empty);
