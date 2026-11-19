@@ -12,6 +12,7 @@ using System.Text;
 using Washtag.Api.Hubs;
 using Washtag.Api.Middleware;
 using Washtag.Api.Services;
+using Washtag.Api.Workers;
 using Washtag.Application;
 using Washtag.Application.Interfaces;
 using Washtag.Infrastructure;
@@ -27,6 +28,16 @@ builder.Services.AddScoped<ITrackingUrlProvider, TrackingUrlProvider>();
 builder.Services.AddScoped<IJwtTokenGenerator, JwtTokenGenerator>();
 builder.Services.AddScoped<IRealtimeNotifier, SignalRNotifier>();
 builder.Services.AddSingleton<IAdminSettings, AdminSettings>();
+
+var maintenance = new MaintenanceOptions
+{
+    Enabled = builder.Configuration.GetValue("MAINTENANCE_ENABLED", true),
+    IntervalMinutes = builder.Configuration.GetValue("MAINTENANCE_INTERVAL_MINUTES", 60),
+    RunOnStartup = builder.Configuration.GetValue("MAINTENANCE_RUN_ON_STARTUP", true),
+    ChatRetentionDays = builder.Configuration.GetValue("MAINTENANCE_CHAT_RETENTION_DAYS", 90)
+};
+builder.Services.AddSingleton(maintenance);
+if (maintenance.Enabled) builder.Services.AddHostedService<MaintenanceWorker>();
 
 // Never run Production on the source-checked development secret: mint an
 // ephemeral one instead so tokens cannot be forged with a publicly known key.
@@ -206,7 +217,7 @@ app.UseAuthorization();
 
 // Locked shops keep access to auth, billing and shop endpoints so the owner can
 // renew; everything else is blocked with a clear message.
-string[] renewalPaths = { "/api/auth", "/api/billing", "/api/shop", "/api/public", "/hubs", "/swagger", "/health" };
+string[] renewalPaths = { "/api/auth", "/api/billing", "/api/shop", "/api/public", "/api/admin", "/hubs", "/swagger", "/health" };
 app.Use(async (context, next) =>
 {
     if (context.User?.Identity?.IsAuthenticated == true &&
