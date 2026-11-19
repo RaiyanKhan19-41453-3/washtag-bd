@@ -54,6 +54,14 @@ api.interceptors.response.use(
     const isAuthCall = url.includes('/auth/login') || url.includes('/auth/register') || url.includes('/auth/refresh');
     const status = error.response?.status;
 
+    // The backend locks a shop by returning 403. Tell AuthContext to re-read the
+    // profile so the renewal banner appears even if the lock happened mid-session.
+    const responseMessage = error.response?.data?.message;
+    if (status === 403 && typeof responseMessage === 'string' &&
+        responseMessage.toLowerCase().includes('subscription is inactive')) {
+      window.dispatchEvent(new CustomEvent('washtag:subscription-locked'));
+    }
+
     if (status !== 401 || isAuthCall || config._retry || window.location.pathname.startsWith('/t/') || window.location.pathname.startsWith('/track/')) {
       const data = error.response?.data;
       const validation = data?.errors

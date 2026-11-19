@@ -15,9 +15,16 @@ export default function NewOrder() {
   const [busy, setBusy] = useState(false);
   const toast = useToast();
   const navigate = useNavigate();
-  const idempotencyKey = useRef(
-    crypto.randomUUID?.() ?? `${Date.now()}-${Math.random().toString(36).slice(2)}`
-  );
+  // Persist the key for the in-progress draft so a reload after a network timeout
+  // cannot create a duplicate order. Cleared only after a confirmed response.
+  const idempotencyKey = useRef((() => {
+    let value = sessionStorage.getItem('washtag_order_key');
+    if (!value) {
+      value = crypto.randomUUID?.() ?? `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+      sessionStorage.setItem('washtag_order_key', value);
+    }
+    return value;
+  })());
 
   useEffect(() => {
     api.get('/customers').then(({ data }) => setCustomers(data)).catch(() => {});
@@ -61,7 +68,8 @@ export default function NewOrder() {
       const { data } = await api.post('/orders', payload, {
         headers: { 'Idempotency-Key': idempotencyKey.current }
       });
-      toast.success('Order created! Show the QR receipt to your customer.');
+      sessionStorage.removeItem('washtag_order_key');
+      toast.success(data.replayed ? 'Order was already created. Show the QR receipt to your customer.' : 'Order created! Show the QR receipt to your customer.');
       navigate(`/app/orders/${data.id}`, { replace: true });
     } catch (error) {
       toast.error(error.message);

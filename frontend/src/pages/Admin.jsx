@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { Store, Users, Package, Wallet, ShieldAlert, Ban, CheckCircle2 } from 'lucide-react';
+import { Store, Users, Package, Wallet, ShieldAlert, Ban, CheckCircle2, RotateCcw } from 'lucide-react';
 import api from '../api/client';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
@@ -12,7 +12,7 @@ export default function Admin() {
   const toast = useToast();
   const [stats, setStats] = useState(null);
   const [error, setError] = useState('');
-  const [busy, setBusy] = useState(false);
+  const [busyId, setBusyId] = useState(null);
 
   const load = useCallback(() => {
     api.get('/admin/stats').then(({ data }) => { setStats(data); setError(''); })
@@ -23,14 +23,20 @@ export default function Admin() {
     if (user?.isAdmin) load();
   }, [user?.isAdmin, load]);
 
-  const mutate = async (path, method = 'PATCH', body) => {
-    setBusy(true);
+  const mutate = async (shop, path, message, method = 'PATCH', body) => {
+    setBusyId(shop.shopId);
     try {
       await api.request({ url: `/admin/shops/${path}`, method, data: body });
-      toast.success('Shop updated.');
+      toast.success(message);
       load();
     } catch (err) { toast.error(err.message); }
-    finally { setBusy(false); }
+    finally { setBusyId(null); }
+  };
+
+  const confirmCancel = (shop) => {
+    if (window.confirm(`Cancel the subscription for ${shop.shopName}? This locks the shop until an admin restores its plan.`)) {
+      mutate(shop, `${shop.shopId}/cancel`, 'Subscription cancelled.');
+    }
   };
 
   if (!user?.isAdmin) {
@@ -70,12 +76,24 @@ export default function Admin() {
                   <td>
                     <div className="team-actions">
                       {shop.isActive ? (
-                        <button className="btn btn-ghost btn-sm" disabled={busy} onClick={() => mutate(`${shop.shopId}/active`, 'PATCH', { active: false })} title="Suspend shop"><Ban size={15} /> Suspend</button>
+                        <button className="btn btn-ghost btn-sm" disabled={busyId === shop.shopId}
+                          onClick={() => { if (window.confirm(`Suspend ${shop.shopName}? Its owners will lose access until reactivated.`)) mutate(shop, `${shop.shopId}/active`, 'Shop suspended.', 'PATCH', { active: false }); }}>
+                          <Ban size={15} /> Suspend
+                        </button>
                       ) : (
-                        <button className="btn btn-ghost btn-sm" disabled={busy} onClick={() => mutate(`${shop.shopId}/active`, 'PATCH', { active: true })} title="Reactivate shop"><CheckCircle2 size={15} /> Activate</button>
+                        <button className="btn btn-ghost btn-sm" disabled={busyId === shop.shopId}
+                          onClick={() => mutate(shop, `${shop.shopId}/active`, 'Shop reactivated.', 'PATCH', { active: true })}>
+                          <CheckCircle2 size={15} /> Activate
+                        </button>
                       )}
-                      {shop.subscriptionStatus !== 'Cancelled' && (
-                        <button className="btn btn-ghost btn-sm danger-text" disabled={busy} onClick={() => mutate(`${shop.shopId}/cancel`)}>Cancel plan</button>
+                      {shop.subscriptionStatus === 'Cancelled' || shop.subscriptionStatus === 'PastDue' ? (
+                        <button className="btn btn-ghost btn-sm" disabled={busyId === shop.shopId}
+                          onClick={() => { if (window.confirm(`Restore the plan for ${shop.shopName}?`)) mutate(shop, `${shop.shopId}/restore`, 'Plan restored.'); }}>
+                          <RotateCcw size={15} /> Restore
+                        </button>
+                      ) : (
+                        <button className="btn btn-ghost btn-sm danger-text" disabled={busyId === shop.shopId}
+                          onClick={() => confirmCancel(shop)}>Cancel plan</button>
                       )}
                     </div>
                   </td>

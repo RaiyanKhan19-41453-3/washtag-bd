@@ -5,7 +5,7 @@ import api from '../api/client';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import Loader from '../components/Loader';
-import { formatDate } from '../utils/helpers';
+import { formatDate, shopLocked } from '../utils/helpers';
 
 export default function Settings() {
   const { user, shop, setShop } = useAuth();
@@ -110,8 +110,11 @@ export default function Settings() {
           <section className="card info-panel">
             <div className="panel-heading"><BadgeCheck size={20} /><h3>Subscription</h3></div>
             <div className="plan-badge">{shop?.plan || 'Starter'} plan</div>
-            <p className="muted">Active until {shop?.subscriptionEndsAt ? formatDate(shop.subscriptionEndsAt) : '—'}</p>
-            <div className="plan-line"><ShieldCheck size={16} /> Active &amp; verified</div>
+            <p className="muted">{shopLocked(shop) ? 'Access is locked' : 'Renews'} {shop?.subscriptionEndsAt ? formatDate(shop.subscriptionEndsAt) : '—'}</p>
+            <div className={`plan-line ${shopLocked(shop) ? 'danger-text' : ''}`}>
+              {!shopLocked(shop) && <ShieldCheck size={16} />}
+              {shopLocked(shop) ? (shop?.isActive === false ? 'Shop suspended' : `${shop?.subscriptionStatus || 'Inactive'} — renew to continue`) : 'Active & verified'}
+            </div>
             <Link to="/app/billing" className="text-link">Manage plan &amp; invoices →</Link>
           </section>
 

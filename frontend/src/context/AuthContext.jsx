@@ -28,6 +28,24 @@ export function AuthProvider({ children }) {
     return () => { active = false; };
   }, []);
 
+  // A shop can be locked while a user is already signed in. Refresh the profile
+  // when the API reports the lock so the banner/state stay truthful.
+  useEffect(() => {
+    let active = true;
+    const refreshProfile = () => {
+      if (!localStorage.getItem('washtag_token')) return;
+      api.get('/auth/me')
+        .then(({ data }) => {
+          if (!active) return;
+          setUser(data.user);
+          setShop(data.shop);
+        })
+        .catch(() => {});
+    };
+    window.addEventListener('washtag:subscription-locked', refreshProfile);
+    return () => { active = false; window.removeEventListener('washtag:subscription-locked', refreshProfile); };
+  }, []);
+
   const storeSession = (data) => {
     storeTokens(data);
     setUser(data.user);
