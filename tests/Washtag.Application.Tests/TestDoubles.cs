@@ -42,9 +42,25 @@ public sealed class FakeNotifier : IRealtimeNotifier
 
 public sealed class FakeCache : ICacheService
 {
-    public Task<T?> GetAsync<T>(string key) => Task.FromResult<T?>(default);
-    public Task SetAsync<T>(string key, T value, TimeSpan expiration) => Task.CompletedTask;
-    public Task RemoveAsync(string key) => Task.CompletedTask;
+    public List<string> Reads { get; } = new();
+    public List<string> Writes { get; } = new();
+    public List<string> Removes { get; } = new();
+
+    public Task<T?> GetAsync<T>(string key)
+    {
+        Reads.Add(key);
+        return Task.FromResult<T?>(default);
+    }
+    public Task SetAsync<T>(string key, T value, TimeSpan expiration)
+    {
+        Writes.Add(key);
+        return Task.CompletedTask;
+    }
+    public Task RemoveAsync(string key)
+    {
+        Removes.Add(key);
+        return Task.CompletedTask;
+    }
 }
 
 public sealed class FakeQr : IQrCodeService
@@ -124,19 +140,44 @@ public sealed class FakeCustomerStore : ICustomerStore
 
 public sealed class FakeRefreshTokenStore : IRefreshTokenStore
 {
-    private readonly Queue<Guid> _claims = new();
+    private sealed record Entry(Guid UserId, bool Revoked, string? ReplacedBy);
+    private readonly Dictionary<string, Entry> _tokens = new(StringComparer.Ordinal);
+
+    private static string Hash(string raw) =>
+        Convert.ToBase64String(System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(raw)));
 
     public Task<Guid?> TryClaimAsync(string tokenHash, CancellationToken cancellationToken = default) =>
-        Task.FromResult(_claims.Count > 0 ? _claims.Dequeue() : (Guid?)null);
+        Task.FromResult(_tokens.TryGetValue(tokenHash, out var e) && !e.Revoked ? e.UserId : (Guid?)null);
 
-    public Task SetReplacedByAsync(string oldHash, string newHash, CancellationToken cancellationToken = default) =>
-        Task.CompletedTask;
+    public Task SetReplacedByAsync(string oldHash, string newHash, CancellationToken cancellationToken = default)
+    {
+        if (_tokens.TryGetValue(oldHash, out var e)) _tokens[oldHash] = e with { ReplacedBy = newHash };
+        return Task.CompletedTask;
+    }
+
     public Task PurgeExpiredAsync(CancellationToken cancellationToken = default) => Task.CompletedTask;
-    public Task<Guid?> RotateAsync(string oldHash, string newHash, DateTime expiresAt,
-        CancellationToken cancellationToken = default) =>
-        Task.FromResult(_claims.Count > 0 ? _claims.Dequeue() : (Guid?)null);
 
-    public void Seed(Guid userId) => _claims.Enqueue(userId);
+    public Task<Guid?> RotateAsync(string oldHash, string newHash, DateTime expiresAt,
+        CancellationToken cancellationToken = default)
+    {
+        if (!_tokens.TryGetValue(oldHash, out var old) || old.Revoked)
+            return Task.FromResult<Guid?>(null);
+        _tokens[oldHash] = old with { Revoked = true, ReplacedBy = newHash };
+        _tokens[newHash] = new Entry(old.UserId, false, null);
+        return Task.FromResult<Guid?>(old.UserId);
+    }
+
+    public Task RevokeAllAsync(Guid userId, CancellationToken cancellationToken = default)
+    {
+        foreach (var key in _tokens.Keys.ToList())
+            if (_tokens[key].UserId == userId) _tokens[key] = _tokens[key] with { Revoked = true };
+        return Task.CompletedTask;
+    }
+
+    public void Seed(string rawToken, Guid userId) => _tokens[Hash(rawToken)] = new Entry(userId, false, null);
+    public bool IsRevoked(string rawToken) => _tokens.TryGetValue(Hash(rawToken), out var e) && e.Revoked;
+    public string? ReplacedBy(string rawToken) =>
+        _tokens.TryGetValue(Hash(rawToken), out var e) ? e.ReplacedBy : null;
 }
 
 public sealed class FakePaymentStore : IPaymentStore
@@ -168,11 +209,13 @@ public sealed class FakePaymentStore : IPaymentStore
 public sealed class FakeInvoiceStore : IInvoiceStore
 {
     private readonly TestDbContext _db;
+    public bool SettleResult { get; set; } = true;
     public FakeInvoiceStore(TestDbContext db) => _db = db;
 
     public async Task<bool> SettleAsync(Guid shopId, Guid invoiceId, PaymentMethod method, string? reference,
         decimal monthlyPrice, CancellationToken cancellationToken = default)
     {
+        if (!SettleResult) return false;
         var invoice = await _db.Invoices.FirstOrDefaultAsync(
             i => i.Id == invoiceId && i.ShopId == shopId &&
                  (i.Status == InvoiceStatus.Pending || i.Status == InvoiceStatus.Overdue), cancellationToken);

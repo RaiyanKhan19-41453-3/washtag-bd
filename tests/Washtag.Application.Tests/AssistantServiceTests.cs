@@ -90,6 +90,36 @@ public class AssistantServiceTests
     }
 
     [Fact]
+    public async Task Ask_TodayUnpaidQuestionExcludesOlderOrders()
+    {
+        var h = new Harness();
+        h.AddOrder("Recent Customer", OrderStatus.Received, 100, 0, DateTime.UtcNow.AddHours(-1));
+        h.AddOrder("Old Customer", OrderStatus.Received, 500, 0, DateTime.UtcNow.AddDays(-3));
+
+        var answer = await h.Service.AskAsync(h.ShopId, h.UserId, "unpaid orders today?");
+
+        Assert.Equal("unpaid", answer.Intent);
+        Assert.Contains("Recent Customer", answer.Answer);
+        Assert.DoesNotContain("Old Customer", answer.Answer);
+        Assert.Contains("৳100", answer.Answer);
+    }
+
+    [Fact]
+    public async Task Ask_RevenueUsesPaymentDateNotOrderDate()
+    {
+        var h = new Harness();
+        h.AddOrder("Old Order", OrderStatus.Delivered, 900, 900, DateTime.UtcNow.AddDays(-40));
+        var oldOrder = h.Db.Orders.Single(o => o.CustomerName == "Old Order");
+        h.Db.Payments.Add(new Washtag.Domain.Entities.Payment
+        {
+            OrderId = oldOrder.Id, Amount = 900, CreatedAt = DateTime.UtcNow.AddDays(-40)
+        });
+        var fresh = await h.Service.AskAsync(h.ShopId, h.UserId, "this month collection?");
+
+        Assert.Contains("৳0", fresh.Answer);
+    }
+
+    [Fact]
     public async Task Ask_TotalOrderCountIncludesCancelledOrders()
     {
         var h = new Harness();

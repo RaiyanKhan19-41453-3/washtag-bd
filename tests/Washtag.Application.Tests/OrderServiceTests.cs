@@ -16,6 +16,7 @@ public class OrderServiceTests
         public OrderService Service { get; }
         public FakeNotifier Notifier { get; } = new();
         public FakeIndexer Indexer { get; } = new();
+        public FakeCache Cache { get; } = new();
 
         public Harness()
         {
@@ -24,7 +25,7 @@ public class OrderServiceTests
             Db = new TestDbContext(options);
             Db.Shops.Add(new Washtag.Domain.Entities.Shop { Id = ShopId, Name = "Test Shop" });
             Db.SaveChanges();
-            Service = new OrderService(Db, Notifier, new FakeCache(), new FakeQr(),
+            Service = new OrderService(Db, Notifier, Cache, new FakeQr(),
                 new FakeUrls(), Indexer, new FakeNumbers(), new FakeCustomerStore(), new FakePaymentStore(Db));
         }
 
@@ -147,5 +148,68 @@ public class OrderServiceTests
         var cancelled = await h.Service.GetOrderAsync(h.ShopId, order.Id);
         Assert.Equal(OrderStatus.Cancelled, cancelled.Status);
         Assert.Equal(OrderStatus.Cancelled, cancelled.StatusHistory.Last().ToStatus);
+    }
+
+    [Fact]
+    public async Task MutationsInvalidatePublicTrackingCache()
+    {
+        var h = new Harness();
+        var order = await h.NewOrder();
+        h.Cache.Removes.Clear();
+
+        await h.Service.UpdateStatusAsync(h.ShopId, order.Id,
+            new UpdateStatusRequest { Status = OrderStatus.Washing }, "Tester");
+        await h.Service.RecordPaymentAsync(h.ShopId, order.Id,
+            new RecordPaymentRequest { Amount = 50 }, "Tester");
+        await h.Service.CancelOrderAsync(h.ShopId, order.Id, "Owner");
+
+        var expected = $"track:{order.PublicToken}";
+        Assert.Equal(3, h.Cache.Removes.Count(key => key == expected));
+    }
+
+    [Fact]
+    public async Task OtherShopCannotAccessOrMutateOrders()
+    {
+        var h = new Harness();
+        var order = await h.NewOrder();
+        var otherShop = Guid.NewGuid();
+
+        await Assert.ThrowsAsync<AppException>(() => h.Service.GetOrderByTokenAsync(otherShop, order.PublicToken));
+        await Assert.ThrowsAsync<AppException>(() => h.Service.UpdateStatusAsync(otherShop, order.Id,
+            new UpdateStatusRequest { Status = OrderStatus.Washing }, "Tester"));
+        await Assert.ThrowsAsync<AppException>(() => h.Service.RecordPaymentAsync(otherShop, order.Id,
+            new RecordPaymentRequest { Amount = 10 }, "Tester"));
+        await Assert.ThrowsAsync<AppException>(() => h.Service.CancelOrderAsync(otherShop, order.Id, "Tester"));
+        await Assert.ThrowsAsync<AppException>(() => h.Service.GetQrPngAsync(otherShop, order.Id));
+    }
+
+    [Fact]
+    public async Task PartialThenOverpaymentIsRejectedWithoutChangingPaidAmount()
+    {
+        var h = new Harness();
+        var order = await h.NewOrder(price: 200, quantity: 1);
+        await h.Service.RecordPaymentAsync(h.ShopId, order.Id,
+            new RecordPaymentRequest { Amount = 50 }, "Tester");
+
+        await Assert.ThrowsAsync<AppException>(() => h.Service.RecordPaymentAsync(h.ShopId, order.Id,
+            new RecordPaymentRequest { Amount = 999 }, "Tester"));
+
+        Assert.Equal(50, (await h.Service.GetOrderAsync(h.ShopId, order.Id)).PaidAmount);
+    }
+
+    [Fact]
+    public async Task CancellationClearsPaidAmountAndRecordsRefundNote()
+    {
+        var h = new Harness();
+        var order = await h.NewOrder(price: 400, quantity: 1);
+        await h.Service.RecordPaymentAsync(h.ShopId, order.Id,
+            new RecordPaymentRequest { Amount = 150 }, "Tester");
+
+        await h.Service.CancelOrderAsync(h.ShopId, order.Id, "Owner");
+
+        var cancelled = await h.Service.GetOrderAsync(h.ShopId, order.Id);
+        Assert.Equal(0, cancelled.PaidAmount);
+        Assert.Equal(PaymentStatus.Unpaid, cancelled.PaymentStatus);
+        Assert.Contains("150", cancelled.StatusHistory.Last().Note ?? string.Empty);
     }
 }

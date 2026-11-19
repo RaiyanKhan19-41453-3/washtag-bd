@@ -184,6 +184,24 @@ public class ManagementServiceTests
     }
 
     [Fact]
+    public async Task Billing_FailedInvoiceClaimIsReported()
+    {
+        var h = new Harness();
+        h.Db.Invoices.Add(new Invoice
+        {
+            ShopId = h.ShopId, InvoiceNumber = "INV-CLAIM", Amount = 500,
+            Status = InvoiceStatus.Pending, PeriodTo = DateTime.UtcNow.AddDays(5)
+        });
+        await h.Db.SaveChangesAsync();
+        var store = new FakeInvoiceStore(h.Db) { SettleResult = false };
+        var service = new BillingService(h.Db, store);
+        var invoice = await h.Db.Invoices.SingleAsync();
+
+        await Assert.ThrowsAsync<AppException>(() => service.MarkPaidAsync(h.ShopId, invoice.Id,
+            new MarkInvoicePaidRequest()));
+    }
+
+    [Fact]
     public async Task Billing_ChangePlanUpdatesPendingInvoiceAmounts()
     {
         var h = new Harness();
@@ -236,12 +254,15 @@ public class ManagementServiceTests
             ShopName = "Shop", OwnerName = "Owner", Email = "owner@test.com", Phone = "1", Password = "secret123"
         });
         Assert.False(string.IsNullOrEmpty(login.RefreshToken));
-        store.Seed(login.User.Id);
+        store.Seed(login.RefreshToken, login.User.Id);
 
         var refreshed = await auth.RefreshAsync(login.RefreshToken);
 
         Assert.False(string.IsNullOrEmpty(refreshed.RefreshToken));
         Assert.NotEqual(login.RefreshToken, refreshed.RefreshToken);
+        Assert.True(store.IsRevoked(login.RefreshToken));
+        Assert.False(store.IsRevoked(refreshed.RefreshToken));
+        Assert.NotNull(store.ReplacedBy(login.RefreshToken));
         await Assert.ThrowsAsync<AppException>(() => auth.RefreshAsync(login.RefreshToken));
     }
 
@@ -249,14 +270,18 @@ public class ManagementServiceTests
     public async Task Auth_ChangePasswordRevokesExistingRefreshTokens()
     {
         var h = new Harness();
-        var auth = new AuthService(h.Db, new FakeTokens(), new FakeAdminSettings(), new FakeRefreshTokenStore());
+        var store = new FakeRefreshTokenStore();
+        var auth = new AuthService(h.Db, new FakeTokens(), new FakeAdminSettings(), store);
         var login = await auth.RegisterAsync(new RegisterRequest
         {
             ShopName = "Shop", OwnerName = "Owner", Email = "owner@test.com", Phone = "1", Password = "secret123"
         });
         var userId = login.User.Id;
+        store.Seed(login.RefreshToken, userId);
+        Assert.False(store.IsRevoked(login.RefreshToken));
 
         await auth.ChangePasswordAsync(userId, new ChangePasswordRequest { CurrentPassword = "secret123", NewPassword = "newpass123" });
+        Assert.True(store.IsRevoked(login.RefreshToken));
 
         await Assert.ThrowsAsync<AppException>(() => auth.RefreshAsync(login.RefreshToken));
         await Assert.ThrowsAsync<AppException>(() => auth.LoginAsync(new LoginRequest { Email = "owner@test.com", Password = "secret123" }));
