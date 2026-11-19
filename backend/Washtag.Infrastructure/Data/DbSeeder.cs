@@ -56,6 +56,7 @@ public static class DbSeeder
 
         db.Users.AddRange(owner, staff);
 
+        shop.CatalogueInitialized = true;
         db.ShopServices.AddRange(
             new ShopService { Shop = shop, Name = "Wash & Fold", DefaultPrice = 120, SortOrder = 0 },
             new ShopService { Shop = shop, Name = "Dry Clean", DefaultPrice = 250, SortOrder = 1 },

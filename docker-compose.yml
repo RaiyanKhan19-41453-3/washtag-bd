@@ -48,7 +48,7 @@ services:
         condition: service_started
     environment:
       ASPNETCORE_HTTP_PORTS: 8080
-      ASPNETCORE_ENVIRONMENT: Production
+      ASPNETCORE_ENVIRONMENT: Development
       ConnectionStrings__Postgres: Host=postgres;Port=5432;Database=${POSTGRES_DB:-washtagdb};Username=${POSTGRES_USER:-washtag};Password=${POSTGRES_PASSWORD:-washtag_secret};SSL Mode=Disable;Trust Server Certificate=true
       ConnectionStrings__Redis: redis:6379
       JWT_SECRET: ${JWT_SECRET:-washtagbd-development-secret-change-this-in-production-2026}

@@ -38,7 +38,7 @@ Conclusion: the supported deployment remains **one API replica**. Scaling out re
 3. Dumped the database with `pg_dump --clean --if-exists`.
 4. Restored that dump into a fresh database for the current code, then started the current stack.
 
-Result: 8 migrations applied (the 7 from v1.6.1 plus `AddReportingIndexes`), all 17 orders and 11 customers survived, billing and public tracking worked, and a repeated idempotency key returned `201` then `200` with the same order. No manual repair was needed.
+Result: the v1.6.1 dump restored cleanly and the then-current migrations applied; all 17 orders and 11 customers survived, billing and public tracking worked, and a repeated idempotency key returned `201` then `200` with the same order. The later `AddServicesAndDelivery` migration was verified separately with populated data (new columns defaulted to `Pickup`/nullable address, empty catalogue table). Re-run the drill for the current tag before an actual production upgrade — the migration count grows with each release.
 
 Do not delete rows from `__EFMigrationsHistory` when rolling back — a later upgrade would try to recreate indexes that still exist.
 

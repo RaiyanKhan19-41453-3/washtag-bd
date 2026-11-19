@@ -5,6 +5,7 @@
 services:
   api:
     environment:
+      ASPNETCORE_ENVIRONMENT: Production
       SEED_DEMO_DATA: "false"
       MANUAL_PAYMENT_ENABLED: "${MANUAL_PAYMENT_ENABLED:-false}"
       ALLOW_DEMO_IN_PRODUCTION: "false"

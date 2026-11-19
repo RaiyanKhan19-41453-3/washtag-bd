@@ -11,8 +11,9 @@ public sealed class ServiceCatalogService : IServiceCatalogService
     private readonly IAppDbContext _db;
     public ServiceCatalogService(IAppDbContext db) => _db = db;
 
-    public async Task<List<ServiceDto>> ListAsync(Guid shopId, CancellationToken cancellationToken = default) =>
-        await _db.ShopServices.AsNoTracking()
+    public async Task<List<ServiceDto>> ListAsync(Guid shopId, CancellationToken cancellationToken = default)
+    {
+        var services = await _db.ShopServices.AsNoTracking()
             .Where(s => s.ShopId == shopId)
             .OrderBy(s => s.SortOrder).ThenBy(s => s.Name)
             .Select(s => new ServiceDto
@@ -20,11 +21,33 @@ public sealed class ServiceCatalogService : IServiceCatalogService
                 Id = s.Id, Name = s.Name, DefaultPrice = s.DefaultPrice,
                 IsActive = s.IsActive, SortOrder = s.SortOrder
             }).ToListAsync(cancellationToken);
+        if (services.Count > 0) return services;
+        var shop = await _db.Shops.AsNoTracking().FirstOrDefaultAsync(s => s.Id == shopId, cancellationToken);
+        if (shop == null || shop.CatalogueInitialized) return services;
+
+        // Shops created before this feature had no catalogue. Backfill once.
+        var initializing = await _db.Shops.FirstAsync(s => s.Id == shopId, cancellationToken);
+        initializing.CatalogueInitialized = true;
+        _db.ShopServices.AddRange(
+            new ShopService { ShopId = shopId, Name = "Wash & Fold", DefaultPrice = 120, SortOrder = 0 },
+            new ShopService { ShopId = shopId, Name = "Dry Clean", DefaultPrice = 250, SortOrder = 1 },
+            new ShopService { ShopId = shopId, Name = "Ironing", DefaultPrice = 80, SortOrder = 2 });
+        try { await _db.SaveChangesAsync(cancellationToken); }
+        catch (DbUpdateException) { /* another request seeded first */ }
+        return await _db.ShopServices.AsNoTracking().Where(s => s.ShopId == shopId)
+            .OrderBy(s => s.SortOrder).ThenBy(s => s.Name)
+            .Select(s => new ServiceDto
+            {
+                Id = s.Id, Name = s.Name, DefaultPrice = s.DefaultPrice,
+                IsActive = s.IsActive, SortOrder = s.SortOrder
+            }).ToListAsync(cancellationToken);
+    }
 
     public async Task<ServiceDto> CreateAsync(Guid shopId, CreateServiceRequest request,
         CancellationToken cancellationToken = default)
     {
         var name = request.Name.Trim();
+        if (string.IsNullOrWhiteSpace(name)) throw new AppException("A service name is required.");
         if (await _db.ShopServices.AnyAsync(s => s.ShopId == shopId && s.Name.ToLower() == name.ToLower(),
                 cancellationToken))
             throw new AppException("A service with this name already exists.");
@@ -43,7 +66,12 @@ public sealed class ServiceCatalogService : IServiceCatalogService
     {
         var service = await _db.ShopServices.FirstOrDefaultAsync(s => s.Id == id && s.ShopId == shopId,
             cancellationToken) ?? throw new AppException("Service not found.");
-        service.Name = request.Name.Trim();
+        var name = request.Name.Trim();
+        if (string.IsNullOrWhiteSpace(name)) throw new AppException("A service name is required.");
+        if (await _db.ShopServices.AnyAsync(s => s.ShopId == shopId && s.Id != id &&
+                s.Name.ToLower() == name.ToLower(), cancellationToken))
+            throw new AppException("A service with this name already exists.");
+        service.Name = name;
         service.DefaultPrice = request.DefaultPrice;
         service.IsActive = request.IsActive;
         service.SortOrder = request.SortOrder;

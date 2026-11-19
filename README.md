@@ -183,7 +183,7 @@ Both scripts read `POSTGRES_USER` / `POSTGRES_DB` from `.env` (with the compose 
 Everything is in one solution; .NET and Node are only needed if you want to develop outside Docker.
 
 ```bash
-dotnet test tests/Washtag.Application.Tests/Washtag.Application.Tests.csproj   # 64 unit tests
+dotnet test tests/Washtag.Application.Tests/Washtag.Application.Tests.csproj   # 65 unit tests
 dotnet test tests/Washtag.Api.Tests/Washtag.Api.Tests.csproj                   # 15 unit tests
 # Integration tests (real Postgres + pgvector via Testcontainers — requires a running Docker daemon)
 dotnet test tests/Washtag.Integration.Tests/Washtag.Integration.Tests.csproj   # 8 real-database tests
@@ -202,7 +202,7 @@ dotnet tool install --global dotnet-ef --version 9.0.1
 dotnet ef migrations add MyChange --project backend/Washtag.Infrastructure --startup-project backend/Washtag.Api --output-dir Data/Migrations
 ```
 
-> Upgrading from an older checkout that used `EnsureCreated()`? Existing volumes have no `__EFMigrationsHistory`, so `Migrate()` would fail on `InitialCreate`. Either back up and recreate the volume, or baseline it: create the history table and insert **exactly the IDs your existing schema actually contains** (for a v1.6.1-era `EnsureCreated()` volume that is the first seven below; the eighth is applied automatically on startup) (`20261118123245_InitialCreate`, `20261118131646_AddBilling`, `20261118144504_AddAssistantHistory`, `20261118185732_AddConcurrencyTokens`, `20261118191841_AddAssistantMessageMetadata`, `20261118210340_AddAssistantMessageForeignKeys`, `20261119092024_AddOrderIdempotencyKey`, `20261119131000_AddReportingIndexes`, `20261119191856_AddServicesAndDelivery`) before starting the new API.
+> Upgrading from an older checkout that used `EnsureCreated()`? Existing volumes have no `__EFMigrationsHistory`, so `Migrate()` would fail on `InitialCreate`. Either back up and recreate the volume, or baseline it: create the history table and insert **exactly the IDs your existing schema actually contains** (for a v1.6.1-era `EnsureCreated()` volume that is the first seven below; the eighth is applied automatically on startup) (`20261118123245_InitialCreate`, `20261118131646_AddBilling`, `20261118144504_AddAssistantHistory`, `20261118185732_AddConcurrencyTokens`, `20261118191841_AddAssistantMessageMetadata`, `20261118210340_AddAssistantMessageForeignKeys`, `20261119092024_AddOrderIdempotencyKey`, `20261119131000_AddReportingIndexes`, `20261119191856_AddServicesAndDelivery`, `20261119195746_AddRefreshSessionBinding`, `20261119203443_AddCatalogueInitialized`) before starting the new API.
 
 GitHub Actions runs build + tests + both Docker image builds on every push and PR to `main` (badge above).
 
@@ -300,7 +300,7 @@ AI_GATEWAY_CHAT_MODEL=gpt-4o-mini
 
 ## Production checklist
 
-**Do not expose the default Compose setup publicly.** The demo account is a platform admin with a documented password. See [DEPLOYMENT.md](DEPLOYMENT.md) for the full procedure; the short version:
+**Do not expose the default Compose setup publicly.** The base `docker-compose.yml` is a Development demo profile (seeded demo admin, self-settlement enabled); the strict Production profile is `docker-compose.prod.yml` and must be selected explicitly. See [DEPLOYMENT.md](DEPLOYMENT.md) for the full procedure; the short version:
 
 - Copy `.env.example` to `.env` and set a strong `JWT_SECRET` (32+ characters), a strong `POSTGRES_PASSWORD`, `SEED_DEMO_DATA=false`, `ALLOWED_ORIGINS=https://your.domain` and `PUBLIC_BASE_URL=https://your.domain` **before the first start**. Leave `ADMIN_EMAILS` empty initially — see the bootstrap step below. Without a real JWT secret, every restart logs all users out.
 - Set DB credentials before the first start — changing `POSTGRES_PASSWORD` later does not change the existing volume's password but does break the API connection.

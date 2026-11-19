@@ -42,7 +42,7 @@ var maintenance = new MaintenanceOptions
 builder.Services.AddSingleton(maintenance);
 builder.Services.AddSingleton(new BillingOptions
 {
-    ManualPaymentEnabled = builder.Configuration.GetValue("MANUAL_PAYMENT_ENABLED", true)
+    ManualPaymentEnabled = builder.Configuration.GetValue("MANUAL_PAYMENT_ENABLED", false)
 });
 if (maintenance.Enabled) builder.Services.AddHostedService<MaintenanceWorker>();
 
@@ -192,6 +192,21 @@ builder.Services.AddRateLimiter(options =>
                 Window = TimeSpan.FromMinutes(1),
                 QueueLimit = 0
             }));
+    options.AddPolicy("reports", context =>
+        RateLimitPartition.GetFixedWindowLimiter(
+            context.User.FindFirstValue(ClaimTypes.NameIdentifier) ?? context.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+            _ => new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = 30, Window = TimeSpan.FromMinutes(1), QueueLimit = 0
+            }));
+    options.AddPolicy("webhook", context =>
+        RateLimitPartition.GetFixedWindowLimiter(
+            context.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+            _ => new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = 60, Window = TimeSpan.FromMinutes(1), QueueLimit = 0
+            }));
+
     options.AddPolicy("maintenance", context =>
         RateLimitPartition.GetFixedWindowLimiter(
             context.User.FindFirstValue(ClaimTypes.NameIdentifier) ?? context.Connection.RemoteIpAddress?.ToString() ?? "unknown",
