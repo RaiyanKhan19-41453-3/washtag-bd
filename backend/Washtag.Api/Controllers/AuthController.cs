@@ -36,7 +36,7 @@ public class AuthController : ControllerBase
     public async Task<IActionResult> Refresh([FromBody] RefreshRequest request)
     {
         if (!ModelState.IsValid) return ValidationProblem(ModelState);
-        return Ok(await _auth.RefreshAsync(request.RefreshToken));
+        return Ok(await _auth.RefreshAsync(request.RefreshToken, request.SessionSecret));
     }
 
     [Authorize]

@@ -81,7 +81,7 @@ public class CreateOrderRequest
     [Required, MaxLength(30)] public string CustomerPhone { get; set; } = string.Empty;
     [MaxLength(1000)] public string? Notes { get; set; }
     public DateTime? DueDate { get; set; }
-    [MinLength(1)] public List<CreateOrderItemRequest> Items { get; set; } = new();
+    [MinLength(1), MaxLength(100)] public List<CreateOrderItemRequest> Items { get; set; } = new();
 }
 
 public class UpdateStatusRequest

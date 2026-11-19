@@ -25,7 +25,7 @@ export function AuthProvider({ children }) {
       })
       // A transient 500/network error must not destroy a valid session.
       .catch((error) => {
-        if (error.response?.status === 401) clearTokens();
+        if (error.status === 401 || error.response?.status === 401) clearTokens();
         else setProfileError('Could not load your profile. Check your connection and retry.');
       })
       .finally(() => { if (active) setLoading(false); });
@@ -84,7 +84,7 @@ export function AuthProvider({ children }) {
       setUser(data.user);
       setShop(data.shop);
     } catch (error) {
-      if (error.response?.status === 401) clearTokens();
+      if (error.status === 401 || error.response?.status === 401) clearTokens();
       else setProfileError('Could not load your profile. Check your connection and retry.');
     } finally { setLoading(false); }
   };

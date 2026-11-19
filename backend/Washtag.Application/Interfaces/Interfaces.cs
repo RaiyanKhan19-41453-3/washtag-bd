@@ -25,7 +25,7 @@ public interface IAuthService
     Task<AuthResponse> RegisterAsync(RegisterRequest request);
     Task<AuthResponse> LoginAsync(LoginRequest request);
     Task<AuthResponse> GetProfileAsync(Guid userId);
-    Task<AuthResponse> RefreshAsync(string refreshToken);
+    Task<AuthResponse> RefreshAsync(string refreshToken, string? sessionSecret = null);
     Task ChangePasswordAsync(Guid userId, ChangePasswordRequest request);
 }
 

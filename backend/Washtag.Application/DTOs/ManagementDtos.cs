@@ -38,7 +38,10 @@ public class ChangePasswordRequest
 
 public class RefreshRequest
 {
-    [Required] public string RefreshToken { get; set; } = string.Empty;
+    [Required, MaxLength(512)] public string RefreshToken { get; set; } = string.Empty;
+    // Per-browser secret: a stolen refresh token alone cannot ride the short
+    // rotation grace window without it.
+    [MaxLength(512)] public string? SessionSecret { get; set; }
 }
 
 public class InvoiceDto

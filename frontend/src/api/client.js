@@ -17,9 +17,19 @@ export function storeTokens({ token, refreshToken }) {
   if (refreshToken) localStorage.setItem('washtag_refresh_token', refreshToken);
 }
 
+function sessionSecret() {
+  let value = localStorage.getItem('washtag_session_secret');
+  if (!value) {
+    value = crypto.randomUUID?.() ?? `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+    localStorage.setItem('washtag_session_secret', value);
+  }
+  return value;
+}
+
 export function clearTokens() {
   localStorage.removeItem('washtag_token');
   localStorage.removeItem('washtag_refresh_token');
+  localStorage.removeItem('washtag_session_secret');
 }
 
 api.interceptors.request.use((config) => {
@@ -33,7 +43,7 @@ let refreshInFlight = null;
 async function refreshTokens() {
   const refreshToken = localStorage.getItem('washtag_refresh_token');
   if (!refreshToken) throw new Error('No refresh token');
-  const { data } = await authApi.post('/auth/refresh', { refreshToken });
+  const { data } = await authApi.post('/auth/refresh', { refreshToken, sessionSecret: sessionSecret() });
   storeTokens(data);
   return data;
 }
@@ -67,8 +77,13 @@ api.interceptors.response.use(
       const validation = data?.errors
         ? Object.values(data.errors).flat().join(', ')
         : null;
-      const message = data?.message || validation || data?.title || error.message || 'Something went wrong. Please try again.';
-      return Promise.reject(new Error(message));
+      const message = data?.message || validation || data?.title ||
+        (status === 403 ? 'You do not have permission to do that.' : null) ||
+        error.message || 'Something went wrong. Please try again.';
+      const failure = new Error(message);
+      failure.status = status;
+      failure.response = error.response;
+      return Promise.reject(failure);
     }
 
     // Never replay a non-idempotent write after a 401 — it may have committed.

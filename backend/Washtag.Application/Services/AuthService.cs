@@ -98,10 +98,13 @@ public class AuthService : IAuthService
         return await IssueTokensAsync(user, user.Shop);
     }
 
-    public async Task<AuthResponse> RefreshAsync(string refreshToken)
+    public async Task<AuthResponse> RefreshAsync(string refreshToken, string? sessionSecret = null)
     {
         var oldHash = Hash(refreshToken);
-        var cacheKey = $"refresh-rotation:{oldHash}";
+        // The grace ticket is bound to a browser-held secret: a stolen token alone
+        // cannot claim the successor issued to a different client.
+        var sessionHash = Hash(string.IsNullOrEmpty(sessionSecret) ? "none" : sessionSecret);
+        var cacheKey = $"refresh-rotation:{sessionHash}:{oldHash}";
 
         // Two tabs (or a retried request) can present the same token at once. Return
         // the already-issued successor for a short grace window instead of treating
@@ -126,7 +129,11 @@ public class AuthService : IAuthService
             else
             {
                 ticket = new RotationTicket(userId.Value, rawRefresh);
-                await _cache.SetAsync(cacheKey, ticket, TimeSpan.FromSeconds(30));
+                await _cache.SetAsync(cacheKey, ticket, TimeSpan.FromSeconds(10));
+                var keysKey = $"refresh-keys:{userId.Value}";
+                var keys = await _cache.GetAsync<List<string>>(keysKey) ?? new List<string>();
+                keys.Add(cacheKey);
+                await _cache.SetAsync(keysKey, keys, TimeSpan.FromDays(31));
             }
         }
 
@@ -153,6 +160,13 @@ public class AuthService : IAuthService
         user.PasswordHash = BCrypt.Net.BCrypt.HashPassword(request.NewPassword);
         await _db.SaveChangesAsync();
         await _refreshTokens.RevokeAllAsync(userId);
+
+        // Drop grace tickets so a replay of a recently rotated token cannot mint a
+        // fresh JWT with the new password version after a password change.
+        var keysKey = $"refresh-keys:{userId}";
+        var keys = await _cache.GetAsync<List<string>>(keysKey) ?? new List<string>();
+        foreach (var key in keys) await _cache.RemoveAsync(key);
+        await _cache.RemoveAsync(keysKey);
     }
 
     public async Task<AuthResponse> GetProfileAsync(Guid userId)
