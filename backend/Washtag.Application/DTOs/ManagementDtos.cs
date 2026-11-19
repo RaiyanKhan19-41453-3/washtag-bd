@@ -111,6 +111,7 @@ public class AdminStatsDto
 public class MaintenanceResultDto
 {
     public DateTime RanAt { get; set; }
+    public List<string> Errors { get; set; } = new();
     public int OverdueInvoices { get; set; }
     public int ExpiredSubscriptions { get; set; }
     public int ShopsMarkedPastDue { get; set; }

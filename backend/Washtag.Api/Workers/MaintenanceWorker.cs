@@ -42,9 +42,10 @@ public sealed class MaintenanceWorker : BackgroundService
             var result = await maintenance.RunAsync(cancellationToken);
             _logger.LogInformation(
                 "Maintenance complete: {Invoices} invoices overdue, {Expired} subscriptions expired, " +
-                "{PastDue} shops flagged PastDue, {Messages} messages pruned, {Shops} shops reindexed.",
+                "{PastDue} shops flagged PastDue, {Messages} messages pruned, {Shops} shops reindexed, {Errors} errors.",
                 result.OverdueInvoices, result.ExpiredSubscriptions, result.ShopsMarkedPastDue,
-                result.PrunedMessages, result.ReindexedShops);
+                result.PrunedMessages, result.ReindexedShops, result.Errors.Count);
+            foreach (var error in result.Errors) _logger.LogWarning("Maintenance step failed: {Error}", error);
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {

@@ -31,6 +31,8 @@ public static class AssistantInitializer
         catch (Exception ex)
         {
             logger.LogWarning(ex, "AI assistant index unavailable; answers will use database facts only.");
+            // Let the caller retry — swallowing here defeats the startup retry loop.
+            throw;
         }
     }
 }

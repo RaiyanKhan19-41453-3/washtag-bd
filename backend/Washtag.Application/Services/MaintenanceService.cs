@@ -32,36 +32,50 @@ public sealed class MaintenanceService : IMaintenanceService
         var now = DateTime.UtcNow;
         var result = new MaintenanceResultDto { RanAt = now };
 
-        // One atomic transition shared with the lazy request-time paths, so nothing
-        // writes an invoice status from a stale tracked entity.
-        var deadlines = await _invoices.ApplyDeadlinesAsync(now, null, cancellationToken);
-        result.OverdueInvoices = deadlines.OverdueInvoices;
-        result.ExpiredSubscriptions = deadlines.ShopsFlagged;
-        result.ShopsMarkedPastDue = deadlines.ShopsFlagged;
-
-        // Retention: old assistant conversations are dropped in bulk instead of one chat at a time.
-        var cutoff = now.AddDays(-_options.ChatRetentionDays);
-        var stale = await _db.AssistantMessages
-            .Where(m => m.CreatedAt < cutoff)
-            .ToListAsync(cancellationToken);
-        if (stale.Count > 0)
+        // Each step is isolated: a failing step must not block the others or make
+        // later runs skip them.
+        try
         {
-            _db.AssistantMessages.RemoveRange(stale);
-            await _db.SaveChangesAsync(cancellationToken);
-            result.PrunedMessages = stale.Count;
+            // One atomic transition shared with the lazy request-time paths.
+            var deadlines = await _invoices.ApplyDeadlinesAsync(now, null, cancellationToken);
+            result.OverdueInvoices = deadlines.OverdueInvoices;
+            result.ExpiredSubscriptions = deadlines.ShopsFlagged;
+            result.ShopsMarkedPastDue = deadlines.ShopsFlagged;
         }
+        catch (Exception ex) { result.Errors.Add($"Billing deadlines: {ex.Message}"); }
 
-        // Expired/old refresh tokens (30-day grace) are removed by the atomic token store.
-        await _tokens.PurgeExpiredAsync(cancellationToken);
-        result.TokensPurged = true;
-
-        // Reindexing rewrites current documents and prunes rows whose order/customer is gone.
-        var shopIds = await _db.Shops.Select(s => s.Id).ToListAsync(cancellationToken);
-        foreach (var shopId in shopIds)
+        try
         {
-            await _indexer.ReindexShopAsync(shopId, cancellationToken);
-            result.ReindexedShops++;
+            var cutoff = now.AddDays(-_options.ChatRetentionDays);
+            var stale = await _db.AssistantMessages
+                .Where(m => m.CreatedAt < cutoff)
+                .ToListAsync(cancellationToken);
+            if (stale.Count > 0)
+            {
+                _db.AssistantMessages.RemoveRange(stale);
+                await _db.SaveChangesAsync(cancellationToken);
+                result.PrunedMessages = stale.Count;
+            }
         }
+        catch (Exception ex) { result.Errors.Add($"Chat retention: {ex.Message}"); }
+
+        try
+        {
+            await _tokens.PurgeExpiredAsync(cancellationToken);
+            result.TokensPurged = true;
+        }
+        catch (Exception ex) { result.Errors.Add($"Token purge: {ex.Message}"); }
+
+        try
+        {
+            var shopIds = await _db.Shops.Select(s => s.Id).ToListAsync(cancellationToken);
+            foreach (var shopId in shopIds)
+            {
+                try { await _indexer.ReindexShopAsync(shopId, cancellationToken); result.ReindexedShops++; }
+                catch (Exception ex) { result.Errors.Add($"Reindex {shopId}: {ex.Message}"); }
+            }
+        }
+        catch (Exception ex) { result.Errors.Add($"Reindex: {ex.Message}"); }
 
         return result;
     }

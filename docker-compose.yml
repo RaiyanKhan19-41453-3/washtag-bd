@@ -43,8 +43,9 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+      # Redis is a best-effort cache; a broken Redis must not take the site down.
       redis:
-        condition: service_healthy
+        condition: service_started
     environment:
       ASPNETCORE_HTTP_PORTS: 8080
       ASPNETCORE_ENVIRONMENT: Production

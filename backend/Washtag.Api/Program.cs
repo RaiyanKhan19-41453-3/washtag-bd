@@ -34,7 +34,7 @@ var maintenance = new MaintenanceOptions
     Enabled = builder.Configuration.GetValue("MAINTENANCE_ENABLED", true),
     IntervalMinutes = builder.Configuration.GetValue("MAINTENANCE_INTERVAL_MINUTES", 60),
     RunOnStartup = builder.Configuration.GetValue("MAINTENANCE_RUN_ON_STARTUP", true),
-    ChatRetentionDays = builder.Configuration.GetValue("MAINTENANCE_CHAT_RETENTION_DAYS", 90)
+    ChatRetentionDays = Math.Clamp(builder.Configuration.GetValue("MAINTENANCE_CHAT_RETENTION_DAYS", 90), 1, 3650)
 };
 builder.Services.AddSingleton(maintenance);
 if (maintenance.Enabled) builder.Services.AddHostedService<MaintenanceWorker>();
@@ -73,7 +73,7 @@ builder.Services.AddAuthentication(options =>
         ValidIssuer = builder.Configuration["JWT_ISSUER"] ?? "WashtagBD",
         ValidAudience = builder.Configuration["JWT_AUDIENCE"] ?? "WashtagBDClient",
         IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtSecret)),
-        ClockSkew = TimeSpan.Zero
+        ClockSkew = TimeSpan.FromSeconds(30)
     };
 
     options.Events = new JwtBearerEvents
@@ -144,6 +144,7 @@ builder.Services.AddSwaggerGen(c =>
 builder.Services.AddSignalR();
 var allowedOrigins = (builder.Configuration["ALLOWED_ORIGINS"] ?? "http://localhost:8081")
     .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+var emptyAllowedOrigins = allowedOrigins.Length == 0;
 builder.Services.AddCors(options => options.AddPolicy("App", policy =>
 {
     if (allowedOrigins.Contains("*"))
@@ -225,6 +226,8 @@ if (app.Environment.IsProduction() &&
         "Anyone can log in as demo@washtagbd.com / demo1234 with platform-admin rights. " +
         "Use docker-compose.prod.yml with a fresh pgdata volume and your own ADMIN_EMAILS.");
 }
+if (emptyAllowedOrigins && app.Environment.IsProduction())
+    app.Logger.LogWarning("ALLOWED_ORIGINS is empty; only same-origin requests through the web proxy will work.");
 if (app.Environment.IsProduction() && string.IsNullOrWhiteSpace(app.Configuration["PUBLIC_BASE_URL"]))
     app.Logger.LogWarning("PUBLIC_BASE_URL is unset; QR codes will use the request host. Set it to https://your.domain for stable, trustworthy links.");
 
@@ -304,6 +307,22 @@ foreach (var delay in new[] { 0, 2, 5, 10, 20 })
     {
         app.Logger.LogError(ex, "Database initialization attempt failed (next retry in {Delay}s).", delay);
     }
+}
+
+// A long startup outage must not leave /health permanently 503: keep retrying
+// in the background until initialization succeeds or the app shuts down.
+if (!DbInitializer.InitializationSucceeded)
+{
+    _ = Task.Run(async () =>
+    {
+        while (!DbInitializer.InitializationSucceeded &&
+               !app.Lifetime.ApplicationStopping.IsCancellationRequested)
+        {
+            await Task.Delay(TimeSpan.FromSeconds(30), app.Lifetime.ApplicationStopping);
+            try { await DbInitializer.InitializeAsync(app.Services, seedDemo, app.Environment.IsProduction()); }
+            catch (Exception ex) { app.Logger.LogError(ex, "Deferred database initialization failed; retrying in 30s."); }
+        }
+    });
 }
 
 // Index in the background so AI/gateway latency never blocks readiness.

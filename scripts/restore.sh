@@ -26,7 +26,8 @@ fi
 
 echo "Stopping the API so no writes race the restore..."
 docker compose stop api
-if gzip -dc "$FILE" | docker compose exec -T postgres psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -v ON_ERROR_STOP=1; then
+# --single-transaction prevents a failed restore from leaving a half-restored DB.
+if gzip -dc "$FILE" | docker compose exec -T postgres psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -v ON_ERROR_STOP=1 --single-transaction; then
   docker compose start api
   echo "Restore complete. The API has been restarted."
 else
