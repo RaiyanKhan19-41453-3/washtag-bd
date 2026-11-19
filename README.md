@@ -104,6 +104,9 @@ The dependency rule points inward: `Api → Infrastructure → Application → D
 - Create orders with multiple items, per-item service, quantity and price
 - Auto-generated order number and unique QR receipt
 - Status workflow: `Received → Washing → Ironing → Ready for Pickup → Delivered`
+- Configurable service catalogue with per-service default prices (autofilled when creating orders)
+- Pickup vs home-delivery mode with a delivery address on the order
+- Daily register with payment-method/daily breakdowns and CSV export
 - Camera QR scanning with manual token fallback; the scan screen can record payment and open the printable receipt inline
 - Keyboard-accessible dialogs with focus trapping, visible focus rings, higher-contrast actions and reduced-motion support
 - One-click 80mm thermal receipt with the QR at `/print/{token}` (print button uses the browser print dialog)
@@ -180,7 +183,7 @@ Both scripts read `POSTGRES_USER` / `POSTGRES_DB` from `.env` (with the compose 
 Everything is in one solution; .NET and Node are only needed if you want to develop outside Docker.
 
 ```bash
-dotnet test tests/Washtag.Application.Tests/Washtag.Application.Tests.csproj   # 61 unit tests
+dotnet test tests/Washtag.Application.Tests/Washtag.Application.Tests.csproj   # 64 unit tests
 dotnet test tests/Washtag.Api.Tests/Washtag.Api.Tests.csproj                   # 15 unit tests
 # Integration tests (real Postgres + pgvector via Testcontainers — requires a running Docker daemon)
 dotnet test tests/Washtag.Integration.Tests/Washtag.Integration.Tests.csproj   # 8 real-database tests
@@ -199,7 +202,7 @@ dotnet tool install --global dotnet-ef --version 9.0.1
 dotnet ef migrations add MyChange --project backend/Washtag.Infrastructure --startup-project backend/Washtag.Api --output-dir Data/Migrations
 ```
 
-> Upgrading from an older checkout that used `EnsureCreated()`? Existing volumes have no `__EFMigrationsHistory`, so `Migrate()` would fail on `InitialCreate`. Either back up and recreate the volume, or baseline it: create the history table and insert **exactly the IDs your existing schema actually contains** (for a v1.6.1-era `EnsureCreated()` volume that is the first seven below; the eighth is applied automatically on startup) (`20261118123245_InitialCreate`, `20261118131646_AddBilling`, `20261118144504_AddAssistantHistory`, `20261118185732_AddConcurrencyTokens`, `20261118191841_AddAssistantMessageMetadata`, `20261118210340_AddAssistantMessageForeignKeys`, `20261119092024_AddOrderIdempotencyKey`, `20261119131000_AddReportingIndexes`) before starting the new API.
+> Upgrading from an older checkout that used `EnsureCreated()`? Existing volumes have no `__EFMigrationsHistory`, so `Migrate()` would fail on `InitialCreate`. Either back up and recreate the volume, or baseline it: create the history table and insert **exactly the IDs your existing schema actually contains** (for a v1.6.1-era `EnsureCreated()` volume that is the first seven below; the eighth is applied automatically on startup) (`20261118123245_InitialCreate`, `20261118131646_AddBilling`, `20261118144504_AddAssistantHistory`, `20261118185732_AddConcurrencyTokens`, `20261118191841_AddAssistantMessageMetadata`, `20261118210340_AddAssistantMessageForeignKeys`, `20261119092024_AddOrderIdempotencyKey`, `20261119131000_AddReportingIndexes`, `20261119191856_AddServicesAndDelivery`) before starting the new API.
 
 GitHub Actions runs build + tests + both Docker image builds on every push and PR to `main` (badge above).
 
@@ -306,6 +309,7 @@ AI_GATEWAY_CHAT_MODEL=gpt-4o-mini
 - Browser camera and microphone access (Scan QR / Assistant voice input) require `localhost` or HTTPS in production.
 - Production defaults `MANUAL_PAYMENT_ENABLED=false`: owners cannot mark their own invoices paid (there is no gateway verification). A platform admin settles invoices from the admin page instead. Keep it `true` only for a local demo.
 - Optional `NOTIFICATION_WEBHOOK_URL` / `NOTIFICATION_WEBHOOK_TOKEN` send best-effort SMS/WhatsApp messages on new orders and ready/delivered transitions.
+- Optional `PAYMENT_WEBHOOK_SECRET` enables verified gateway settlements: `POST /api/public/payments/webhook` requires `X-WashTag-Signature` (base64 HMAC-SHA256 of the raw body) and accepts `{"event":"invoice.paid","shopId":"…","invoiceId":"…","reference":"…"}`.
 - Schedule `scripts/backup.sh` and store dumps off-server.
 - Run **one API replica** — the maintenance worker, SignalR groups and rate limits are per-process.
 
