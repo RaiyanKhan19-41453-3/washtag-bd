@@ -29,6 +29,13 @@ public interface IAuthService
     Task ChangePasswordAsync(Guid userId, ChangePasswordRequest request);
 }
 
+/// <summary>Best-effort out-of-band message delivery (SMS/WhatsApp webhook).</summary>
+public interface IMessageSender
+{
+    bool IsConfigured { get; }
+    Task SendAsync(string to, string text, CancellationToken cancellationToken = default);
+}
+
 public interface IOrderService
 {
     Task<PagedResult<OrderListDto>> GetOrdersAsync(Guid shopId, string? status, string? search, int page, int pageSize);

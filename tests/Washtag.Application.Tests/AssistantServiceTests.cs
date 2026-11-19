@@ -93,7 +93,7 @@ public class AssistantServiceTests
     public async Task Ask_TodayUnpaidQuestionExcludesOlderOrders()
     {
         var h = new Harness();
-        h.AddOrder("Recent Customer", OrderStatus.Received, 100, 0, DateTime.UtcNow.AddHours(-1));
+        h.AddOrder("Recent Customer", OrderStatus.Received, 100, 0, DateTime.UtcNow);
         h.AddOrder("Old Customer", OrderStatus.Received, 500, 0, DateTime.UtcNow.AddDays(-3));
 
         var answer = await h.Service.AskAsync(h.ShopId, h.UserId, "unpaid orders today?");

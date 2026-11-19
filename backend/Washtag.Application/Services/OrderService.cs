@@ -20,6 +20,7 @@ public class OrderService : IOrderService
     private readonly IOrderNumberGenerator _numbers;
     private readonly ICustomerStore _customers;
     private readonly IPaymentStore _payments;
+    private readonly IMessageSender _messages;
 
     public OrderService(
         IAppDbContext db,
@@ -30,7 +31,8 @@ public class OrderService : IOrderService
         IDocumentIndexer indexer,
         IOrderNumberGenerator numbers,
         ICustomerStore customers,
-        IPaymentStore payments)
+        IPaymentStore payments,
+        IMessageSender messages)
     {
         _db = db;
         _notifier = notifier;
@@ -41,6 +43,7 @@ public class OrderService : IOrderService
         _numbers = numbers;
         _customers = customers;
         _payments = payments;
+        _messages = messages;
     }
 
     public async Task<PagedResult<OrderListDto>> GetOrdersAsync(Guid shopId, string? status, string? search, int page, int pageSize)
@@ -178,7 +181,21 @@ public class OrderService : IOrderService
         dto.Replayed = replayed;
         await IndexAsync(order);
         // A replay must not re-broadcast an event for the same logical order.
-        if (!replayed) await NotifyAsync(order, MapRealtime(order), BuildPublicTrack(order));
+        if (!replayed)
+        {
+            await NotifyAsync(order, MapRealtime(order), BuildPublicTrack(order));
+            if (_messages.IsConfigured)
+            {
+                var shopContact = await _db.Shops.AsNoTracking()
+                    .Where(s => s.Id == order.ShopId)
+                    .Select(s => new { s.Phone, s.Email })
+                    .FirstOrDefaultAsync();
+                var to = shopContact?.Phone ?? shopContact?.Email;
+                if (!string.IsNullOrWhiteSpace(to))
+                    await _messages.SendAsync(to,
+                        $"New order {order.OrderNumber} from {order.CustomerName} (৳{order.TotalAmount:0}). Track: {_urls.Build(order.PublicToken)}");
+            }
+        }
         return dto;
     }
 
@@ -221,6 +238,13 @@ public class OrderService : IOrderService
         await InvalidateCacheAsync(order.PublicToken);
         await IndexAsync(order);
         await NotifyAsync(order, MapRealtime(order), BuildPublicTrack(order));
+        if (_messages.IsConfigured && request.Status is OrderStatus.ReadyForPickup or OrderStatus.Delivered)
+        {
+            var message = request.Status == OrderStatus.ReadyForPickup
+                ? $"Order {order.OrderNumber} is ready for pickup. Track: {_urls.Build(order.PublicToken)}"
+                : $"Order {order.OrderNumber} has been delivered. Thank you!";
+            await _messages.SendAsync(order.CustomerPhone, message);
+        }
         return MapDetail(order);
     }
 

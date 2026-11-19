@@ -26,6 +26,9 @@ public static class DependencyInjection
         services.AddScoped<ICacheService, CacheService>();
         services.AddScoped<IQrCodeService, QrCodeService>();
 
+        services.AddHttpClient<WebhookMessageSender>(client => client.Timeout = TimeSpan.FromSeconds(5));
+        services.AddScoped<IMessageSender>(provider => provider.GetRequiredService<WebhookMessageSender>());
+
         services.AddHttpClient<AiProvider>(client => client.Timeout = TimeSpan.FromSeconds(12));
         services.AddScoped<IAiProvider>(provider => provider.GetRequiredService<AiProvider>());
         services.AddScoped<IVectorStore, VectorStore>();

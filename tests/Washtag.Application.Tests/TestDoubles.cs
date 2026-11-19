@@ -66,6 +66,17 @@ public sealed class FakeCache : ICacheService
     }
 }
 
+public sealed class FakeMessageSender : IMessageSender
+{
+    public bool IsConfigured => true;
+    public List<(string To, string Text)> Sent { get; } = new();
+    public Task SendAsync(string to, string text, CancellationToken cancellationToken = default)
+    {
+        Sent.Add((to, text));
+        return Task.CompletedTask;
+    }
+}
+
 public sealed class FakeQr : IQrCodeService
 {
     public string GenerateDataUrl(string payload) => "data:image/png;base64,AAAA";

@@ -17,6 +17,7 @@ public class OrderServiceTests
         public FakeNotifier Notifier { get; } = new();
         public FakeIndexer Indexer { get; } = new();
         public FakeCache Cache { get; } = new();
+        public FakeMessageSender Messages { get; } = new();
 
         public Harness()
         {
@@ -26,7 +27,8 @@ public class OrderServiceTests
             Db.Shops.Add(new Washtag.Domain.Entities.Shop { Id = ShopId, Name = "Test Shop" });
             Db.SaveChanges();
             Service = new OrderService(Db, Notifier, Cache, new FakeQr(),
-                new FakeUrls(), Indexer, new FakeNumbers(), new FakeCustomerStore(), new FakePaymentStore(Db));
+                new FakeUrls(), Indexer, new FakeNumbers(), new FakeCustomerStore(), new FakePaymentStore(Db),
+                Messages);
         }
 
         public Task<OrderDetailDto> NewOrder(string customer = "Test Customer", decimal price = 100, int quantity = 2) =>
@@ -230,5 +232,18 @@ public class OrderServiceTests
         Assert.Equal(0, cancelled.PaidAmount);
         Assert.Equal(PaymentStatus.Unpaid, cancelled.PaymentStatus);
         Assert.Contains("150", cancelled.StatusHistory.Last().Note ?? string.Empty);
+    }
+
+    [Fact]
+    public async Task ReadyForPickupSendsCustomerNotification()
+    {
+        var h = new Harness();
+        var order = await h.NewOrder();
+
+        await h.Service.UpdateStatusAsync(h.ShopId, order.Id,
+            new UpdateStatusRequest { Status = OrderStatus.ReadyForPickup }, "Tester");
+
+        Assert.Contains(h.Messages.Sent,
+            m => m.Text.Contains("ready for pickup") && m.To.Contains("1700"));
     }
 }

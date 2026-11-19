@@ -49,6 +49,7 @@ public sealed class DatabaseFixture : IAsyncLifetime
         services.AddSingleton<ICacheService, MemoryCacheStub>();
         services.AddSingleton<ITrackingUrlProvider, TrackingUrlStub>();
         services.AddSingleton<IRealtimeNotifier, NoopNotifier>();
+        services.AddSingleton<IMessageSender, NoopSender>();
         Services = services.BuildServiceProvider();
 
         using var scope = Services.CreateScope();
@@ -117,4 +118,10 @@ internal sealed class TrackingUrlStub : ITrackingUrlProvider
 internal sealed class NoopNotifier : IRealtimeNotifier
 {
     public Task OrderUpdatedAsync(Order order, object ownerPayload, object customerPayload) => Task.CompletedTask;
+}
+
+internal sealed class NoopSender : IMessageSender
+{
+    public bool IsConfigured => false;
+    public Task SendAsync(string to, string text, CancellationToken cancellationToken = default) => Task.CompletedTask;
 }
