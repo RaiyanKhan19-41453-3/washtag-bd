@@ -153,15 +153,15 @@ public class InvoiceStore : IInvoiceStore
         await using var overdue = new NpgsqlCommand(
             """
             UPDATE "Invoices" SET "Status" = 2
-            WHERE "Status" = 0 AND "PeriodTo" < @now AND (@shop::uuid IS NULL OR "ShopId" = @shop)
+            WHERE "Status" = 0 AND "PeriodTo" <= @now AND (@shop::uuid IS NULL OR "ShopId" = @shop)
             """, connection, transaction);
         overdue.Parameters.AddWithValue("now", now);
         overdue.Parameters.AddWithValue("shop", (object?)shopId ?? DBNull.Value);
         var overdueCount = await overdue.ExecuteNonQueryAsync(cancellationToken);
 
-        // Only flag a shop whose term actually ended and which has no paid invoice
-        // covering the current period. This keeps an admin restore durable and avoids
-        // locking a healthy shop because of one stale invoice.
+        // The subscription end date is the single source of truth for entitlement,
+        // matching SubscriptionPolicy.IsLocked exactly. Settlement always moves the
+        // end date forward, so a paid current period can never be flagged here.
         await using var flag = new NpgsqlCommand(
             """
             UPDATE "Shops" AS s SET "SubscriptionStatus" = 2
@@ -169,10 +169,6 @@ public class InvoiceStore : IInvoiceStore
               AND s."SubscriptionStatus" IN (0, 1)
               AND s."SubscriptionEndsAt" <= @now
               AND (@shop::uuid IS NULL OR s."Id" = @shop)
-              AND NOT EXISTS (
-                  SELECT 1 FROM "Invoices" i
-                  WHERE i."ShopId" = s."Id" AND i."Status" = 1 AND i."PeriodTo" >= @now
-              )
             """, connection, transaction);
         flag.Parameters.AddWithValue("now", now);
         flag.Parameters.AddWithValue("shop", (object?)shopId ?? DBNull.Value);

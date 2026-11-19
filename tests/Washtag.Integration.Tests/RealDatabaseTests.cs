@@ -204,10 +204,10 @@ public class RealDatabaseTests
     }
 
     [Fact]
-    public async Task Deadlines_FlagExpiredShopButNotOneWithAPaidCurrentPeriod()
+    public async Task Deadlines_UseEndDateAsTheSingleEntitlementSource()
     {
         var expired = await _fixture.NewShopAsync(endsAt: DateTime.UtcNow.AddDays(-1));
-        var healthy = await _fixture.NewShopAsync(endsAt: DateTime.UtcNow.AddDays(-1));
+        var healthy = await _fixture.NewShopAsync(endsAt: DateTime.UtcNow.AddMonths(1));
         using (var seed = _fixture.Scope())
         {
             var db = seed.ServiceProvider.GetRequiredService<AppDbContext>();
