@@ -172,7 +172,8 @@ public class ControllerTests
             .ReturnsAsync(new AdminStatsDto { ShopCount = 1 });
         var settings = new Mock<IAdminSettings>();
         settings.Setup(s => s.IsAdmin("admin@test.com")).Returns(true);
-        var controller = new AdminController(service.Object, settings.Object);
+        var controller = new AdminController(service.Object, settings.Object,
+            Microsoft.Extensions.Logging.Abstractions.NullLogger<AdminController>.Instance);
 
         Authenticate(controller, Guid.NewGuid());
         Assert.IsType<ForbidResult>(await controller.Stats());

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { Store, Users, Package, Wallet, ShieldAlert, Ban, CheckCircle2, RotateCcw } from 'lucide-react';
+import { Store, Users, Package, Wallet, ShieldAlert, Ban, CheckCircle2, RotateCcw, RefreshCw } from 'lucide-react';
 import api from '../api/client';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
@@ -13,6 +13,8 @@ export default function Admin() {
   const [stats, setStats] = useState(null);
   const [error, setError] = useState('');
   const [busyId, setBusyId] = useState(null);
+  const [maintenance, setMaintenance] = useState(null);
+  const [runningMaintenance, setRunningMaintenance] = useState(false);
 
   const load = useCallback(() => {
     api.get('/admin/stats').then(({ data }) => { setStats(data); setError(''); })
@@ -34,6 +36,16 @@ export default function Admin() {
     finally { setBusyId(null); }
   };
 
+  const runMaintenance = async () => {
+    setRunningMaintenance(true);
+    try {
+      const { data } = await api.post('/admin/maintenance/run');
+      setMaintenance(data);
+      toast.success(data.errors?.length ? 'Maintenance finished with errors.' : 'Maintenance finished.');
+    } catch (err) { toast.error(err.message); }
+    finally { setRunningMaintenance(false); }
+  };
+
   const confirmCancel = (shop) => {
     if (window.confirm(`Cancel the subscription for ${shop.shopName}? This locks the shop until an admin restores its plan.`)) {
       mutate(shop, `${shop.shopId}/cancel`, 'Subscription cancelled.');
@@ -50,7 +62,20 @@ export default function Admin() {
     <div className="page-stack">
       <div className="page-heading">
         <div><h2>Platform overview</h2><p>All shops on your WashTag BD deployment.</p></div>
+        <button className="btn btn-outline btn-sm" disabled={runningMaintenance} onClick={runMaintenance}>
+          <RefreshCw size={15} /> {runningMaintenance ? 'Running…' : 'Run maintenance'}
+        </button>
       </div>
+
+      {maintenance && (
+        <section className="card">
+          <div className="card-head"><div><h3>Last maintenance run</h3><p>{new Date(maintenance.ranAt).toLocaleString()}</p></div></div>
+          <p className="muted">
+            {maintenance.overdueInvoices} overdue invoices · {maintenance.expiredSubscriptions} expired · {maintenance.prunedMessages} messages pruned · {maintenance.reindexedShops} shops reindexed
+          </p>
+          {maintenance.errors?.length > 0 && <ul className="error-list">{maintenance.errors.map((e, i) => <li key={i}>{e}</li>)}</ul>}
+        </section>
+      )}
 
       <div className="stat-grid">
         <StatCard icon={Store} label="Shops" value={stats.shopCount} hint={`${stats.activeShopCount} active`} tone="teal" />

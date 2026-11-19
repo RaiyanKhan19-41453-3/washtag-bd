@@ -13,12 +13,18 @@ public class AdminController : ControllerBase
 {
     private readonly IAdminService _admin;
     private readonly IAdminSettings _settings;
+    private readonly ILogger<AdminController> _logger;
 
-    public AdminController(IAdminService admin, IAdminSettings settings)
+    public AdminController(IAdminService admin, IAdminSettings settings, ILogger<AdminController> logger)
     {
         _admin = admin;
         _settings = settings;
+        _logger = logger;
     }
+
+    private void Audit(string action, Guid shopId) => _logger.LogWarning(
+        "Admin action {Action} by {Admin} on shop {ShopId}", action,
+        User.FindFirst(ClaimTypes.Email)?.Value ?? "unknown", shopId);
 
     // Re-check the live configuration as well as the signed claim so removing an
     // address from ADMIN_EMAILS takes effect immediately instead of after token expiry.
@@ -37,6 +43,7 @@ public class AdminController : ControllerBase
     public async Task<IActionResult> SetActive(Guid id, [FromBody] AdminShopActiveRequest request)
     {
         if (!IsPlatformAdmin) return Forbid();
+        Audit(request.Active ? "ReactivateShop" : "SuspendShop", id);
         return Ok(await _admin.SetShopActiveAsync(id, request.Active, HttpContext.RequestAborted));
     }
 
@@ -44,6 +51,7 @@ public class AdminController : ControllerBase
     public async Task<IActionResult> CancelSubscription(Guid id)
     {
         if (!IsPlatformAdmin) return Forbid();
+        Audit("CancelSubscription", id);
         return Ok(await _admin.CancelShopSubscriptionAsync(id, HttpContext.RequestAborted));
     }
 
@@ -51,6 +59,7 @@ public class AdminController : ControllerBase
     public async Task<IActionResult> RestoreSubscription(Guid id)
     {
         if (!IsPlatformAdmin) return Forbid();
+        Audit("RestoreSubscription", id);
         return Ok(await _admin.RestoreSubscriptionAsync(id, HttpContext.RequestAborted));
     }
 }

@@ -33,7 +33,9 @@ var maintenance = new MaintenanceOptions
 {
     Enabled = builder.Configuration.GetValue("MAINTENANCE_ENABLED", true),
     IntervalMinutes = builder.Configuration.GetValue("MAINTENANCE_INTERVAL_MINUTES", 60),
-    RunOnStartup = builder.Configuration.GetValue("MAINTENANCE_RUN_ON_STARTUP", true),
+    // The assistant initializer already reindexes every shop at startup; avoid a
+    // second full sweep 20 seconds later.
+    RunOnStartup = builder.Configuration.GetValue("MAINTENANCE_RUN_ON_STARTUP", false),
     ChatRetentionDays = Math.Clamp(builder.Configuration.GetValue("MAINTENANCE_CHAT_RETENTION_DAYS", 90), 1, 3650)
 };
 builder.Services.AddSingleton(maintenance);
@@ -223,7 +225,7 @@ if (app.Environment.IsProduction() &&
 {
     app.Logger.LogCritical(
         "Production is running with demo seeding and the public demo admin address. " +
-        "Anyone can log in as demo@washtagbd.com / demo1234 with platform-admin rights. " +
+        "The public demo account has platform-admin rights. " +
         "Use docker-compose.prod.yml with a fresh pgdata volume and your own ADMIN_EMAILS.");
 }
 if (emptyAllowedOrigins && app.Environment.IsProduction())
@@ -283,9 +285,10 @@ app.MapGet("/health", async (IServiceProvider services) =>
             return Results.Json(new { status = "unhealthy", reason = "database initialization incomplete" }, statusCode: 503);
         return Results.Json(new { status = "healthy", initialized = true, checkedAt = DateTime.UtcNow });
     }
-    catch
+    catch (Exception ex)
     {
-        return Results.Json(new { status = "unhealthy" }, statusCode: 503);
+        app.Logger.LogError(ex, "Health probe failed: database is unreachable.");
+        return Results.Json(new { status = "unhealthy", reason = "database unreachable" }, statusCode: 503);
     }
 }).AllowAnonymous();
 
