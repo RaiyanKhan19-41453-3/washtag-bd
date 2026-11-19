@@ -24,6 +24,10 @@ public class BillingService : IBillingService
         var shop = await _db.Shops.AsNoTracking().FirstOrDefaultAsync(s => s.Id == shopId, cancellationToken)
             ?? throw new AppException("Shop not found.");
 
+        // Older shops created before registration seeded invoices need a backfill,
+        // otherwise there is nothing to pay and they can never renew after expiry.
+        await _invoices.EnsureCurrentInvoiceAsync(shopId, Plans.MonthlyPrice(shop.Plan), cancellationToken);
+
         // Apply billing deadlines atomically; a stale tracked read must never be able
         // to overwrite a payment that settled concurrently.
         await _invoices.ApplyDeadlinesAsync(DateTime.UtcNow, shopId, cancellationToken);

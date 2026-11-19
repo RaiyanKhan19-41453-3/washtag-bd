@@ -1,6 +1,8 @@
 using Microsoft.EntityFrameworkCore;
 using Washtag.Application.DTOs;
+using Washtag.Domain;
 using Washtag.Application.Interfaces;
+using Washtag.Domain.Entities;
 using Washtag.Domain.Enums;
 using Washtag.Domain.Exceptions;
 
@@ -80,9 +82,30 @@ public class AdminService : IAdminService
     {
         var shop = await _db.Shops.FirstOrDefaultAsync(s => s.Id == shopId, cancellationToken)
             ?? throw new AppException("Shop not found.");
+        var now = DateTime.UtcNow;
         shop.SubscriptionStatus = SubscriptionStatus.Active;
-        if (shop.SubscriptionEndsAt <= DateTime.UtcNow)
-            shop.SubscriptionEndsAt = DateTime.UtcNow.AddMonths(1);
+        shop.IsActive = true;
+        if (shop.SubscriptionEndsAt <= now)
+            shop.SubscriptionEndsAt = now.AddMonths(1);
+
+        // A restored term needs something payable, otherwise the shop is active but
+        // has no way to renew when that term ends.
+        if (!await _db.Invoices.AnyAsync(
+                i => i.ShopId == shopId && i.Status == InvoiceStatus.Pending && i.PeriodTo > now,
+                cancellationToken))
+        {
+            var from = new DateTime(now.Year, now.Month, 1, 0, 0, 0, DateTimeKind.Utc);
+            _db.Invoices.Add(new Invoice
+            {
+                ShopId = shopId,
+                InvoiceNumber = $"INV-{from:yyyyMM}-{Guid.NewGuid().ToString("N")[..8].ToUpperInvariant()}",
+                PeriodFrom = from,
+                PeriodTo = shop.SubscriptionEndsAt,
+                Amount = Plans.MonthlyPrice(shop.Plan),
+                Status = InvoiceStatus.Pending,
+                CreatedAt = now
+            });
+        }
         await _db.SaveChangesAsync(cancellationToken);
         return AuthService.MapShop(shop);
     }

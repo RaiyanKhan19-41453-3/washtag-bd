@@ -36,4 +36,7 @@ public interface IInvoiceStore
     /// <summary>Single authoritative transition for overdue invoices and expired terms.</summary>
     Task<BillingDeadlineResult> ApplyDeadlinesAsync(DateTime now, Guid? shopId = null,
         CancellationToken cancellationToken = default);
+
+    /// <summary>Gives an older shop with no invoices a payable current-period invoice.</summary>
+    Task EnsureCurrentInvoiceAsync(Guid shopId, decimal monthlyPrice, CancellationToken cancellationToken = default);
 }

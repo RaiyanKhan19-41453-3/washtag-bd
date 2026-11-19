@@ -166,8 +166,19 @@ public sealed class FakeRefreshTokenStore : IRefreshTokenStore
     public Task<Guid?> RotateAsync(string oldHash, string newHash, DateTime expiresAt,
         CancellationToken cancellationToken = default)
     {
-        if (!_tokens.TryGetValue(oldHash, out var old) || old.Revoked)
+        if (!_tokens.TryGetValue(oldHash, out var old))
             return Task.FromResult<Guid?>(null);
+        if (old.Revoked)
+        {
+            // Replay: revoke the whole lineage, matching the production recursive CTE.
+            var cursor = old.ReplacedBy;
+            while (cursor != null && _tokens.TryGetValue(cursor, out var next))
+            {
+                _tokens[cursor] = next with { Revoked = true };
+                cursor = next.ReplacedBy;
+            }
+            return Task.FromResult<Guid?>(null);
+        }
         _tokens[oldHash] = old with { Revoked = true, ReplacedBy = newHash };
         _tokens[newHash] = new Entry(old.UserId, false, null);
         return Task.FromResult<Guid?>(old.UserId);
@@ -237,23 +248,40 @@ public sealed class FakeInvoiceStore : IInvoiceStore
         if (remaining == 0)
         {
             var shop = await _db.Shops.FirstOrDefaultAsync(s => s.Id == shopId, cancellationToken);
-            if (shop != null)
+            // Cancelled is terminal, and a payment must never shorten a paid term.
+            if (shop != null && shop.SubscriptionStatus != SubscriptionStatus.Cancelled)
             {
-                shop.SubscriptionStatus = SubscriptionStatus.Active;
                 var now = DateTime.UtcNow;
-                shop.SubscriptionStartedAt = now;
-                shop.SubscriptionEndsAt = now.AddMonths(1);
+                shop.SubscriptionStatus = SubscriptionStatus.Active;
+                if (shop.SubscriptionEndsAt <= now) shop.SubscriptionStartedAt = now;
+                var end = (shop.SubscriptionEndsAt > now ? shop.SubscriptionEndsAt : now).AddMonths(1);
+                shop.SubscriptionEndsAt = end;
                 _db.Invoices.Add(new Invoice
                 {
                     ShopId = shopId,
                     InvoiceNumber = $"INV-{now:yyyyMM}-{Guid.NewGuid().ToString("N")[..8]}",
-                    PeriodFrom = now, PeriodTo = now.AddMonths(1),
+                    PeriodFrom = now, PeriodTo = end,
                     Amount = monthlyPrice, Status = InvoiceStatus.Pending
                 });
             }
         }
         await _db.SaveChangesAsync(cancellationToken);
         return true;
+    }
+
+    public async Task EnsureCurrentInvoiceAsync(Guid shopId, decimal monthlyPrice, CancellationToken cancellationToken = default)
+    {
+        if (await _db.Invoices.AnyAsync(i => i.ShopId == shopId, cancellationToken)) return;
+        var now = DateTime.UtcNow;
+        var from = new DateTime(now.Year, now.Month, 1, 0, 0, 0, DateTimeKind.Utc);
+        _db.Invoices.Add(new Invoice
+        {
+            ShopId = shopId,
+            InvoiceNumber = $"INV-{from:yyyyMM}-{Guid.NewGuid().ToString("N")[..8]}",
+            PeriodFrom = from, PeriodTo = from.AddMonths(1),
+            Amount = monthlyPrice, Status = InvoiceStatus.Pending, CreatedAt = now
+        });
+        await _db.SaveChangesAsync(cancellationToken);
     }
 
     public async Task<BillingDeadlineResult> ApplyDeadlinesAsync(DateTime now, Guid? shopId = null,
@@ -267,7 +295,8 @@ public sealed class FakeInvoiceStore : IInvoiceStore
 
         var candidates = overdue.Select(i => i.ShopId).ToHashSet();
         var expired = await _db.Shops
-            .Where(s => s.IsActive && s.SubscriptionEndsAt < now &&
+            .Where(s => s.IsActive && s.SubscriptionEndsAt <= now &&
+                        (shopId == null || s.Id == shopId) &&
                         (s.SubscriptionStatus == SubscriptionStatus.Trial ||
                          s.SubscriptionStatus == SubscriptionStatus.Active))
             .Select(s => s.Id).ToListAsync(cancellationToken);
@@ -280,7 +309,7 @@ public sealed class FakeInvoiceStore : IInvoiceStore
                     i => i.ShopId == candidateId && i.Status == InvoiceStatus.Paid && i.PeriodTo >= now,
                     cancellationToken)) continue;
             var shop = await _db.Shops.FirstOrDefaultAsync(
-                s => s.Id == candidateId && s.IsActive && s.SubscriptionEndsAt < now &&
+                s => s.Id == candidateId && s.IsActive && s.SubscriptionEndsAt <= now &&
                      (s.SubscriptionStatus == SubscriptionStatus.Trial ||
                       s.SubscriptionStatus == SubscriptionStatus.Active), cancellationToken);
             if (shop == null) continue;

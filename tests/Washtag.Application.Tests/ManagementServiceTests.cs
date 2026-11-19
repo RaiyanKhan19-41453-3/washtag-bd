@@ -346,4 +346,69 @@ public class ManagementServiceTests
             }));
         Assert.Empty(h.Db.Users);
     }
+
+    [Fact]
+    public async Task Register_CreatesFirstPayableInvoice()
+    {
+        var h = new Harness();
+        var auth = new AuthService(h.Db, new FakeTokens(), new FakeAdminSettings(), new FakeRefreshTokenStore());
+        var result = await auth.RegisterAsync(new RegisterRequest
+        {
+            ShopName = "Brand New", OwnerName = "Owner", Email = "brandnew@test.com",
+            Phone = "1", Password = "secret123"
+        });
+
+        var invoice = Assert.Single(h.Db.Invoices.Where(i => i.ShopId == result.Shop.Id));
+        Assert.Equal(InvoiceStatus.Pending, invoice.Status);
+    }
+
+    [Fact]
+    public async Task Settlement_NeverShortensAPrepaidTermOrRevivesCancelledShop()
+    {
+        var h = new Harness();
+        var shop = h.Db.Shops.Single();
+        var longTerm = DateTime.UtcNow.AddMonths(11);
+        shop.SubscriptionEndsAt = longTerm;
+        var invoice = new Invoice
+        {
+            ShopId = h.ShopId, InvoiceNumber = "INV-A", Amount = 500,
+            PeriodFrom = DateTime.UtcNow.AddDays(-10), PeriodTo = DateTime.UtcNow.AddDays(20),
+            Status = InvoiceStatus.Pending
+        };
+        h.Db.Invoices.Add(invoice);
+        h.Db.SaveChanges();
+
+        await new FakeInvoiceStore(h.Db).SettleAsync(h.ShopId, invoice.Id, PaymentMethod.Cash, null, 500);
+
+        Assert.True(shop.SubscriptionEndsAt >= longTerm);
+        Assert.Equal(InvoiceStatus.Paid, invoice.Status);
+
+        // Cancelled stays terminal even if another invoice is paid.
+        shop.SubscriptionStatus = SubscriptionStatus.Cancelled;
+        var next = new Invoice
+        {
+            ShopId = h.ShopId, InvoiceNumber = "INV-B", Amount = 500,
+            PeriodFrom = DateTime.UtcNow.AddDays(-10), PeriodTo = DateTime.UtcNow.AddDays(20),
+            Status = InvoiceStatus.Pending
+        };
+        h.Db.Invoices.Add(next);
+        h.Db.SaveChanges();
+        await new FakeInvoiceStore(h.Db).SettleAsync(h.ShopId, next.Id, PaymentMethod.Cash, null, 500);
+        Assert.Equal(SubscriptionStatus.Cancelled, shop.SubscriptionStatus);
+    }
+
+    [Fact]
+    public async Task RefreshReplay_RevokesTheWholeTokenFamily()
+    {
+        var store = new FakeRefreshTokenStore();
+        var userId = Guid.NewGuid();
+        static string Hash(string raw) => Convert.ToBase64String(
+            System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(raw)));
+        store.Seed("first", userId);
+
+        Assert.NotNull(await store.RotateAsync(Hash("first"), Hash("second"), DateTime.UtcNow.AddDays(1)));
+        Assert.Null(await store.RotateAsync(Hash("first"), Hash("third"), DateTime.UtcNow.AddDays(1)));
+        Assert.True(store.IsRevoked("second"));
+        Assert.Null(await store.RotateAsync(Hash("second"), Hash("fourth"), DateTime.UtcNow.AddDays(1)));
+    }
 }

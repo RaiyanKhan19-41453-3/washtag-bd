@@ -60,22 +60,30 @@ public class InvoiceStore : IInvoiceStore
             var remaining = Convert.ToInt32(await count.ExecuteScalarAsync(cancellationToken));
             if (remaining == 0)
             {
-                var renewal = now.AddMonths(1);
                 // A cancelled subscription is terminal. Paying an old invoice must not
-                // silently resurrect it or mint a fresh billing period; an admin has to
-                // restore it explicitly.
-                await using var shopUpdate = new NpgsqlCommand(
+                // silently resurrect it or mint a fresh billing period. For an active
+                // shop the term must never shrink: extend from the greater of the current
+                // end and now, so prepaid time is never revoked by a payment.
+                DateTime renewal;
+                await using (var shopUpdate = new NpgsqlCommand(
                     """
                     UPDATE "Shops"
                     SET "SubscriptionStatus" = CASE WHEN "SubscriptionStatus" = 3 THEN 3 ELSE 1 END,
-                        "SubscriptionStartedAt" = CASE WHEN "SubscriptionStatus" = 3 THEN "SubscriptionStartedAt" ELSE @now END,
-                        "SubscriptionEndsAt" = CASE WHEN "SubscriptionStatus" = 3 THEN "SubscriptionEndsAt" ELSE @end END
+                        "SubscriptionStartedAt" = CASE
+                            WHEN "SubscriptionStatus" = 3 OR "SubscriptionEndsAt" > @now THEN "SubscriptionStartedAt"
+                            ELSE @now END,
+                        "SubscriptionEndsAt" = CASE
+                            WHEN "SubscriptionStatus" = 3 THEN "SubscriptionEndsAt"
+                            ELSE GREATEST("SubscriptionEndsAt", @now) + interval '1 month' END
                     WHERE "Id" = @shop
-                    """, connection, transaction);
-                shopUpdate.Parameters.AddWithValue("now", now);
-                shopUpdate.Parameters.AddWithValue("end", renewal);
-                shopUpdate.Parameters.AddWithValue("shop", shopId);
-                await shopUpdate.ExecuteNonQueryAsync(cancellationToken);
+                    RETURNING "SubscriptionEndsAt"
+                    """, connection, transaction))
+                {
+                    shopUpdate.Parameters.AddWithValue("now", now);
+                    shopUpdate.Parameters.AddWithValue("shop", shopId);
+                    renewal = (DateTime)(await shopUpdate.ExecuteScalarAsync(cancellationToken)
+                        ?? now.AddMonths(1));
+                }
 
                 await using var nextInvoice = new NpgsqlCommand(
                     """
@@ -97,6 +105,28 @@ public class InvoiceStore : IInvoiceStore
 
         await transaction.CommitAsync(cancellationToken);
         return true;
+    }
+
+    public async Task EnsureCurrentInvoiceAsync(Guid shopId, decimal monthlyPrice, CancellationToken cancellationToken = default)
+    {
+        var now = DateTime.UtcNow;
+        var from = new DateTime(now.Year, now.Month, 1, 0, 0, 0, DateTimeKind.Utc);
+        await using var connection = new NpgsqlConnection(_connectionString);
+        await connection.OpenAsync(cancellationToken);
+        await using var command = new NpgsqlCommand(
+            """
+            INSERT INTO "Invoices" ("Id", "ShopId", "InvoiceNumber", "PeriodFrom", "PeriodTo", "Amount", "Status", "Method", "CreatedAt")
+            SELECT @id, @shop, @number, @from, @to, @amount, 0, 0, @now
+            WHERE NOT EXISTS (SELECT 1 FROM "Invoices" WHERE "ShopId" = @shop)
+            """, connection);
+        command.Parameters.AddWithValue("id", Guid.NewGuid());
+        command.Parameters.AddWithValue("shop", shopId);
+        command.Parameters.AddWithValue("number", $"INV-{from:yyyyMM}-{Guid.NewGuid().ToString("N")[..8].ToUpperInvariant()}");
+        command.Parameters.AddWithValue("from", from);
+        command.Parameters.AddWithValue("to", from.AddMonths(1));
+        command.Parameters.AddWithValue("amount", monthlyPrice);
+        command.Parameters.AddWithValue("now", now);
+        await command.ExecuteNonQueryAsync(cancellationToken);
     }
 
     public async Task<BillingDeadlineResult> ApplyDeadlinesAsync(DateTime now, Guid? shopId = null,
@@ -123,7 +153,7 @@ public class InvoiceStore : IInvoiceStore
             UPDATE "Shops" AS s SET "SubscriptionStatus" = 2
             WHERE s."IsActive" = true
               AND s."SubscriptionStatus" IN (0, 1)
-              AND s."SubscriptionEndsAt" < @now
+              AND s."SubscriptionEndsAt" <= @now
               AND (@shop::uuid IS NULL OR s."Id" = @shop)
               AND NOT EXISTS (
                   SELECT 1 FROM "Invoices" i
