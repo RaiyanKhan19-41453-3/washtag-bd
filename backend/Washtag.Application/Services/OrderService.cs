@@ -336,75 +336,102 @@ public class OrderService : IOrderService
 
     public async Task<DashboardDto> GetDashboardAsync(Guid shopId)
     {
-        var orders = await _db.Orders.AsNoTracking()
+        // Aggregate in SQL: the old version loaded every order (and its items) on
+        // every dashboard poll, so cost grew with the whole history and client count.
+        var today = DhakaNow.Date;
+        var dayStartUtc = today.AddHours(-6);            // Dhaka midnight in UTC
+        var tomorrowStartUtc = dayStartUtc.AddDays(1);
+        var weekStartUtc = dayStartUtc.AddDays(-6);
+
+        var stats = await _db.Orders.AsNoTracking()
             .Where(o => o.ShopId == shopId)
-            .Include(o => o.Items)
-            .OrderByDescending(o => o.CreatedAt)
-            .ToListAsync();
+            .GroupBy(o => 1)
+            .Select(g => new
+            {
+                Total = g.Count(),
+                Received = g.Count(o => o.Status == OrderStatus.Received),
+                Washing = g.Count(o => o.Status == OrderStatus.Washing),
+                Ironing = g.Count(o => o.Status == OrderStatus.Ironing),
+                Ready = g.Count(o => o.Status == OrderStatus.ReadyForPickup),
+                Delivered = g.Count(o => o.Status == OrderStatus.Delivered),
+                Cancelled = g.Count(o => o.Status == OrderStatus.Cancelled),
+                Active = g.Count(o => o.Status == OrderStatus.Received || o.Status == OrderStatus.Washing ||
+                                      o.Status == OrderStatus.Ironing || o.Status == OrderStatus.ReadyForPickup),
+                Unpaid = g.Count(o => o.PaymentStatus != PaymentStatus.Paid && o.Status != OrderStatus.Cancelled),
+                Collected = g.Sum(o => o.PaidAmount),
+                Outstanding = g.Sum(o => o.Status != OrderStatus.Cancelled ? o.TotalAmount - o.PaidAmount : 0),
+                Today = g.Count(o => o.CreatedAt >= dayStartUtc && o.CreatedAt < tomorrowStartUtc)
+            }).FirstOrDefaultAsync();
 
         var customerCount = await _db.Customers.CountAsync(c => c.ShopId == shopId);
-        var today = DhakaNow.Date;
-        var activeStatuses = new[]
-        {
-            OrderStatus.Received, OrderStatus.Washing, OrderStatus.Ironing, OrderStatus.ReadyForPickup
-        };
+        var recent = await _db.Orders.AsNoTracking()
+            .Where(o => o.ShopId == shopId)
+            .Include(o => o.Items)
+            .OrderByDescending(o => o.CreatedAt).ThenByDescending(o => o.Id)
+            .Take(6).ToListAsync();
 
-        var statusBreakdown = Enum.GetValues<OrderStatus>()
-            .Select(s => new StatusCountDto { Status = s.ToString(), Count = orders.Count(o => o.Status == s) })
-            .ToList();
-
-        var weeklyTrend = new List<DayCountDto>();
-        for (var i = 6; i >= 0; i--)
+        var weekDates = await _db.Orders.AsNoTracking()
+            .Where(o => o.ShopId == shopId && o.CreatedAt >= weekStartUtc && o.CreatedAt < tomorrowStartUtc)
+            .Select(o => o.CreatedAt).ToListAsync();
+        var weeklyTrend = Enumerable.Range(0, 7).Select(i =>
         {
-            var day = today.AddDays(-i);
-            weeklyTrend.Add(new DayCountDto
+            var day = today.AddDays(i - 6);
+            return new DayCountDto
             {
                 Label = day.ToString("ddd"),
-                Count = orders.Count(o => o.CreatedAt.AddHours(6).Date == day)
-            });
-        }
+                Count = weekDates.Count(d => d.AddHours(6).Date == day)
+            };
+        }).ToList();
+
+        var breakdown = new Dictionary<OrderStatus, int>
+        {
+            [OrderStatus.Received] = stats?.Received ?? 0,
+            [OrderStatus.Washing] = stats?.Washing ?? 0,
+            [OrderStatus.Ironing] = stats?.Ironing ?? 0,
+            [OrderStatus.ReadyForPickup] = stats?.Ready ?? 0,
+            [OrderStatus.Delivered] = stats?.Delivered ?? 0,
+            [OrderStatus.Cancelled] = stats?.Cancelled ?? 0
+        };
 
         return new DashboardDto
         {
-            TotalOrders = orders.Count,
-            ReceivedCount = orders.Count(o => o.Status == OrderStatus.Received),
-            WashingCount = orders.Count(o => o.Status == OrderStatus.Washing),
-            IroningCount = orders.Count(o => o.Status == OrderStatus.Ironing),
-            ReadyCount = orders.Count(o => o.Status == OrderStatus.ReadyForPickup),
-            DeliveredCount = orders.Count(o => o.Status == OrderStatus.Delivered),
-            CancelledCount = orders.Count(o => o.Status == OrderStatus.Cancelled),
-            ActiveCount = orders.Count(o => activeStatuses.Contains(o.Status)),
-            UnpaidCount = orders.Count(o => o.PaymentStatus != PaymentStatus.Paid && o.Status != OrderStatus.Cancelled),
-            Collected = orders.Sum(o => o.PaidAmount),
-            Outstanding = orders.Sum(o => o.Status != OrderStatus.Cancelled ? o.TotalAmount - o.PaidAmount : 0),
-            TodayOrders = orders.Count(o => o.CreatedAt.AddHours(6).Date == today),
+            TotalOrders = stats?.Total ?? 0,
+            ReceivedCount = stats?.Received ?? 0,
+            WashingCount = stats?.Washing ?? 0,
+            IroningCount = stats?.Ironing ?? 0,
+            ReadyCount = stats?.Ready ?? 0,
+            DeliveredCount = stats?.Delivered ?? 0,
+            CancelledCount = stats?.Cancelled ?? 0,
+            ActiveCount = stats?.Active ?? 0,
+            UnpaidCount = stats?.Unpaid ?? 0,
+            Collected = stats?.Collected ?? 0,
+            Outstanding = stats?.Outstanding ?? 0,
+            TodayOrders = stats?.Today ?? 0,
             CustomerCount = customerCount,
-            RecentOrders = orders.Take(6).Select(MapList).ToList(),
-            StatusBreakdown = statusBreakdown,
+            RecentOrders = recent.Select(MapList).ToList(),
+            StatusBreakdown = breakdown.Select(x => new StatusCountDto { Status = x.Key.ToString(), Count = x.Value }).ToList(),
             WeeklyTrend = weeklyTrend
         };
     }
 
     public async Task<List<CustomerDto>> GetCustomersAsync(Guid shopId)
     {
-        var orders = await _db.Orders.AsNoTracking().Where(o => o.ShopId == shopId).ToListAsync();
-
-        return orders.GroupBy(o => o.CustomerPhone.Trim())
-            .Select(group =>
+        // Group and aggregate in the database instead of loading every order.
+        return await _db.Orders.AsNoTracking()
+            .Where(o => o.ShopId == shopId)
+            .GroupBy(o => o.CustomerPhone.Trim())
+            .Select(group => new CustomerDto
             {
-                var latest = group.OrderByDescending(o => o.CreatedAt).First();
-                return new CustomerDto
-                {
-                    Name = latest.CustomerName,
-                    Phone = group.Key,
-                    OrderCount = group.Count(o => o.Status != OrderStatus.Cancelled),
-                    TotalSpent = group.Where(o => o.Status != OrderStatus.Cancelled).Sum(o => o.TotalAmount),
-                    UnpaidAmount = group.Sum(o => o.Status != OrderStatus.Cancelled ? o.TotalAmount - o.PaidAmount : 0),
-                    LastOrderAt = group.Max(o => o.CreatedAt)
-                };
+                Name = group.OrderByDescending(o => o.CreatedAt).ThenByDescending(o => o.Id)
+                    .Select(o => o.CustomerName).First(),
+                Phone = group.Key,
+                OrderCount = group.Count(o => o.Status != OrderStatus.Cancelled),
+                TotalSpent = group.Where(o => o.Status != OrderStatus.Cancelled).Sum(o => o.TotalAmount),
+                UnpaidAmount = group.Sum(o => o.Status != OrderStatus.Cancelled ? o.TotalAmount - o.PaidAmount : 0),
+                LastOrderAt = group.Max(o => o.CreatedAt)
             })
             .OrderByDescending(c => c.LastOrderAt)
-            .ToList();
+            .ToListAsync();
     }
 
     public async Task<ShopDto> UpdateShopAsync(Guid shopId, UpdateShopRequest request)

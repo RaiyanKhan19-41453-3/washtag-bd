@@ -24,6 +24,7 @@ public class AppDbContext : DbContext, IAppDbContext
         mb.Entity<Shop>(e =>
         {
             e.HasIndex(x => x.Email).IsUnique();
+            e.HasIndex(x => new { x.SubscriptionStatus, x.SubscriptionEndsAt });
             e.Property(x => x.RowVersion).IsRowVersion();
             e.Property(x => x.Name).HasMaxLength(150);
             e.Property(x => x.Email).HasMaxLength(150);
@@ -79,6 +80,8 @@ public class AppDbContext : DbContext, IAppDbContext
         {
             e.HasIndex(x => x.InvoiceNumber).IsUnique();
             e.HasIndex(x => x.ShopId);
+            e.HasIndex(x => new { x.ShopId, x.Status });
+            e.HasIndex(x => new { x.Status, x.PeriodTo });
             e.Property(x => x.Amount).HasPrecision(18, 2);
             e.HasOne(x => x.Shop).WithMany(x => x.Invoices).HasForeignKey(x => x.ShopId).OnDelete(DeleteBehavior.Cascade);
         });
@@ -93,6 +96,7 @@ public class AppDbContext : DbContext, IAppDbContext
         mb.Entity<AssistantMessage>(e =>
         {
             e.HasIndex(x => new { x.ShopId, x.UserId, x.CreatedAt });
+            e.HasIndex(x => x.CreatedAt);
             e.HasOne<Shop>().WithMany().HasForeignKey(x => x.ShopId).OnDelete(DeleteBehavior.Cascade);
             e.HasOne<AppUser>().WithMany().HasForeignKey(x => x.UserId).OnDelete(DeleteBehavior.Cascade);
         });

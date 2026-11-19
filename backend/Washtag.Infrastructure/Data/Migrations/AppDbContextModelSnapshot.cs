@@ -112,6 +112,8 @@ namespace Washtag.Infrastructure.Data.Migrations
 
                     b.HasKey("Id");
 
+                    b.HasIndex("CreatedAt");
+
                     b.HasIndex("UserId");
 
                     b.HasIndex("ShopId", "UserId", "CreatedAt");
@@ -197,6 +199,10 @@ namespace Washtag.Infrastructure.Data.Migrations
                         .IsUnique();
 
                     b.HasIndex("ShopId");
+
+                    b.HasIndex("ShopId", "Status");
+
+                    b.HasIndex("Status", "PeriodTo");
 
                     b.ToTable("Invoices");
                 });
@@ -450,6 +456,8 @@ namespace Washtag.Infrastructure.Data.Migrations
 
                     b.HasIndex("Email")
                         .IsUnique();
+
+                    b.HasIndex("SubscriptionStatus", "SubscriptionEndsAt");
 
                     b.ToTable("Shops");
                 });
