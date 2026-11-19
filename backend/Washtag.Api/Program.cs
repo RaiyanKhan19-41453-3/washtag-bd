@@ -36,7 +36,8 @@ var maintenance = new MaintenanceOptions
     // The assistant initializer already reindexes every shop at startup; avoid a
     // second full sweep 20 seconds later.
     RunOnStartup = builder.Configuration.GetValue("MAINTENANCE_RUN_ON_STARTUP", false),
-    ChatRetentionDays = Math.Clamp(builder.Configuration.GetValue("MAINTENANCE_CHAT_RETENTION_DAYS", 90), 1, 3650)
+    // Zero or negative disables chat retention rather than silently becoming "1 day".
+    ChatRetentionDays = builder.Configuration.GetValue("MAINTENANCE_CHAT_RETENTION_DAYS", 90)
 };
 builder.Services.AddSingleton(maintenance);
 if (maintenance.Enabled) builder.Services.AddHostedService<MaintenanceWorker>();
@@ -187,6 +188,16 @@ builder.Services.AddRateLimiter(options =>
                 Window = TimeSpan.FromMinutes(1),
                 QueueLimit = 0
             }));
+    options.AddPolicy("maintenance", context =>
+        RateLimitPartition.GetFixedWindowLimiter(
+            context.User.FindFirstValue(ClaimTypes.NameIdentifier) ?? context.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+            _ => new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = 2,
+                Window = TimeSpan.FromMinutes(5),
+                QueueLimit = 0
+            }));
+
     options.AddPolicy("public", context =>
         RateLimitPartition.GetFixedWindowLimiter(
             context.Connection.RemoteIpAddress?.ToString() ?? "unknown",
@@ -219,15 +230,27 @@ builder.Services.Configure<ForwardedHeadersOptions>(options =>
 
 var app = builder.Build();
 
-if (app.Environment.IsProduction() &&
-    app.Configuration.GetValue("SEED_DEMO_DATA", true) &&
-    app.Configuration.GetValue("ADMIN_EMAILS", string.Empty).Contains("demo@washtagbd.com", StringComparison.OrdinalIgnoreCase))
+var seedFlagRaw = Environment.GetEnvironmentVariable("SEED_DEMO_DATA")
+    ?? app.Configuration["SEED_DEMO_DATA"] ?? "true";
+var normalizedSeed = seedFlagRaw.Trim();
+var seedDemo = normalizedSeed.Equals("true", StringComparison.OrdinalIgnoreCase) ||
+               normalizedSeed is "1" or "yes" or "on";
+
+if (app.Environment.IsProduction() && seedDemo &&
+    app.Configuration.GetValue("ADMIN_EMAILS", string.Empty).Contains("demo@washtagbd.com", StringComparison.OrdinalIgnoreCase) &&
+    !app.Configuration.GetValue("ALLOW_DEMO_IN_PRODUCTION", false))
 {
-    app.Logger.LogCritical(
-        "Production is running with demo seeding and the public demo admin address. " +
-        "The public demo account has platform-admin rights. " +
-        "Use docker-compose.prod.yml with a fresh pgdata volume and your own ADMIN_EMAILS.");
+    throw new InvalidOperationException(
+        "Refusing to start: Production is configured with demo seeding and the public demo admin address. " +
+        "Use docker-compose.prod.yml with a fresh pgdata volume, an empty ADMIN_EMAILS for bootstrap, " +
+        "and your own owner account. Set ALLOW_DEMO_IN_PRODUCTION=true only for an intentionally public demo.");
 }
+var configuredAdmins = (app.Configuration["ADMIN_EMAILS"] ?? string.Empty)
+    .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).Length;
+app.Logger.LogInformation("Platform admin accounts configured: {Count}", configuredAdmins);
+if (configuredAdmins == 0 && app.Environment.IsProduction())
+    app.Logger.LogWarning("ADMIN_EMAILS is empty; register an owner first, then set it and restart.");
+
 if (emptyAllowedOrigins && app.Environment.IsProduction())
     app.Logger.LogWarning("ALLOWED_ORIGINS is empty; only same-origin requests through the web proxy will work.");
 if (app.Environment.IsProduction() && string.IsNullOrWhiteSpace(app.Configuration["PUBLIC_BASE_URL"]))
@@ -292,12 +315,8 @@ app.MapGet("/health", async (IServiceProvider services) =>
     }
 }).AllowAnonymous();
 
-var seedFlag = Environment.GetEnvironmentVariable("SEED_DEMO_DATA")
-    ?? builder.Configuration["SEED_DEMO_DATA"] ?? "true";
 if (usingWeakSecret && app.Environment.IsProduction())
     app.Logger.LogWarning("JWT_SECRET is unset, weak, or the development default; using an ephemeral secret. Tokens will reset on restart.");
-
-var seedDemo = seedFlag.Equals("true", StringComparison.OrdinalIgnoreCase);
 foreach (var delay in new[] { 0, 2, 5, 10, 20 })
 {
     if (delay > 0) await Task.Delay(TimeSpan.FromSeconds(delay));

@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Washtag.Application.DTOs;
 using Washtag.Application.Interfaces;
+using Washtag.Domain.Entities;
 using Washtag.Domain.Enums;
 
 namespace Washtag.Application.Services;
@@ -46,8 +47,10 @@ public sealed class MaintenanceService : IMaintenanceService
 
         try
         {
-            var cutoff = now.AddDays(-_options.ChatRetentionDays);
-            var stale = await _db.AssistantMessages
+            var cutoff = now.AddDays(-Math.Max(1, _options.ChatRetentionDays));
+            var stale = _options.ChatRetentionDays <= 0
+                ? new List<AssistantMessage>()
+                : await _db.AssistantMessages
                 .Where(m => m.CreatedAt < cutoff)
                 .ToListAsync(cancellationToken);
             if (stale.Count > 0)

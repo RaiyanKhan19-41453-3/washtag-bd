@@ -27,7 +27,8 @@ public sealed class MaintenanceWorker : BackgroundService
         if (_options.RunOnStartup)
             await RunOnceAsync(stoppingToken);
 
-        using var timer = new PeriodicTimer(TimeSpan.FromMinutes(Math.Max(1, _options.IntervalMinutes)));
+        // A misconfigured 0/negative interval must not turn this into a per-minute sweep.
+        using var timer = new PeriodicTimer(TimeSpan.FromMinutes(Math.Max(5, _options.IntervalMinutes)));
         while (await timer.WaitForNextTickAsync(stoppingToken))
             await RunOnceAsync(stoppingToken);
     }

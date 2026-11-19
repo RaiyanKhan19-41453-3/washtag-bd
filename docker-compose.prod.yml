@@ -6,9 +6,10 @@ services:
   api:
     environment:
       SEED_DEMO_DATA: "false"
+      ALLOW_DEMO_IN_PRODUCTION: "false"
       ADMIN_EMAILS: "${ADMIN_EMAILS:-}"
       ALLOWED_ORIGINS: "${ALLOWED_ORIGINS:-}"
-      PUBLIC_BASE_URL: "${PUBLIC_BASE_URL:-}"
+      PUBLIC_BASE_URL: "${PUBLIC_BASE_URL:?Set PUBLIC_BASE_URL to your https origin}"
       JWT_SECRET: "${JWT_SECRET:?Set a strong JWT_SECRET (at least 32 characters) in .env}"
       ENABLE_SWAGGER: "false"
       MAINTENANCE_ENABLED: "${MAINTENANCE_ENABLED:-true}"

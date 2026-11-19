@@ -190,7 +190,9 @@ public class ControllerTests
             .ReturnsAsync(new MaintenanceResultDto { ReindexedShops = 1 });
         var settings = new Mock<IAdminSettings>();
         settings.Setup(s => s.IsAdmin("admin@test.com")).Returns(true);
-        var controller = new MaintenanceController(service.Object, settings.Object);
+        var controller = new MaintenanceController(service.Object, settings.Object,
+            new Washtag.Application.MaintenanceOptions(),
+            Microsoft.Extensions.Logging.Abstractions.NullLogger<MaintenanceController>.Instance);
 
         Authenticate(controller, Guid.NewGuid());
         Assert.IsType<ForbidResult>(await controller.Run());

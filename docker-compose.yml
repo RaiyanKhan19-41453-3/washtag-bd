@@ -55,6 +55,8 @@ services:
       JWT_ISSUER: WashtagBD
       JWT_AUDIENCE: WashtagBDClient
       SEED_DEMO_DATA: ${SEED_DEMO_DATA:-true}
+      # The base file is the local demo profile. The production override sets this false.
+      ALLOW_DEMO_IN_PRODUCTION: ${ALLOW_DEMO_IN_PRODUCTION:-true}
       OPENAI_API_KEY: ${OPENAI_API_KEY:-}
       OPENAI_BASE_URL: ${OPENAI_BASE_URL:-https://api.openai.com/v1}
       OPENAI_EMBEDDING_MODEL: ${OPENAI_EMBEDDING_MODEL:-text-embedding-3-small}

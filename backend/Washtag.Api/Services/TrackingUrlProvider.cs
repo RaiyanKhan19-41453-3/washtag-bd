@@ -18,7 +18,14 @@ public class TrackingUrlProvider : ITrackingUrlProvider
     public string Build(Guid token)
     {
         if (!string.IsNullOrWhiteSpace(_publicBaseUrl))
-            return $"{_publicBaseUrl.TrimEnd('/')}/track/{token}";
+        {
+            // Only the scheme+host+port belong in a tracking link; a path would make
+            // printed QR codes point at a route the SPA does not serve.
+            var origin = Uri.TryCreate(_publicBaseUrl, UriKind.Absolute, out var uri)
+                ? uri.GetLeftPart(UriPartial.Authority)
+                : _publicBaseUrl.TrimEnd('/');
+            return $"{origin}/track/{token}";
+        }
 
         var request = _accessor.HttpContext?.Request;
         if (request == null) return $"http://localhost:8081/track/{token}";
