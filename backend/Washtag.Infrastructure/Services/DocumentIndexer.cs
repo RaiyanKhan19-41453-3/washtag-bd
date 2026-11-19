@@ -63,12 +63,14 @@ public class DocumentIndexer : IDocumentIndexer
             .Where(o => o.ShopId == shopId)
             .Include(o => o.Items)
             .Include(o => o.Shop)
+            .OrderByDescending(o => o.CreatedAt)
             .Take(500)
             .ToListAsync(cancellationToken);
         foreach (var order in orders) await IndexOrderAsync(order, cancellationToken);
 
         var customers = await _db.Customers.AsNoTracking()
-            .Where(c => c.ShopId == shopId).Take(500).ToListAsync(cancellationToken);
+            .Where(c => c.ShopId == shopId).OrderByDescending(c => c.CreatedAt)
+            .Take(500).ToListAsync(cancellationToken);
         foreach (var customer in customers)
             await IndexCustomerAsync(shopId, customer.Phone, cancellationToken);
 
