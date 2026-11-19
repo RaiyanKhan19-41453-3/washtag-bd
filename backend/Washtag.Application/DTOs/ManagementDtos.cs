@@ -107,3 +107,14 @@ public class AdminStatsDto
     public decimal Collected { get; set; }
     public List<AdminShopDto> Shops { get; set; } = new();
 }
+
+public class MaintenanceResultDto
+{
+    public DateTime RanAt { get; set; }
+    public int OverdueInvoices { get; set; }
+    public int ExpiredSubscriptions { get; set; }
+    public int ShopsMarkedPastDue { get; set; }
+    public int PrunedMessages { get; set; }
+    public bool TokensPurged { get; set; }
+    public int ReindexedShops { get; set; }
+}

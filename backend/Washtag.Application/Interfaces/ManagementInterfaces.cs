@@ -29,3 +29,9 @@ public interface IAdminService
     Task<ShopDto> SetShopActiveAsync(Guid shopId, bool active, CancellationToken cancellationToken = default);
     Task<ShopDto> CancelShopSubscriptionAsync(Guid shopId, CancellationToken cancellationToken = default);
 }
+
+/// <summary>Idempotent housekeeping: billing deadlines, retention and vector freshness.</summary>
+public interface IMaintenanceService
+{
+    Task<MaintenanceResultDto> RunAsync(CancellationToken cancellationToken = default);
+}
