@@ -152,4 +152,5 @@ If you need multiple replicas: add a shared secret, a Postgres advisory lock aro
 - Invoice settlement is **self-declared** (cash/bKash/card reference, no gateway webhook). A shop owner can mark an invoice paid to renew. Add a verified payment provider before charging real money.
 - Tokens are stored in `localStorage`; XSS is mitigated by a strict CSP but HttpOnly cookie auth with CSRF protection would be stronger.
 - Bengali translations are partial (English fallback per string).
-- The assistant uses deterministic local embeddings by default; an LLM is optional.
+- The assistant uses deterministic local embeddings by default; an LLM is optional. Reindexing is a synchronous, one-embedding-per-document operation capped at 500 orders and 500 customers per shop (newest first), so very large shops should reindex off-peak. Mixing embedding models/providers without rebuilding the index degrades retrieval quality (facts are still computed from the database).
+- Domain "not found" errors are returned as HTTP 400 rather than 404 for historical compatibility.
