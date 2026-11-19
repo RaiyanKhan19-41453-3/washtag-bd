@@ -59,7 +59,7 @@ public class AssistantController : ControllerBase
     [HttpGet("status")]
     public async Task<IActionResult> Status() => Ok(await _assistant.GetStatusAsync(ShopId));
 
-    [EnableRateLimiting("ai")]
+    [EnableRateLimiting("reindex")]
     [HttpPost("reindex")]
     public async Task<IActionResult> Reindex() => Ok(new { documents = await _assistant.ReindexAsync(ShopId, HttpContext.RequestAborted) });
 }

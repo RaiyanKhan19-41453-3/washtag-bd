@@ -13,6 +13,7 @@ public interface IAiProvider
 {
     string Name { get; }
     string EmbeddingModel { get; }
+    bool UsedLocalEmbedding { get; }
     Task<float[]> EmbedAsync(string text, CancellationToken cancellationToken = default);
     Task<string?> GenerateAnswerAsync(string question, string groundedContext, CancellationToken cancellationToken = default);
 }

@@ -55,7 +55,7 @@ public class AssistantService : IAssistantService
 
         // Hashed offline embeddings cannot reliably separate relevant from unrelated
         // documents, so never present them as cited sources.
-        var offline = _ai.Name.StartsWith("Local", StringComparison.OrdinalIgnoreCase);
+        var offline = _ai.UsedLocalEmbedding || _ai.Name.StartsWith("Local", StringComparison.OrdinalIgnoreCase);
         var sources = offline ? new List<AssistantSourceDto>() : BuildSources(matches);
         var answer = string.IsNullOrWhiteSpace(phrased)
             ? ComposeLocalAnswer(facts, matches, plan, offline)

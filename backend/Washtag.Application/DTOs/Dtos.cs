@@ -71,14 +71,14 @@ public class CreateOrderItemRequest
     [MaxLength(80)] public string Service { get; set; } = "Wash & Fold";
     [Range(1, 1000)] public int Quantity { get; set; } = 1;
     [Range(0, 1000000)] public decimal UnitPrice { get; set; }
-    public string? Notes { get; set; }
+    [MaxLength(1000)] public string? Notes { get; set; }
 }
 
 public class CreateOrderRequest
 {
     [Required, MaxLength(150)] public string CustomerName { get; set; } = string.Empty;
     [Required, MaxLength(30)] public string CustomerPhone { get; set; } = string.Empty;
-    public string? Notes { get; set; }
+    [MaxLength(1000)] public string? Notes { get; set; }
     public DateTime? DueDate { get; set; }
     [MinLength(1)] public List<CreateOrderItemRequest> Items { get; set; } = new();
 }

@@ -63,11 +63,12 @@ public class DocumentIndexer : IDocumentIndexer
             .Where(o => o.ShopId == shopId)
             .Include(o => o.Items)
             .Include(o => o.Shop)
+            .Take(500)
             .ToListAsync(cancellationToken);
         foreach (var order in orders) await IndexOrderAsync(order, cancellationToken);
 
         var customers = await _db.Customers.AsNoTracking()
-            .Where(c => c.ShopId == shopId).ToListAsync(cancellationToken);
+            .Where(c => c.ShopId == shopId).Take(500).ToListAsync(cancellationToken);
         foreach (var customer in customers)
             await IndexCustomerAsync(shopId, customer.Phone, cancellationToken);
 
@@ -102,6 +103,6 @@ public class DocumentIndexer : IDocumentIndexer
                $"Total ৳{order.TotalAmount:0}, paid ৳{order.PaidAmount:0}, due ৳{due:0}. " +
                $"Created {order.CreatedAt:yyyy-MM-dd}, expected pickup {order.DueDate:yyyy-MM-dd}, " +
                $"delivered {order.DeliveredAt:yyyy-MM-dd}. " +
-               $"Items: {items}. Notes: {order.Notes ?? "none"}.";
+               $"Items: {items}. Notes: {(order.Notes ?? "none")[..Math.Min(order.Notes?.Length ?? 4, 1000)]}.";
     }
 }

@@ -142,10 +142,21 @@ builder.Services.AddRateLimiter(options =>
 
     options.AddPolicy("ai", context =>
         RateLimitPartition.GetFixedWindowLimiter(
-            context.User.FindFirstValue("sub") ?? context.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+            context.User.FindFirstValue(ClaimTypes.NameIdentifier) ?? context.User.FindFirstValue("sub")
+                ?? context.Connection.RemoteIpAddress?.ToString() ?? "unknown",
             _ => new FixedWindowRateLimiterOptions
             {
                 PermitLimit = 20,
+                Window = TimeSpan.FromMinutes(1),
+                QueueLimit = 0
+            }));
+    options.AddPolicy("reindex", context =>
+        RateLimitPartition.GetFixedWindowLimiter(
+            context.User.FindFirstValue(ClaimTypes.NameIdentifier) ?? context.User.FindFirstValue("sub")
+                ?? context.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+            _ => new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = 2,
                 Window = TimeSpan.FromMinutes(1),
                 QueueLimit = 0
             }));
@@ -183,9 +194,10 @@ if (builder.Configuration.GetValue("ENABLE_SWAGGER", builder.Environment.IsDevel
     });
 }
 app.UseCors("App");
-app.UseRateLimiter();
 app.UseAuthentication();
 app.UseAuthorization();
+// Rate-limit after authentication so per-user partition keys are available.
+app.UseRateLimiter();
 app.MapControllers();
 app.MapHub<OrdersHub>("/hubs/orders");
 app.MapGet("/health", async (IServiceProvider services) =>

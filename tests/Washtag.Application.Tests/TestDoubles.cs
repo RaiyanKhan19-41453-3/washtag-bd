@@ -107,6 +107,7 @@ public sealed class FakeAi : IAiProvider
 {
     public string Name => "Test provider";
     public string EmbeddingModel => "test-384";
+    public bool UsedLocalEmbedding => false;
     public Task<float[]> EmbedAsync(string text, CancellationToken cancellationToken = default) =>
         Task.FromResult(new float[AiConstants.EmbeddingDimensions]);
     public Task<string?> GenerateAnswerAsync(string question, string groundedContext, CancellationToken cancellationToken = default) =>
