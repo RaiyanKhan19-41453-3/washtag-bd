@@ -93,6 +93,11 @@ public class AdminShopDto
     public decimal Collected { get; set; }
 }
 
+public class AdminShopActiveRequest
+{
+    public bool Active { get; set; }
+}
+
 public class AdminStatsDto
 {
     public int ShopCount { get; set; }

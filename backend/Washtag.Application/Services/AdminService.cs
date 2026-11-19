@@ -2,6 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using Washtag.Application.DTOs;
 using Washtag.Application.Interfaces;
 using Washtag.Domain.Enums;
+using Washtag.Domain.Exceptions;
 
 namespace Washtag.Application.Services;
 
@@ -60,5 +61,25 @@ public class AdminService : IAdminService
             Collected = orders.Sum(o => o.PaidAmount),
             Shops = list
         };
+    }
+
+    public async Task<ShopDto> SetShopActiveAsync(Guid shopId, bool active, CancellationToken cancellationToken = default)
+    {
+        var shop = await _db.Shops.FirstOrDefaultAsync(s => s.Id == shopId, cancellationToken)
+            ?? throw new AppException("Shop not found.");
+        shop.IsActive = active;
+        if (active && shop.SubscriptionStatus == SubscriptionStatus.Cancelled)
+            shop.SubscriptionStatus = SubscriptionStatus.Active;
+        await _db.SaveChangesAsync(cancellationToken);
+        return AuthService.MapShop(shop);
+    }
+
+    public async Task<ShopDto> CancelShopSubscriptionAsync(Guid shopId, CancellationToken cancellationToken = default)
+    {
+        var shop = await _db.Shops.FirstOrDefaultAsync(s => s.Id == shopId, cancellationToken)
+            ?? throw new AppException("Shop not found.");
+        shop.SubscriptionStatus = SubscriptionStatus.Cancelled;
+        await _db.SaveChangesAsync(cancellationToken);
+        return AuthService.MapShop(shop);
     }
 }

@@ -26,4 +26,6 @@ public interface IBillingService
 public interface IAdminService
 {
     Task<AdminStatsDto> GetStatsAsync(CancellationToken cancellationToken = default);
+    Task<ShopDto> SetShopActiveAsync(Guid shopId, bool active, CancellationToken cancellationToken = default);
+    Task<ShopDto> CancelShopSubscriptionAsync(Guid shopId, CancellationToken cancellationToken = default);
 }
