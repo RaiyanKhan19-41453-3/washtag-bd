@@ -60,7 +60,7 @@ export default function PrintReceipt() {
         <div className="receipt-items">
           {order.items.map((item) => (
             <div className="receipt-item" key={item.id}>
-              <span>{item.quantity} × {item.name}</span>
+              <span>{item.quantity} × {item.name}{item.service ? ` · ${item.service}` : ''}</span>
               <span>৳{item.lineTotal}</span>
             </div>
           ))}

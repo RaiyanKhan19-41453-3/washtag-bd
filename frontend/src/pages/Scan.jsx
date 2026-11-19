@@ -26,6 +26,9 @@ export default function Scan() {
   const [order, setOrder] = useState(null);
   const [busy, setBusy] = useState(false);
   const [cameraError, setCameraError] = useState('');
+  const [payAmount, setPayAmount] = useState('');
+  const [payMethod, setPayMethod] = useState('Cash');
+  const [paying, setPaying] = useState(false);
   const toast = useToast();
   const { t } = useLanguage();
 
@@ -93,6 +96,22 @@ export default function Scan() {
     } finally {
       setBusy(false);
     }
+  };
+
+  const recordPayment = async (event) => {
+    event.preventDefault();
+    if (!order || paying) return;
+    setPaying(true);
+    try {
+      const { data } = await api.post(`/orders/${order.id}/payment`, {
+        amount: Number(payAmount), method: payMethod
+      });
+      setOrder(data);
+      setPayAmount('');
+      toast.success('Payment recorded.');
+    } catch (error) {
+      toast.error(error.message);
+    } finally { setPaying(false); }
   };
 
   const remaining = order && order.status !== 'Cancelled'
@@ -179,6 +198,16 @@ export default function Scan() {
                     {status === 'Delivered' ? 'Mark delivered' : `Move to ${STATUS_LABELS[status]}`}
                   </button>
                 )) : <p className="muted">This order is complete.</p>}
+                {order.status !== 'Cancelled' && order.paymentStatus !== 'Paid' && (
+                  <form className="scan-payment" onSubmit={recordPayment}>
+                    <label className="field"><span>Payment amount (৳)</span>
+                      <input type="number" min="0.01" step="0.01" max={Math.max(0, order.totalAmount - (order.paidAmount || 0))}
+                        value={payAmount} onChange={(e) => setPayAmount(e.target.value)} placeholder="0.00" required />
+                    </label>
+                    <button className="btn btn-success btn-sm btn-block" type="submit" disabled={paying || !payAmount}>{paying ? 'Saving…' : 'Record payment'}</button>
+                  </form>
+                )}
+                <Link to={`/print/${order.publicToken}`} className="text-link">Print receipt <ArrowRight size={15} /></Link>
                 <Link to={`/app/orders/${order.id}`} className="text-link">Open full details <ArrowRight size={15} /></Link>
               </div>
             </div>

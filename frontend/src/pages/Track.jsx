@@ -151,7 +151,7 @@ export default function Track() {
         <footer className="track-footer">
           <p>{t('Expected pickup')}: <strong>{order.dueDate ? formatDate(order.dueDate) : '—'}</strong></p>
           {order.deliveredAt && <p>Delivered on <strong>{formatDateTime(order.deliveredAt)}</strong></p>}
-          <p>{t('Questions? Call the shop at')} <strong>{shop.phone || '—'}</strong></p>
+          <p>{t('Questions? Call the shop at')} <strong>{shop.phone ? <a href={`tel:${shop.phone.replace(/[^\d+]/g, '')}`}>{shop.phone}</a> : '—'}</strong></p>
         </footer>
       </div>
       <p className="track-power">{t('Powered by')} <strong>WashTag BD</strong> · {t('Live QR tracking')}</p>
