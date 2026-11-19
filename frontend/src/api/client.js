@@ -17,7 +17,7 @@ export function storeTokens({ token, refreshToken }) {
   if (refreshToken) localStorage.setItem('washtag_refresh_token', refreshToken);
 }
 
-function sessionSecret() {
+export function sessionSecret() {
   let value = localStorage.getItem('washtag_session_secret');
   if (!value) {
     value = crypto.randomUUID?.() ?? `${Date.now()}-${Math.random().toString(36).slice(2)}`;

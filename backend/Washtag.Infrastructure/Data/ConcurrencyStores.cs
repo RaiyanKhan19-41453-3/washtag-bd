@@ -63,7 +63,7 @@ public class RefreshTokenStore : IRefreshTokenStore
     }
 
     public async Task<Guid?> RotateAsync(string oldHash, string newHash, DateTime expiresAt,
-        CancellationToken cancellationToken = default)
+        string? sessionHash = null, CancellationToken cancellationToken = default)
     {
         await using var connection = new NpgsqlConnection(_connectionString);
         await connection.OpenAsync(cancellationToken);
@@ -74,11 +74,13 @@ public class RefreshTokenStore : IRefreshTokenStore
             """
             UPDATE "RefreshTokens" SET "RevokedAt" = now(), "ReplacedBy" = @new
             WHERE "TokenHash" = @old AND "RevokedAt" IS NULL AND "ExpiresAt" > now()
+              AND ("SessionHash" IS NULL OR "SessionHash" = @session)
             RETURNING "UserId"
             """, connection, transaction))
         {
             claim.Parameters.AddWithValue("new", newHash);
             claim.Parameters.AddWithValue("old", oldHash);
+            claim.Parameters.AddWithValue("session", (object?)sessionHash ?? DBNull.Value);
             var result = await claim.ExecuteScalarAsync(cancellationToken);
             if (result == null || result == DBNull.Value)
             {
@@ -86,14 +88,22 @@ public class RefreshTokenStore : IRefreshTokenStore
                 // another tab, not theft. Leave the successor alive so the winner's
                 // session survives; AuthService can hand both callers the same token.
                 DateTime? revokedAt = null;
+                string? storedSession = null;
                 await using (var check = new NpgsqlCommand(
-                    "SELECT \"RevokedAt\" FROM \"RefreshTokens\" WHERE \"TokenHash\" = @old", connection, transaction))
+                    "SELECT \"RevokedAt\", \"SessionHash\" FROM \"RefreshTokens\" WHERE \"TokenHash\" = @old", connection, transaction))
                 {
                     check.Parameters.AddWithValue("old", oldHash);
-                    var value = await check.ExecuteScalarAsync(cancellationToken);
-                    if (value is DateTime dt) revokedAt = dt;
+                    await using var reader = await check.ExecuteReaderAsync(cancellationToken);
+                    if (await reader.ReadAsync(cancellationToken))
+                    {
+                        if (reader[0] is DateTime dt) revokedAt = dt;
+                        if (reader[1] is string s) storedSession = s;
+                    }
                 }
-                if (revokedAt.HasValue && revokedAt.Value > DateTime.UtcNow.AddSeconds(-30))
+                // A different browser secret means theft: revoke the whole lineage,
+                // including the successor the attacker just obtained.
+                var wrongSession = storedSession != null && storedSession != sessionHash;
+                if (!wrongSession && revokedAt.HasValue && revokedAt.Value > DateTime.UtcNow.AddSeconds(-30))
                 {
                     await transaction.CommitAsync(cancellationToken);
                     return null;
@@ -121,13 +131,14 @@ public class RefreshTokenStore : IRefreshTokenStore
 
         await using (var insert = new NpgsqlCommand(
             """
-            INSERT INTO "RefreshTokens" ("Id", "UserId", "TokenHash", "ExpiresAt", "CreatedAt")
-            VALUES (@id, @user, @hash, @expires, @now)
+            INSERT INTO "RefreshTokens" ("Id", "UserId", "TokenHash", "SessionHash", "ExpiresAt", "CreatedAt")
+            VALUES (@id, @user, @hash, @session, @expires, @now)
             """, connection, transaction))
         {
             insert.Parameters.AddWithValue("id", Guid.NewGuid());
             insert.Parameters.AddWithValue("user", userId);
             insert.Parameters.AddWithValue("hash", newHash);
+            insert.Parameters.AddWithValue("session", (object?)sessionHash ?? DBNull.Value);
             insert.Parameters.AddWithValue("expires", expiresAt);
             insert.Parameters.AddWithValue("now", DateTime.UtcNow);
             await insert.ExecuteNonQueryAsync(cancellationToken);
@@ -135,6 +146,17 @@ public class RefreshTokenStore : IRefreshTokenStore
 
         await transaction.CommitAsync(cancellationToken);
         return userId;
+    }
+
+    public async Task<bool> IsActiveAsync(string tokenHash, CancellationToken cancellationToken = default)
+    {
+        await using var connection = new NpgsqlConnection(_connectionString);
+        await connection.OpenAsync(cancellationToken);
+        await using var command = new NpgsqlCommand(
+            "SELECT true FROM \"RefreshTokens\" WHERE \"TokenHash\" = @h AND \"RevokedAt\" IS NULL AND \"ExpiresAt\" > now() LIMIT 1",
+            connection);
+        command.Parameters.AddWithValue("h", tokenHash);
+        return await command.ExecuteScalarAsync(cancellationToken) is true;
     }
 
     public async Task RevokeAllAsync(Guid userId, CancellationToken cancellationToken = default)

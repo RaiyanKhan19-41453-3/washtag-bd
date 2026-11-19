@@ -20,6 +20,7 @@ public class Shop
     public DateTime SubscriptionEndsAt { get; set; } = DateTime.UtcNow.AddYears(1);
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public byte[] RowVersion { get; set; } = Array.Empty<byte>();
+    public bool CatalogueInitialized { get; set; }
 
     public ICollection<AppUser> Users { get; set; } = new List<AppUser>();
     public ICollection<Order> Orders { get; set; } = new List<Order>();
@@ -160,6 +161,7 @@ public class RefreshToken
     public Guid Id { get; set; } = Guid.NewGuid();
     public Guid UserId { get; set; }
     public string TokenHash { get; set; } = string.Empty;
+    public string? SessionHash { get; set; }
     public DateTime ExpiresAt { get; set; }
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public DateTime? RevokedAt { get; set; }

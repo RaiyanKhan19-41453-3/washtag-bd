@@ -9,6 +9,9 @@ namespace Washtag.Application.Tests;
 
 public class AuthServiceTests
 {
+    private static string Hash(string raw) => Convert.ToBase64String(
+        System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(raw)));
+
     private static AuthService Create(out TestDbContext db, out FakeRefreshTokenStore refreshStore, params string[] adminEmails)
     {
         var options = new DbContextOptionsBuilder<TestDbContext>()
@@ -35,6 +38,20 @@ public class AuthServiceTests
         Password = "secret123",
         City = "Dhaka"
     };
+
+    [Fact]
+    public async Task StolenRefreshTokenWithAnotherSessionRevokesTheFamily()
+    {
+        var service = Create(out _, out var store);
+        var login = await service.RegisterAsync(Register("owner@test.com"));
+        store.Seed(login.RefreshToken, login.User.Id, Hash("victim-session"));
+
+        var victim = await service.RefreshAsync(login.RefreshToken, "victim-session");
+        await Assert.ThrowsAsync<AppException>(() =>
+            service.RefreshAsync(login.RefreshToken, "attacker-session"));
+        await Assert.ThrowsAsync<AppException>(() =>
+            service.RefreshAsync(victim.RefreshToken, "victim-session"));
+    }
 
     [Fact]
     public async Task Register_CreatesShopOwnerAndReturnsToken()

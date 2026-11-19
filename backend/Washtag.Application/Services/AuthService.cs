@@ -79,13 +79,14 @@ public class AuthService : IAuthService
             CreatedAt = now
         });
 
+        shop.CatalogueInitialized = true;
         _db.ShopServices.AddRange(
             new ShopService { ShopId = shop.Id, Name = "Wash & Fold", DefaultPrice = 120, SortOrder = 0 },
             new ShopService { ShopId = shop.Id, Name = "Dry Clean", DefaultPrice = 250, SortOrder = 1 },
             new ShopService { ShopId = shop.Id, Name = "Ironing", DefaultPrice = 80, SortOrder = 2 });
 
         await _db.SaveChangesAsync();
-        return await IssueTokensAsync(user, shop);
+        return await IssueTokensAsync(user, shop, request.SessionSecret);
     }
 
     public async Task<AuthResponse> LoginAsync(LoginRequest request)
@@ -100,7 +101,7 @@ public class AuthService : IAuthService
         if (!user.IsActive || !user.Shop.IsActive)
             throw new AppException("This account is inactive. Please contact your shop owner.");
 
-        return await IssueTokensAsync(user, user.Shop);
+        return await IssueTokensAsync(user, user.Shop, request.SessionSecret);
     }
 
     public async Task<AuthResponse> RefreshAsync(string refreshToken, string? sessionSecret = null)
@@ -119,7 +120,7 @@ public class AuthService : IAuthService
         {
             var rawRefresh = Convert.ToBase64String(RandomNumberGenerator.GetBytes(48));
             var userId = await _refreshTokens.RotateAsync(oldHash, Hash(rawRefresh),
-                DateTime.UtcNow.AddDays(30));
+                DateTime.UtcNow.AddDays(30), sessionHash);
             if (userId == null)
             {
                 // Another request won the rotation microseconds ago and writes its
@@ -140,6 +141,16 @@ public class AuthService : IAuthService
                 keys.Add(cacheKey);
                 await _cache.SetAsync(keysKey, keys, TimeSpan.FromDays(31));
             }
+        }
+
+        // A cached ticket is not authority: the token family may have been revoked
+        // (theft detected, password changed, account deactivated) meanwhile.
+        var successorHash = Hash(ticket.RefreshToken);
+        var stillValid = await _refreshTokens.IsActiveAsync(successorHash);
+        if (!stillValid)
+        {
+            await _cache.RemoveAsync(cacheKey);
+            throw new AppException("Invalid or expired refresh token.");
         }
 
         var user = await _db.Users.Include(u => u.Shop).FirstOrDefaultAsync(u => u.Id == ticket.UserId);
@@ -186,13 +197,14 @@ public class AuthService : IAuthService
         };
     }
 
-    private async Task<AuthResponse> IssueTokensAsync(AppUser user, Shop shop)
+    private async Task<AuthResponse> IssueTokensAsync(AppUser user, Shop shop, string? sessionSecret)
     {
         var rawRefresh = Convert.ToBase64String(RandomNumberGenerator.GetBytes(48));
         _db.RefreshTokens.Add(new RefreshToken
         {
             UserId = user.Id,
             TokenHash = Hash(rawRefresh),
+            SessionHash = Hash(string.IsNullOrEmpty(sessionSecret) ? "none" : sessionSecret),
             ExpiresAt = DateTime.UtcNow.AddDays(30)
         });
         await _db.SaveChangesAsync();

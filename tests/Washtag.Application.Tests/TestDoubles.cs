@@ -156,7 +156,7 @@ public sealed class FakeCustomerStore : ICustomerStore
 
 public sealed class FakeRefreshTokenStore : IRefreshTokenStore
 {
-    private sealed record Entry(Guid UserId, bool Revoked, string? ReplacedBy, DateTime? RevokedAt = null);
+    private sealed record Entry(Guid UserId, bool Revoked, string? ReplacedBy, DateTime? RevokedAt = null, string? SessionHash = null);
     private readonly Dictionary<string, Entry> _tokens = new(StringComparer.Ordinal);
 
     private static string Hash(string raw) =>
@@ -179,14 +179,15 @@ public sealed class FakeRefreshTokenStore : IRefreshTokenStore
     }
 
     public Task<Guid?> RotateAsync(string oldHash, string newHash, DateTime expiresAt,
-        CancellationToken cancellationToken = default)
+        string? sessionHash = null, CancellationToken cancellationToken = default)
     {
         if (!_tokens.TryGetValue(oldHash, out var old))
             return Task.FromResult<Guid?>(null);
         if (old.Revoked)
         {
+            var wrongSession = old.SessionHash != null && old.SessionHash != sessionHash;
             // A just-rotated token is a concurrent refresh; leave the family alive.
-            if (old.RevokedAt > DateTime.UtcNow.AddSeconds(-30))
+            if (!wrongSession && old.RevokedAt > DateTime.UtcNow.AddSeconds(-30))
                 return Task.FromResult<Guid?>(null);
             // An old revoked token is replay theft: revoke the whole lineage.
             var cursor = old.ReplacedBy;
@@ -198,9 +199,12 @@ public sealed class FakeRefreshTokenStore : IRefreshTokenStore
             return Task.FromResult<Guid?>(null);
         }
         _tokens[oldHash] = old with { Revoked = true, ReplacedBy = newHash, RevokedAt = DateTime.UtcNow };
-        _tokens[newHash] = new Entry(old.UserId, false, null);
+        _tokens[newHash] = new Entry(old.UserId, false, null, SessionHash: sessionHash);
         return Task.FromResult<Guid?>(old.UserId);
     }
+
+    public Task<bool> IsActiveAsync(string tokenHash, CancellationToken cancellationToken = default) =>
+        Task.FromResult(_tokens.TryGetValue(tokenHash, out var e) && !e.Revoked);
 
     public Task RevokeAllAsync(Guid userId, CancellationToken cancellationToken = default)
     {
@@ -209,7 +213,8 @@ public sealed class FakeRefreshTokenStore : IRefreshTokenStore
         return Task.CompletedTask;
     }
 
-    public void Seed(string rawToken, Guid userId) => _tokens[Hash(rawToken)] = new Entry(userId, false, null);
+    public void Seed(string rawToken, Guid userId, string? sessionHash = null) =>
+        _tokens[Hash(rawToken)] = new Entry(userId, false, null, SessionHash: sessionHash);
     public void ExpireRotationGrace(string rawToken)
     {
         var hash = Hash(rawToken);

@@ -13,12 +13,14 @@ public class RegisterRequest
     [MaxLength(500)] public string Address { get; set; } = string.Empty;
     [MaxLength(100)] public string City { get; set; } = "Dhaka";
     public string Plan { get; set; } = "Starter";
+    [MaxLength(512)] public string? SessionSecret { get; set; }
 }
 
 public class LoginRequest
 {
     [Required, EmailAddress] public string Email { get; set; } = string.Empty;
     [Required] public string Password { get; set; } = string.Empty;
+    [MaxLength(512)] public string? SessionSecret { get; set; }
 }
 
 public class AuthResponse
@@ -81,7 +83,7 @@ public class CreateOrderRequest
     [Required, MaxLength(30)] public string CustomerPhone { get; set; } = string.Empty;
     [MaxLength(1000)] public string? Notes { get; set; }
     public DateTime? DueDate { get; set; }
-    public DeliveryMode DeliveryMode { get; set; } = DeliveryMode.Pickup;
+    [EnumDataType(typeof(DeliveryMode))] public DeliveryMode DeliveryMode { get; set; } = DeliveryMode.Pickup;
     [MaxLength(300)] public string? DeliveryAddress { get; set; }
     [MinLength(1), MaxLength(100)] public List<CreateOrderItemRequest> Items { get; set; } = new();
 }
@@ -197,6 +199,7 @@ public class PublicOrderDto
     public DateTime? DueDate { get; set; }
     public DateTime? DeliveredAt { get; set; }
     public DeliveryMode DeliveryMode { get; set; }
+    public string? DeliveryAddress { get; set; }
     public string TrackingUrl { get; set; } = string.Empty;
     public List<OrderItemDto> Items { get; set; } = new();
 }

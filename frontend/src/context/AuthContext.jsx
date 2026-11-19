@@ -1,5 +1,5 @@
 import { createContext, useContext, useEffect, useState } from 'react';
-import api, { clearTokens, storeTokens } from '../api/client';
+import api, { clearTokens, storeTokens, sessionSecret } from '../api/client';
 
 const AuthContext = createContext(null);
 
@@ -58,13 +58,13 @@ export function AuthProvider({ children }) {
   };
 
   const login = async (email, password) => {
-    const { data } = await api.post('/auth/login', { email, password });
+    const { data } = await api.post('/auth/login', { email, password, sessionSecret: sessionSecret() });
     storeSession(data);
     return data;
   };
 
   const register = async (payload) => {
-    const { data } = await api.post('/auth/register', payload);
+    const { data } = await api.post('/auth/register', { ...payload, sessionSecret: sessionSecret() });
     storeSession(data);
     return data;
   };

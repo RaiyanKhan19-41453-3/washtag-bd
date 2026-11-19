@@ -15,7 +15,9 @@ public interface IRefreshTokenStore
     Task SetReplacedByAsync(string oldHash, string newHash, CancellationToken cancellationToken = default);
     Task PurgeExpiredAsync(CancellationToken cancellationToken = default);
     Task RevokeAllAsync(Guid userId, CancellationToken cancellationToken = default);
-    Task<Guid?> RotateAsync(string oldHash, string newHash, DateTime expiresAt, CancellationToken cancellationToken = default);
+    Task<Guid?> RotateAsync(string oldHash, string newHash, DateTime expiresAt, string? sessionHash = null,
+        CancellationToken cancellationToken = default);
+    Task<bool> IsActiveAsync(string tokenHash, CancellationToken cancellationToken = default);
 }
 
 /// <summary>Atomically records a payment without ever exceeding the order balance.</summary>
