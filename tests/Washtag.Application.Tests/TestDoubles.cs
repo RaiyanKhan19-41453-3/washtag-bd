@@ -303,7 +303,7 @@ public sealed class FakeInvoiceStore : IInvoiceStore
         CancellationToken cancellationToken = default)
     {
         var overdue = await _db.Invoices
-            .Where(i => i.Status == InvoiceStatus.Pending && i.PeriodTo < now &&
+            .Where(i => i.Status == InvoiceStatus.Pending && i.PeriodTo <= now &&
                         (shopId == null || i.ShopId == shopId))
             .ToListAsync(cancellationToken);
         foreach (var invoice in overdue) invoice.Status = InvoiceStatus.Overdue;
@@ -320,9 +320,6 @@ public sealed class FakeInvoiceStore : IInvoiceStore
         var flagged = 0;
         foreach (var candidateId in candidates)
         {
-            if (await _db.Invoices.AnyAsync(
-                    i => i.ShopId == candidateId && i.Status == InvoiceStatus.Paid && i.PeriodTo >= now,
-                    cancellationToken)) continue;
             var shop = await _db.Shops.FirstOrDefaultAsync(
                 s => s.Id == candidateId && s.IsActive && s.SubscriptionEndsAt <= now &&
                      (s.SubscriptionStatus == SubscriptionStatus.Trial ||
@@ -354,4 +351,9 @@ public sealed class FakeAdmin : IAdminService
         Task.FromResult(new ShopDto { Id = shopId, SubscriptionStatus = SubscriptionStatus.Cancelled });
     public Task<ShopDto> RestoreSubscriptionAsync(Guid shopId, CancellationToken cancellationToken = default) =>
         Task.FromResult(new ShopDto { Id = shopId, SubscriptionStatus = SubscriptionStatus.Active });
+    public Task<InvoiceDto> SettleInvoiceAsync(Guid shopId, Guid invoiceId, PaymentMethod method,
+        string? reference, CancellationToken cancellationToken = default) =>
+        Task.FromResult(new InvoiceDto { Id = invoiceId, Status = InvoiceStatus.Paid });
+    public Task<InvoiceDto?> SettleLatestInvoiceAsync(Guid shopId, CancellationToken cancellationToken = default) =>
+        Task.FromResult<InvoiceDto?>(new InvoiceDto { Id = Guid.NewGuid(), Status = InvoiceStatus.Paid });
 }

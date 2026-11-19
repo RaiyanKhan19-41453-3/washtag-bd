@@ -112,6 +112,8 @@ export default function Admin() {
                           <CheckCircle2 size={15} /> Activate
                         </button>
                       )}
+                      <button className="btn btn-ghost btn-sm" disabled={busyId === shop.shopId}
+                        onClick={() => mutate(shop, `${shop.shopId}/settle`, 'Invoice settled.', 'POST')}>Settle invoice</button>
                       {shop.subscriptionStatus === 'Cancelled' || shop.subscriptionStatus === 'PastDue' ? (
                         <button className="btn btn-ghost btn-sm" disabled={busyId === shop.shopId}
                           onClick={() => { if (window.confirm(`Restore the plan for ${shop.shopName}?`)) mutate(shop, `${shop.shopId}/restore`, 'Plan restored.'); }}>

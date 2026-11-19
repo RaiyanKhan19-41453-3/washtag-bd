@@ -109,4 +109,30 @@ public class AdminService : IAdminService
         await _db.SaveChangesAsync(cancellationToken);
         return AuthService.MapShop(shop);
     }
+
+    public async Task<InvoiceDto> SettleInvoiceAsync(Guid shopId, Guid invoiceId, PaymentMethod method,
+        string? reference, CancellationToken cancellationToken = default)
+    {
+        var settled = await _invoices.SettleAsync(shopId, invoiceId, method, reference, cancellationToken);
+        if (!settled) throw new AppException("The invoice state changed. Reload and try again.");
+        var invoice = await _db.Invoices.AsNoTracking()
+            .FirstOrDefaultAsync(i => i.Id == invoiceId && i.ShopId == shopId, cancellationToken)
+            ?? throw new AppException("Invoice not found.");
+        return new InvoiceDto
+        {
+            Id = invoice.Id, InvoiceNumber = invoice.InvoiceNumber,
+            PeriodFrom = invoice.PeriodFrom, PeriodTo = invoice.PeriodTo,
+            Amount = invoice.Amount, Status = invoice.Status, PaidAt = invoice.PaidAt,
+            Method = invoice.Method, Reference = invoice.Reference, Notes = invoice.Notes
+        };
+    }
+
+    public async Task<InvoiceDto?> SettleLatestInvoiceAsync(Guid shopId, CancellationToken cancellationToken = default)
+    {
+        var invoice = await _db.Invoices.AsNoTracking()
+            .Where(i => i.ShopId == shopId && i.Status == InvoiceStatus.Pending)
+            .OrderBy(i => i.PeriodTo).FirstOrDefaultAsync(cancellationToken);
+        if (invoice == null) return null;
+        return await SettleInvoiceAsync(shopId, invoice.Id, PaymentMethod.Cash, "Admin settlement", cancellationToken);
+    }
 }

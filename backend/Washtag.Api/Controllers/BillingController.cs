@@ -1,6 +1,7 @@
 using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Washtag.Application;
 using Washtag.Application.DTOs;
 using Washtag.Application.Interfaces;
 
@@ -12,8 +13,13 @@ namespace Washtag.Api.Controllers;
 public class BillingController : ControllerBase
 {
     private readonly IBillingService _billing;
+    private readonly BillingOptions _options;
 
-    public BillingController(IBillingService billing) => _billing = billing;
+    public BillingController(IBillingService billing, BillingOptions options)
+    {
+        _billing = billing;
+        _options = options;
+    }
 
     private Guid ShopId => Guid.Parse(User.FindFirstValue("shopId")!);
 
@@ -22,8 +28,12 @@ public class BillingController : ControllerBase
 
     [Authorize(Roles = "Owner")]
     [HttpPost("invoices/{id:guid}/pay")]
-    public async Task<IActionResult> Pay(Guid id, [FromBody] MarkInvoicePaidRequest request) =>
-        Ok(await _billing.MarkPaidAsync(ShopId, id, request));
+    public async Task<IActionResult> Pay(Guid id, [FromBody] MarkInvoicePaidRequest request)
+    {
+        if (!_options.ManualPaymentEnabled)
+            return StatusCode(403, new { message = "Invoice settlement requires platform admin approval." });
+        return Ok(await _billing.MarkPaidAsync(ShopId, id, request));
+    }
 
     [Authorize(Roles = "Owner")]
     [HttpPut("plan")]

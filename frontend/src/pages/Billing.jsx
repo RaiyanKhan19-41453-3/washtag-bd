@@ -116,6 +116,9 @@ export default function Billing() {
 
         <section className="card">
           <div className="card-head"><div><h3>Invoices</h3><p>{data.invoices.length} billing record(s)</p></div></div>
+          {!data.canSelfSettle && (
+            <p className="tiny-note">Invoice settlement requires platform admin approval. Contact support to confirm a payment.</p>
+          )}
           <div className="table-scroll">
             <table className="data-table">
               <thead><tr><th>Invoice</th><th>Period</th><th className="align-right">Amount</th><th>Status</th><th /></tr></thead>
@@ -127,7 +130,7 @@ export default function Billing() {
                     <td className="align-right strong">{money(invoice.amount)}</td>
                     <td><span className={`badge payment-${invoice.status}`}>{invoice.status}</span></td>
                     <td className="align-right">
-                      {invoice.status !== 'Paid' && isOwner && data.status !== 'Cancelled' && (
+                      {invoice.status !== 'Paid' && isOwner && data.status !== 'Cancelled' && data.canSelfSettle && (
                         <button className="btn btn-outline btn-sm" onClick={() => setPaying(invoice)}><CreditCard size={14} /> Settle</button>
                       )}
                       {invoice.status === 'Paid' && <span className="paid-note"><CheckCircle2 size={14} /> {formatDate(invoice.paidAt)}</span>}

@@ -60,6 +60,7 @@ public class InvoiceDto
 
 public class BillingOverviewDto
 {
+    public bool CanSelfSettle { get; set; }
     public string Plan { get; set; } = string.Empty;
     public SubscriptionStatus Status { get; set; }
     public DateTime StartedAt { get; set; }
@@ -99,6 +100,12 @@ public class AdminShopDto
 public class AdminShopActiveRequest
 {
     public bool Active { get; set; }
+}
+
+public class AdminInvoicePayRequest
+{
+    [EnumDataType(typeof(PaymentMethod))] public PaymentMethod Method { get; set; } = PaymentMethod.Cash;
+    [MaxLength(100)] public string? Reference { get; set; }
 }
 
 public class AdminStatsDto

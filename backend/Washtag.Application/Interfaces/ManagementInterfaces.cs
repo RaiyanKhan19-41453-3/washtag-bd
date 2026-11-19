@@ -1,4 +1,5 @@
 using Washtag.Application.DTOs;
+using Washtag.Domain.Enums;
 
 namespace Washtag.Application.Interfaces;
 
@@ -29,6 +30,9 @@ public interface IAdminService
     Task<ShopDto> SetShopActiveAsync(Guid shopId, bool active, CancellationToken cancellationToken = default);
     Task<ShopDto> CancelShopSubscriptionAsync(Guid shopId, CancellationToken cancellationToken = default);
     Task<ShopDto> RestoreSubscriptionAsync(Guid shopId, CancellationToken cancellationToken = default);
+    Task<InvoiceDto> SettleInvoiceAsync(Guid shopId, Guid invoiceId, PaymentMethod method, string? reference,
+        CancellationToken cancellationToken = default);
+    Task<InvoiceDto?> SettleLatestInvoiceAsync(Guid shopId, CancellationToken cancellationToken = default);
 }
 
 /// <summary>Idempotent housekeeping: billing deadlines, retention and vector freshness.</summary>

@@ -62,4 +62,25 @@ public class AdminController : ControllerBase
         Audit("RestoreSubscription", id);
         return Ok(await _admin.RestoreSubscriptionAsync(id, HttpContext.RequestAborted));
     }
+
+    [HttpPost("shops/{shopId:guid}/invoices/{invoiceId:guid}/pay")]
+    public async Task<IActionResult> SettleInvoice(Guid shopId, Guid invoiceId,
+        [FromBody] AdminInvoicePayRequest request)
+    {
+        if (!IsPlatformAdmin) return Forbid();
+        if (!ModelState.IsValid) return ValidationProblem(ModelState);
+        Audit("SettleInvoice", shopId);
+        return Ok(await _admin.SettleInvoiceAsync(shopId, invoiceId, request.Method, request.Reference,
+            HttpContext.RequestAborted));
+    }
+
+    [HttpPost("shops/{id:guid}/settle")]
+    public async Task<IActionResult> SettleLatest(Guid id)
+    {
+        if (!IsPlatformAdmin) return Forbid();
+        var result = await _admin.SettleLatestInvoiceAsync(id, HttpContext.RequestAborted);
+        if (result == null) return NotFound(new { message = "No pending invoice for this shop." });
+        Audit("SettleInvoice", id);
+        return Ok(result);
+    }
 }

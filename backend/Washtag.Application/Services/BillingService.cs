@@ -12,11 +12,13 @@ public class BillingService : IBillingService
 {
     private readonly IAppDbContext _db;
     private readonly IInvoiceStore _invoices;
+    private readonly BillingOptions _options;
 
-    public BillingService(IAppDbContext db, IInvoiceStore invoices)
+    public BillingService(IAppDbContext db, IInvoiceStore invoices, BillingOptions options)
     {
         _db = db;
         _invoices = invoices;
+        _options = options;
     }
 
     public async Task<BillingOverviewDto> GetOverviewAsync(Guid shopId, CancellationToken cancellationToken = default)
@@ -42,6 +44,7 @@ public class BillingService : IBillingService
 
         return new BillingOverviewDto
         {
+            CanSelfSettle = _options.ManualPaymentEnabled,
             Plan = shop.Plan,
             Status = shop.SubscriptionStatus,
             StartedAt = shop.SubscriptionStartedAt,

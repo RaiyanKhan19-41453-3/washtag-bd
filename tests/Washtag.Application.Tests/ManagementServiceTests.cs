@@ -31,7 +31,8 @@ public class ManagementServiceTests
     }
 
     private static StaffService Staff(Harness h) => new(h.Db, new FakeAdminSettings());
-    private static BillingService Billing(Harness h) => new(h.Db, new FakeInvoiceStore(h.Db));
+    private static BillingService Billing(Harness h) => new(h.Db, new FakeInvoiceStore(h.Db),
+        new BillingOptions { ManualPaymentEnabled = true });
 
     [Fact]
     public async Task Staff_CreateHashesPasswordAndScopesAccountToShop()
@@ -196,7 +197,7 @@ public class ManagementServiceTests
         });
         await h.Db.SaveChangesAsync();
         var store = new FakeInvoiceStore(h.Db) { SettleResult = false };
-        var service = new BillingService(h.Db, store);
+        var service = new BillingService(h.Db, store, new BillingOptions { ManualPaymentEnabled = true });
         var invoice = await h.Db.Invoices.SingleAsync();
 
         await Assert.ThrowsAsync<AppException>(() => service.MarkPaidAsync(h.ShopId, invoice.Id,
@@ -348,6 +349,38 @@ public class ManagementServiceTests
                 Name = "Admin", Email = "ADMIN@example.com", Password = "secret123"
             }));
         Assert.Empty(h.Db.Users);
+    }
+
+    [Fact]
+    public async Task Billing_ExposesWhetherOwnersMaySettleInvoices()
+    {
+        var h = new Harness();
+        var store = new FakeInvoiceStore(h.Db);
+        var enabled = await new BillingService(h.Db, store, new BillingOptions { ManualPaymentEnabled = true })
+            .GetOverviewAsync(h.ShopId);
+        var disabled = await new BillingService(h.Db, store, new BillingOptions { ManualPaymentEnabled = false })
+            .GetOverviewAsync(h.ShopId);
+        Assert.True(enabled.CanSelfSettle);
+        Assert.False(disabled.CanSelfSettle);
+    }
+
+    [Fact]
+    public async Task Admin_CanSettleAShopsPendingInvoice()
+    {
+        var h = new Harness();
+        var store = new FakeInvoiceStore(h.Db);
+        h.Db.Invoices.Add(new Invoice
+        {
+            ShopId = h.ShopId, InvoiceNumber = "INV-ADMIN", Amount = 500,
+            PeriodFrom = DateTime.UtcNow, PeriodTo = DateTime.UtcNow.AddMonths(1),
+            Status = InvoiceStatus.Pending
+        });
+        h.Db.SaveChanges();
+
+        var result = await new AdminService(h.Db, store).SettleLatestInvoiceAsync(h.ShopId);
+
+        Assert.NotNull(result);
+        Assert.Equal(InvoiceStatus.Paid, result!.Status);
     }
 
     [Fact]

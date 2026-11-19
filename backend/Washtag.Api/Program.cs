@@ -40,6 +40,10 @@ var maintenance = new MaintenanceOptions
     ChatRetentionDays = builder.Configuration.GetValue("MAINTENANCE_CHAT_RETENTION_DAYS", 90)
 };
 builder.Services.AddSingleton(maintenance);
+builder.Services.AddSingleton(new BillingOptions
+{
+    ManualPaymentEnabled = builder.Configuration.GetValue("MANUAL_PAYMENT_ENABLED", true)
+});
 if (maintenance.Enabled) builder.Services.AddHostedService<MaintenanceWorker>();
 
 // Never run Production on a weak or source-checked secret: mint an ephemeral one
