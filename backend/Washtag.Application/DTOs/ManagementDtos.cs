@@ -69,7 +69,7 @@ public class BillingOverviewDto
 public class MarkInvoicePaidRequest
 {
     [EnumDataType(typeof(PaymentMethod))] public PaymentMethod Method { get; set; } = PaymentMethod.Cash;
-    public string? Reference { get; set; }
+    [MaxLength(100)] public string? Reference { get; set; }
 }
 
 public class ChangePlanRequest

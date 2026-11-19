@@ -50,7 +50,8 @@ public class OrderService : IOrderService
 
         var query = _db.Orders.AsNoTracking().Where(o => o.ShopId == shopId).Include(o => o.Items).AsQueryable();
 
-        if (!string.IsNullOrWhiteSpace(status) && Enum.TryParse<OrderStatus>(status, true, out var parsedStatus))
+        if (!string.IsNullOrWhiteSpace(status) && Enum.TryParse<OrderStatus>(status, true, out var parsedStatus) &&
+            Enum.IsDefined(parsedStatus))
             query = query.Where(o => o.Status == parsedStatus);
 
         if (!string.IsNullOrWhiteSpace(search))
@@ -63,8 +64,11 @@ public class OrderService : IOrderService
         }
 
         var total = await query.CountAsync();
+        // Guard against int overflow on extreme page numbers — without this the skip
+        // wraps negative and silently returns the first page.
+        var skip = page > int.MaxValue / pageSize ? int.MaxValue : (page - 1) * pageSize;
         var orders = await query.OrderByDescending(o => o.CreatedAt).ThenBy(o => o.Id)
-            .Skip((page - 1) * pageSize).Take(pageSize).ToListAsync();
+            .Skip(skip).Take(pageSize).ToListAsync();
 
         return new PagedResult<OrderListDto>
         {
@@ -171,9 +175,9 @@ public class OrderService : IOrderService
     {
         await _customers.EnsureAsync(order.ShopId, order.CustomerName, order.CustomerPhone, order.CreatedAt);
         var dto = MapDetail(order);
+        dto.Replayed = replayed;
         await IndexAsync(order);
         await NotifyAsync(order, dto, BuildPublicTrack(order));
-        dto.Replayed = replayed;
         return dto;
     }
 
@@ -268,6 +272,17 @@ public class OrderService : IOrderService
         };
         order.StatusHistory.Add(entry);
         _db.StatusEvents.Add(entry);
+        // Keep the audit trail consistent with PaidAmount = 0 after a refund.
+        if (refunded > 0)
+            _db.Payments.Add(new Payment
+            {
+                OrderId = order.Id,
+                Amount = -refunded,
+                Method = PaymentMethod.Cash,
+                Reference = "Refund on cancellation",
+                RecordedBy = actor,
+                CreatedAt = DateTime.UtcNow
+            });
 
         await _db.SaveChangesAsync();
         await InvalidateCacheAsync(order.PublicToken);
@@ -517,7 +532,7 @@ public class OrderService : IOrderService
         CreatedAt = p.CreatedAt
     };
 
-    private static PublicTrackDto BuildPublicTrack(Order order) => new()
+    private PublicTrackDto BuildPublicTrack(Order order) => new()
     {
         Shop = new ShopBrandDto
         {
@@ -537,6 +552,7 @@ public class OrderService : IOrderService
             CreatedAt = order.CreatedAt,
             DueDate = order.DueDate,
             DeliveredAt = order.DeliveredAt,
+            TrackingUrl = _urls.Build(order.PublicToken),
             Items = order.Items.Select(MapItem).ToList()
         },
         Timeline = order.StatusHistory.OrderBy(x => x.CreatedAt).Select(MapEvent).ToList()

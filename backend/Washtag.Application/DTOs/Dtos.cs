@@ -10,8 +10,8 @@ public class RegisterRequest
     [Required, EmailAddress, MaxLength(150)] public string Email { get; set; } = string.Empty;
     [Required, MaxLength(30)] public string Phone { get; set; } = string.Empty;
     [Required, MinLength(6)] public string Password { get; set; } = string.Empty;
-    public string Address { get; set; } = string.Empty;
-    public string City { get; set; } = "Dhaka";
+    [MaxLength(500)] public string Address { get; set; } = string.Empty;
+    [MaxLength(100)] public string City { get; set; } = "Dhaka";
     public string Plan { get; set; } = "Starter";
 }
 
@@ -87,14 +87,14 @@ public class CreateOrderRequest
 public class UpdateStatusRequest
 {
     [Required, EnumDataType(typeof(OrderStatus))] public OrderStatus Status { get; set; }
-    public string? Note { get; set; }
+    [MaxLength(1000)] public string? Note { get; set; }
 }
 
 public class RecordPaymentRequest
 {
     [Range(0.01, 10000000)] public decimal Amount { get; set; }
     [EnumDataType(typeof(PaymentMethod))] public PaymentMethod Method { get; set; } = PaymentMethod.Cash;
-    public string? Reference { get; set; }
+    [MaxLength(100)] public string? Reference { get; set; }
 }
 
 public class OrderListDto
@@ -192,6 +192,7 @@ public class PublicOrderDto
     public DateTime CreatedAt { get; set; }
     public DateTime? DueDate { get; set; }
     public DateTime? DeliveredAt { get; set; }
+    public string TrackingUrl { get; set; } = string.Empty;
     public List<OrderItemDto> Items { get; set; } = new();
 }
 

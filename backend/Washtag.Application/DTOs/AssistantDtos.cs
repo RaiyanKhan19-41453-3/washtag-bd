@@ -20,7 +20,7 @@ public class AssistantFeedbackRequest
 {
     public Guid MessageId { get; set; }
     public int Rating { get; set; }
-    public string? Comment { get; set; }
+    [MaxLength(500)] public string? Comment { get; set; }
 }
 
 public class AssistantAnswerDto
