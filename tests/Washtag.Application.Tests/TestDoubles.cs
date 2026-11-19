@@ -42,6 +42,7 @@ public sealed class FakeNotifier : IRealtimeNotifier
 
 public sealed class FakeCache : ICacheService
 {
+    private readonly Dictionary<string, object?> _values = new(StringComparer.Ordinal);
     public List<string> Reads { get; } = new();
     public List<string> Writes { get; } = new();
     public List<string> Removes { get; } = new();
@@ -49,16 +50,18 @@ public sealed class FakeCache : ICacheService
     public Task<T?> GetAsync<T>(string key)
     {
         Reads.Add(key);
-        return Task.FromResult<T?>(default);
+        return Task.FromResult(_values.TryGetValue(key, out var value) && value is T typed ? typed : default);
     }
     public Task SetAsync<T>(string key, T value, TimeSpan expiration)
     {
         Writes.Add(key);
+        _values[key] = value;
         return Task.CompletedTask;
     }
     public Task RemoveAsync(string key)
     {
         Removes.Add(key);
+        _values.Remove(key);
         return Task.CompletedTask;
     }
 }
@@ -141,7 +144,7 @@ public sealed class FakeCustomerStore : ICustomerStore
 
 public sealed class FakeRefreshTokenStore : IRefreshTokenStore
 {
-    private sealed record Entry(Guid UserId, bool Revoked, string? ReplacedBy);
+    private sealed record Entry(Guid UserId, bool Revoked, string? ReplacedBy, DateTime? RevokedAt = null);
     private readonly Dictionary<string, Entry> _tokens = new(StringComparer.Ordinal);
 
     private static string Hash(string raw) =>
@@ -170,16 +173,19 @@ public sealed class FakeRefreshTokenStore : IRefreshTokenStore
             return Task.FromResult<Guid?>(null);
         if (old.Revoked)
         {
-            // Replay: revoke the whole lineage, matching the production recursive CTE.
+            // A just-rotated token is a concurrent refresh; leave the family alive.
+            if (old.RevokedAt > DateTime.UtcNow.AddSeconds(-30))
+                return Task.FromResult<Guid?>(null);
+            // An old revoked token is replay theft: revoke the whole lineage.
             var cursor = old.ReplacedBy;
             while (cursor != null && _tokens.TryGetValue(cursor, out var next))
             {
-                _tokens[cursor] = next with { Revoked = true };
+                _tokens[cursor] = next with { Revoked = true, RevokedAt = DateTime.UtcNow };
                 cursor = next.ReplacedBy;
             }
             return Task.FromResult<Guid?>(null);
         }
-        _tokens[oldHash] = old with { Revoked = true, ReplacedBy = newHash };
+        _tokens[oldHash] = old with { Revoked = true, ReplacedBy = newHash, RevokedAt = DateTime.UtcNow };
         _tokens[newHash] = new Entry(old.UserId, false, null);
         return Task.FromResult<Guid?>(old.UserId);
     }
@@ -192,6 +198,12 @@ public sealed class FakeRefreshTokenStore : IRefreshTokenStore
     }
 
     public void Seed(string rawToken, Guid userId) => _tokens[Hash(rawToken)] = new Entry(userId, false, null);
+    public void ExpireRotationGrace(string rawToken)
+    {
+        var hash = Hash(rawToken);
+        if (_tokens.TryGetValue(hash, out var e))
+            _tokens[hash] = e with { RevokedAt = DateTime.UtcNow.AddMinutes(-1) };
+    }
     public bool IsRevoked(string rawToken) => _tokens.TryGetValue(Hash(rawToken), out var e) && e.Revoked;
     public string? ReplacedBy(string rawToken) =>
         _tokens.TryGetValue(Hash(rawToken), out var e) ? e.ReplacedBy : null;
@@ -230,8 +242,11 @@ public sealed class FakeInvoiceStore : IInvoiceStore
     public FakeInvoiceStore(TestDbContext db) => _db = db;
 
     public async Task<bool> SettleAsync(Guid shopId, Guid invoiceId, PaymentMethod method, string? reference,
-        decimal monthlyPrice, CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default)
     {
+        var shopForPrice = await _db.Shops.FirstOrDefaultAsync(s => s.Id == shopId, cancellationToken);
+        var monthlyPrice = Washtag.Domain.Plans.MonthlyPrice(shopForPrice?.Plan);
+
         if (!SettleResult) return false;
         var invoice = await _db.Invoices.FirstOrDefaultAsync(
             i => i.Id == invoiceId && i.ShopId == shopId &&

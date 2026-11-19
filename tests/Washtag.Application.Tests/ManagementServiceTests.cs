@@ -246,11 +246,11 @@ public class ManagementServiceTests
     }
 
     [Fact]
-    public async Task Auth_RefreshRotatesTokenAndOldTokenCannotBeReused()
+    public async Task Auth_RefreshRotatesTokenAndIsIdempotentForConcurrentUse()
     {
         var h = new Harness();
         var store = new FakeRefreshTokenStore();
-        var auth = new AuthService(h.Db, new FakeTokens(), new FakeAdminSettings(), store);
+        var auth = new AuthService(h.Db, new FakeTokens(), new FakeAdminSettings(), store, new FakeCache());
         var login = await auth.RegisterAsync(new RegisterRequest
         {
             ShopName = "Shop", OwnerName = "Owner", Email = "owner@test.com", Phone = "1", Password = "secret123"
@@ -265,7 +265,10 @@ public class ManagementServiceTests
         Assert.True(store.IsRevoked(login.RefreshToken));
         Assert.False(store.IsRevoked(refreshed.RefreshToken));
         Assert.NotNull(store.ReplacedBy(login.RefreshToken));
-        await Assert.ThrowsAsync<AppException>(() => auth.RefreshAsync(login.RefreshToken));
+        // An immediate second use is treated as a concurrent refresh, not theft, so
+        // a benign double-submit cannot revoke the freshly issued token.
+        var replay = await auth.RefreshAsync(login.RefreshToken);
+        Assert.Equal(refreshed.RefreshToken, replay.RefreshToken);
     }
 
     [Fact]
@@ -273,7 +276,7 @@ public class ManagementServiceTests
     {
         var h = new Harness();
         var store = new FakeRefreshTokenStore();
-        var auth = new AuthService(h.Db, new FakeTokens(), new FakeAdminSettings(), store);
+        var auth = new AuthService(h.Db, new FakeTokens(), new FakeAdminSettings(), store, new FakeCache());
         var login = await auth.RegisterAsync(new RegisterRequest
         {
             ShopName = "Shop", OwnerName = "Owner", Email = "owner@test.com", Phone = "1", Password = "secret123"
@@ -351,7 +354,7 @@ public class ManagementServiceTests
     public async Task Register_CreatesFirstPayableInvoice()
     {
         var h = new Harness();
-        var auth = new AuthService(h.Db, new FakeTokens(), new FakeAdminSettings(), new FakeRefreshTokenStore());
+        var auth = new AuthService(h.Db, new FakeTokens(), new FakeAdminSettings(), new FakeRefreshTokenStore(), new FakeCache());
         var result = await auth.RegisterAsync(new RegisterRequest
         {
             ShopName = "Brand New", OwnerName = "Owner", Email = "brandnew@test.com",
@@ -378,7 +381,7 @@ public class ManagementServiceTests
         h.Db.Invoices.Add(invoice);
         h.Db.SaveChanges();
 
-        await new FakeInvoiceStore(h.Db).SettleAsync(h.ShopId, invoice.Id, PaymentMethod.Cash, null, 500);
+        await new FakeInvoiceStore(h.Db).SettleAsync(h.ShopId, invoice.Id, PaymentMethod.Cash, null);
 
         Assert.True(shop.SubscriptionEndsAt >= longTerm);
         Assert.Equal(InvoiceStatus.Paid, invoice.Status);
@@ -393,7 +396,7 @@ public class ManagementServiceTests
         };
         h.Db.Invoices.Add(next);
         h.Db.SaveChanges();
-        await new FakeInvoiceStore(h.Db).SettleAsync(h.ShopId, next.Id, PaymentMethod.Cash, null, 500);
+        await new FakeInvoiceStore(h.Db).SettleAsync(h.ShopId, next.Id, PaymentMethod.Cash, null);
         Assert.Equal(SubscriptionStatus.Cancelled, shop.SubscriptionStatus);
     }
 
@@ -407,6 +410,7 @@ public class ManagementServiceTests
         store.Seed("first", userId);
 
         Assert.NotNull(await store.RotateAsync(Hash("first"), Hash("second"), DateTime.UtcNow.AddDays(1)));
+        store.ExpireRotationGrace("first");
         Assert.Null(await store.RotateAsync(Hash("first"), Hash("third"), DateTime.UtcNow.AddDays(1)));
         Assert.True(store.IsRevoked("second"));
         Assert.Null(await store.RotateAsync(Hash("second"), Hash("fourth"), DateTime.UtcNow.AddDays(1)));

@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Washtag.Application.DTOs;
 using Washtag.Application.Services;
+using Washtag.Domain.Entities;
 using Washtag.Domain.Exceptions;
 using Xunit;
 
@@ -14,7 +15,7 @@ public class AuthServiceTests
             .UseInMemoryDatabase(Guid.NewGuid().ToString()).Options;
         db = new TestDbContext(options);
         refreshStore = new FakeRefreshTokenStore();
-        return new AuthService(db, new FakeTokens(), new FakeAdminSettings(adminEmails), refreshStore);
+        return new AuthService(db, new FakeTokens(), new FakeAdminSettings(adminEmails), refreshStore, new FakeCache());
     }
 
     [Fact]
@@ -81,5 +82,28 @@ public class AuthServiceTests
 
         await Assert.ThrowsAsync<AppException>(() =>
             service.LoginAsync(new LoginRequest { Email = "owner@test.com", Password = "wrong" }));
+    }
+
+    [Fact]
+    public async Task Refresh_ConcurrentCallsShareOneRotation()
+    {
+        var options = new DbContextOptionsBuilder<TestDbContext>()
+            .UseInMemoryDatabase(Guid.NewGuid().ToString()).Options;
+        var db = new TestDbContext(options);
+        var shop = new Shop { Name = "S", SubscriptionEndsAt = DateTime.UtcNow.AddMonths(1) };
+        var user = new AppUser { Shop = shop, Email = "owner@test.com", IsActive = true, PasswordHash = "hash" };
+        db.Users.Add(user);
+        db.SaveChanges();
+
+        var tokens = new FakeRefreshTokenStore();
+        tokens.Seed("r0", user.Id);
+        var cache = new FakeCache();
+        var service = new AuthService(db, new FakeTokens(), new FakeAdminSettings(), tokens, cache);
+
+        var first = await service.RefreshAsync("r0");
+        var second = await service.RefreshAsync("r0");
+
+        Assert.Equal(first.RefreshToken, second.RefreshToken);
+        Assert.False(tokens.IsRevoked(first.RefreshToken));
     }
 }

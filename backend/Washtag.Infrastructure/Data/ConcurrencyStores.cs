@@ -82,8 +82,24 @@ public class RefreshTokenStore : IRefreshTokenStore
             var result = await claim.ExecuteScalarAsync(cancellationToken);
             if (result == null || result == DBNull.Value)
             {
-                // Replay of an already-rotated token: revoke the whole lineage so a
-                // stolen token cannot keep a session alive after the owner detects it.
+                // A token rotated moments ago is most likely a concurrent refresh from
+                // another tab, not theft. Leave the successor alive so the winner's
+                // session survives; AuthService can hand both callers the same token.
+                DateTime? revokedAt = null;
+                await using (var check = new NpgsqlCommand(
+                    "SELECT \"RevokedAt\" FROM \"RefreshTokens\" WHERE \"TokenHash\" = @old", connection, transaction))
+                {
+                    check.Parameters.AddWithValue("old", oldHash);
+                    var value = await check.ExecuteScalarAsync(cancellationToken);
+                    if (value is DateTime dt) revokedAt = dt;
+                }
+                if (revokedAt.HasValue && revokedAt.Value > DateTime.UtcNow.AddSeconds(-30))
+                {
+                    await transaction.CommitAsync(cancellationToken);
+                    return null;
+                }
+
+                // A genuinely old revoked token is replay theft: revoke the lineage.
                 await using var revoke = new NpgsqlCommand(
                     """
                     WITH RECURSIVE chain AS (

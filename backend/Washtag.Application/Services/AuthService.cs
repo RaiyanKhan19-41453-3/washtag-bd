@@ -9,20 +9,24 @@ using Washtag.Domain.Exceptions;
 
 namespace Washtag.Application.Services;
 
+internal sealed record RotationTicket(Guid UserId, string RefreshToken);
+
 public class AuthService : IAuthService
 {
     private readonly IAppDbContext _db;
     private readonly IJwtTokenGenerator _tokens;
     private readonly IAdminSettings _admin;
     private readonly IRefreshTokenStore _refreshTokens;
+    private readonly ICacheService _cache;
 
     public AuthService(IAppDbContext db, IJwtTokenGenerator tokens, IAdminSettings admin,
-        IRefreshTokenStore refreshTokens)
+        IRefreshTokenStore refreshTokens, ICacheService cache)
     {
         _db = db;
         _tokens = tokens;
         _admin = admin;
         _refreshTokens = refreshTokens;
+        _cache = cache;
     }
 
     public async Task<AuthResponse> RegisterAsync(RegisterRequest request)
@@ -96,19 +100,44 @@ public class AuthService : IAuthService
 
     public async Task<AuthResponse> RefreshAsync(string refreshToken)
     {
-        var rawRefresh = Convert.ToBase64String(RandomNumberGenerator.GetBytes(48));
-        var userId = await _refreshTokens.RotateAsync(Hash(refreshToken), Hash(rawRefresh),
-            DateTime.UtcNow.AddDays(30));
-        if (userId == null) throw new AppException("Invalid or expired refresh token.");
+        var oldHash = Hash(refreshToken);
+        var cacheKey = $"refresh-rotation:{oldHash}";
 
-        var user = await _db.Users.Include(u => u.Shop).FirstOrDefaultAsync(u => u.Id == userId.Value);
+        // Two tabs (or a retried request) can present the same token at once. Return
+        // the already-issued successor for a short grace window instead of treating
+        // the second caller as theft and revoking the whole family.
+        var ticket = await _cache.GetAsync<RotationTicket>(cacheKey);
+        if (ticket == null)
+        {
+            var rawRefresh = Convert.ToBase64String(RandomNumberGenerator.GetBytes(48));
+            var userId = await _refreshTokens.RotateAsync(oldHash, Hash(rawRefresh),
+                DateTime.UtcNow.AddDays(30));
+            if (userId == null)
+            {
+                // Another request won the rotation microseconds ago and writes its
+                // ticket just after commit; give it a brief moment to appear.
+                for (var attempt = 0; attempt < 5 && ticket == null; attempt++)
+                {
+                    ticket = await _cache.GetAsync<RotationTicket>(cacheKey);
+                    if (ticket == null) await Task.Delay(20);
+                }
+                if (ticket == null) throw new AppException("Invalid or expired refresh token.");
+            }
+            else
+            {
+                ticket = new RotationTicket(userId.Value, rawRefresh);
+                await _cache.SetAsync(cacheKey, ticket, TimeSpan.FromSeconds(30));
+            }
+        }
+
+        var user = await _db.Users.Include(u => u.Shop).FirstOrDefaultAsync(u => u.Id == ticket.UserId);
         if (user == null || !user.IsActive || !user.Shop.IsActive)
             throw new AppException("Invalid or expired refresh token.");
 
         return new AuthResponse
         {
             Token = _tokens.Generate(user, user.Shop),
-            RefreshToken = rawRefresh,
+            RefreshToken = ticket.RefreshToken,
             User = MapUser(user),
             Shop = MapShop(user.Shop)
         };
