@@ -22,7 +22,8 @@ export function AuthProvider({ children }) {
         setUser(data.user);
         setShop(data.shop);
       })
-      .catch(() => clearTokens())
+      // A transient 500/network error must not destroy a valid session.
+      .catch((error) => { if (error.response?.status === 401) clearTokens(); })
       .finally(() => { if (active) setLoading(false); });
 
     return () => { active = false; };

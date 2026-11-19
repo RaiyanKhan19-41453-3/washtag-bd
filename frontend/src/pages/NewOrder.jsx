@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { UserRound, Phone, CalendarDays, NotebookPen, Plus, Trash2, ArrowLeft, Shirt, Info } from 'lucide-react';
 import api from '../api/client';
@@ -15,16 +15,8 @@ export default function NewOrder() {
   const [busy, setBusy] = useState(false);
   const toast = useToast();
   const navigate = useNavigate();
-  // Persist the key for the in-progress draft so a reload after a network timeout
-  // cannot create a duplicate order. Cleared only after a confirmed response.
-  const idempotencyKey = useRef((() => {
-    let value = sessionStorage.getItem('washtag_order_key');
-    if (!value) {
-      value = crypto.randomUUID?.() ?? `${Date.now()}-${Math.random().toString(36).slice(2)}`;
-      sessionStorage.setItem('washtag_order_key', value);
-    }
-    return value;
-  })());
+  // The key is bound to the exact draft payload. A reload after a lost response
+  // keeps the same key (safe retry), but editing into a different order gets a new one.
 
   useEffect(() => {
     api.get('/customers').then(({ data }) => setCustomers(data)).catch(() => {});
@@ -65,8 +57,18 @@ export default function NewOrder() {
           notes: item.notes?.trim() || null
         }))
       };
+      const hash = JSON.stringify(payload);
+      let draft = null;
+      try { draft = JSON.parse(sessionStorage.getItem('washtag_order_key') || 'null'); } catch { /* ignore */ }
+      if (!draft || draft.hash !== hash) {
+        draft = {
+          hash,
+          key: crypto.randomUUID?.() ?? `${Date.now()}-${Math.random().toString(36).slice(2)}`
+        };
+        sessionStorage.setItem('washtag_order_key', JSON.stringify(draft));
+      }
       const { data } = await api.post('/orders', payload, {
-        headers: { 'Idempotency-Key': idempotencyKey.current }
+        headers: { 'Idempotency-Key': draft.key }
       });
       sessionStorage.removeItem('washtag_order_key');
       toast.success(data.replayed ? 'Order was already created. Show the QR receipt to your customer.' : 'Order created! Show the QR receipt to your customer.');

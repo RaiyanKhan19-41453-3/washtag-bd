@@ -12,7 +12,7 @@ public class TrackingUrlProvider : ITrackingUrlProvider
     public TrackingUrlProvider(IHttpContextAccessor accessor, IConfiguration configuration)
     {
         _accessor = accessor;
-        _publicBaseUrl = configuration["PUBLIC_BASE_URL"];
+        _publicBaseUrl = configuration["PUBLIC_BASE_URL"]?.Trim();
     }
 
     public string Build(Guid token)

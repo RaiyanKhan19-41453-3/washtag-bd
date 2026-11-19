@@ -71,9 +71,9 @@ export default function PrintReceipt() {
         <div className="receipt-line receipt-payment"><span>Payment</span><strong>{order.paymentStatus}</strong></div>
 
         <div className="receipt-qr">
-          <QRCode value={trackingUrl(order.token)} size={150} />
+          <QRCode value={order.trackingUrl || trackingUrl(order.token)} size={150} />
           <p>Scan for live status</p>
-          <small>{trackingUrl(order.token)}</small>
+          <small>{order.trackingUrl || trackingUrl(order.token)}</small>
         </div>
 
         <div className="receipt-divider" />
