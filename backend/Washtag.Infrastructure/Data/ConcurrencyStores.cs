@@ -106,6 +106,16 @@ public class RefreshTokenStore : IRefreshTokenStore
         return userId;
     }
 
+    public async Task RevokeAllAsync(Guid userId, CancellationToken cancellationToken = default)
+    {
+        await using var connection = new NpgsqlConnection(_connectionString);
+        await connection.OpenAsync(cancellationToken);
+        await using var command = new NpgsqlCommand(
+            "UPDATE \"RefreshTokens\" SET \"RevokedAt\" = now() WHERE \"UserId\" = @user AND \"RevokedAt\" IS NULL", connection);
+        command.Parameters.AddWithValue("user", userId);
+        await command.ExecuteNonQueryAsync(cancellationToken);
+    }
+
     public async Task PurgeExpiredAsync(CancellationToken cancellationToken = default)
     {
         await using var connection = new NpgsqlConnection(_connectionString);

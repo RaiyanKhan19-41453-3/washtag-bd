@@ -106,10 +106,8 @@ public class AuthService : IAuthService
             throw new AppException("Your current password is incorrect.");
 
         user.PasswordHash = BCrypt.Net.BCrypt.HashPassword(request.NewPassword);
-        var activeTokens = await _db.RefreshTokens
-            .Where(t => t.UserId == userId && t.RevokedAt == null).ToListAsync();
-        foreach (var token in activeTokens) token.RevokedAt = DateTime.UtcNow;
         await _db.SaveChangesAsync();
+        await _refreshTokens.RevokeAllAsync(userId);
     }
 
     public async Task<AuthResponse> GetProfileAsync(Guid userId)

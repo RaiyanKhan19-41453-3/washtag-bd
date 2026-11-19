@@ -14,6 +14,7 @@ public interface IRefreshTokenStore
     Task<Guid?> TryClaimAsync(string tokenHash, CancellationToken cancellationToken = default);
     Task SetReplacedByAsync(string oldHash, string newHash, CancellationToken cancellationToken = default);
     Task PurgeExpiredAsync(CancellationToken cancellationToken = default);
+    Task RevokeAllAsync(Guid userId, CancellationToken cancellationToken = default);
     Task<Guid?> RotateAsync(string oldHash, string newHash, DateTime expiresAt, CancellationToken cancellationToken = default);
 }
 
