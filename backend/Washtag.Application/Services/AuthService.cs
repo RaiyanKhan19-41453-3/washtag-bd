@@ -109,8 +109,8 @@ public class AuthService : IAuthService
         var oldHash = Hash(refreshToken);
         // The grace ticket is bound to a browser-held secret: a stolen token alone
         // cannot claim the successor issued to a different client.
-        var sessionHash = Hash(string.IsNullOrEmpty(sessionSecret) ? "none" : sessionSecret);
-        var cacheKey = $"refresh-rotation:{sessionHash}:{oldHash}";
+        var sessionHash = string.IsNullOrEmpty(sessionSecret) ? null : Hash(sessionSecret);
+        var cacheKey = $"refresh-rotation:{sessionHash ?? "none"}:{oldHash}";
 
         // Two tabs (or a retried request) can present the same token at once. Return
         // the already-issued successor for a short grace window instead of treating
@@ -204,7 +204,7 @@ public class AuthService : IAuthService
         {
             UserId = user.Id,
             TokenHash = Hash(rawRefresh),
-            SessionHash = Hash(string.IsNullOrEmpty(sessionSecret) ? "none" : sessionSecret),
+            SessionHash = string.IsNullOrEmpty(sessionSecret) ? null : Hash(sessionSecret),
             ExpiresAt = DateTime.UtcNow.AddDays(30)
         });
         await _db.SaveChangesAsync();

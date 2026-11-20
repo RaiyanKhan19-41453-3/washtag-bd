@@ -15,6 +15,10 @@ namespace Washtag.Infrastructure.Data.Migrations
                 table: "RefreshTokens",
                 type: "text",
                 nullable: true);
+
+            // Pre-upgrade tokens have no session binding. Force one re-login so every
+            // live token is bound (and a stolen legacy token cannot claim a successor).
+            migrationBuilder.Sql("DELETE FROM \"RefreshTokens\";");
         }
 
         /// <inheritdoc />
