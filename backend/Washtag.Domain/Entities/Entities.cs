@@ -60,6 +60,7 @@ public class ShopService
     public Guid Id { get; set; } = Guid.NewGuid();
     public Guid ShopId { get; set; }
     public string Name { get; set; } = string.Empty;
+    public string NormalizedName { get; set; } = string.Empty;
     public decimal DefaultPrice { get; set; }
     public bool IsActive { get; set; } = true;
     public int SortOrder { get; set; }

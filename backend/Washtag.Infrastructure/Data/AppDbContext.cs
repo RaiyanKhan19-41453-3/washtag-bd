@@ -97,7 +97,9 @@ public class AppDbContext : DbContext, IAppDbContext
         mb.Entity<ShopService>(e =>
         {
             e.HasIndex(x => new { x.ShopId, x.Name }).IsUnique();
+            e.HasIndex(x => new { x.ShopId, x.NormalizedName }).IsUnique();
             e.Property(x => x.Name).HasMaxLength(100);
+            e.Property(x => x.NormalizedName).HasMaxLength(100);
             e.Property(x => x.DefaultPrice).HasPrecision(18, 2);
             e.HasOne(x => x.Shop).WithMany().HasForeignKey(x => x.ShopId).OnDelete(DeleteBehavior.Cascade);
         });

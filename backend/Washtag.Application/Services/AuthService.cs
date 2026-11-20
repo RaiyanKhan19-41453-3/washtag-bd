@@ -81,9 +81,9 @@ public class AuthService : IAuthService
 
         shop.CatalogueInitialized = true;
         _db.ShopServices.AddRange(
-            new ShopService { ShopId = shop.Id, Name = "Wash & Fold", DefaultPrice = 120, SortOrder = 0 },
-            new ShopService { ShopId = shop.Id, Name = "Dry Clean", DefaultPrice = 250, SortOrder = 1 },
-            new ShopService { ShopId = shop.Id, Name = "Ironing", DefaultPrice = 80, SortOrder = 2 });
+            new ShopService { ShopId = shop.Id, Name = "Wash & Fold", NormalizedName = "wash & fold", DefaultPrice = 120, SortOrder = 0 },
+            new ShopService { ShopId = shop.Id, Name = "Dry Clean", NormalizedName = "dry clean", DefaultPrice = 250, SortOrder = 1 },
+            new ShopService { ShopId = shop.Id, Name = "Ironing", NormalizedName = "ironing", DefaultPrice = 80, SortOrder = 2 });
 
         await _db.SaveChangesAsync();
         return await IssueTokensAsync(user, shop, request.SessionSecret);

@@ -5,6 +5,7 @@ using Washtag.Application.DTOs;
 using Washtag.Application.Interfaces;
 using Washtag.Domain.Entities;
 using Washtag.Domain.Enums;
+using Washtag.Domain.Exceptions;
 using Washtag.Infrastructure.Data;
 using Xunit;
 
@@ -253,5 +254,79 @@ public class RealDatabaseTests
         var ex = await Assert.ThrowsAsync<DbUpdateException>(() => db.SaveChangesAsync());
         Assert.IsType<Npgsql.PostgresException>(ex.InnerException);
         Assert.Equal("23505", ((Npgsql.PostgresException)ex.InnerException!).SqlState);
+    }
+
+    [Fact]
+    public async Task ServiceCatalog_CaseVariantRaceCreatesOnlyOneRow()
+    {
+        var shop = await _fixture.NewShopAsync();
+        var results = await Task.WhenAll(Enumerable.Range(0, 8).Select(async i =>
+        {
+            using var scope = _fixture.Scope();
+            try
+            {
+                await scope.ServiceProvider.GetRequiredService<IServiceCatalogService>().CreateAsync(
+                    shop.Id, new CreateServiceRequest
+                    {
+                        Name = i % 2 == 0 ? "Dry Clean" : "dry clean", DefaultPrice = 250
+                    });
+                return "ok";
+            }
+            catch (AppException) { return "duplicate"; }
+            catch (DbUpdateException) { return "db-duplicate"; }
+        }));
+
+        using var check = _fixture.Scope();
+        var db = check.ServiceProvider.GetRequiredService<AppDbContext>();
+        var count = await db.ShopServices.CountAsync(s => s.ShopId == shop.Id);
+        Assert.Equal(1, count);
+        Assert.Single(results.Where(r => r == "ok"));
+    }
+
+    [Fact]
+    public async Task Reports_ByDayCollectionsReconcileWithHeadline()
+    {
+        var shop = await _fixture.NewShopAsync();
+        var from = DateTime.UtcNow.AddDays(-3);
+        var to = DateTime.UtcNow.AddDays(1);
+        Guid orderId;
+        using (var seed = _fixture.Scope())
+        {
+            var db = seed.ServiceProvider.GetRequiredService<AppDbContext>();
+            var order = new Order
+            {
+                ShopId = shop.Id, OrderNumber = "WT-REPORT", PublicToken = Guid.NewGuid(),
+                CustomerName = "Report Customer", CustomerPhone = "1", TotalAmount = 500,
+                PaidAmount = 500, Status = OrderStatus.Received, PaymentStatus = PaymentStatus.Paid,
+                CreatedAt = from.AddDays(1), UpdatedAt = from.AddDays(1)
+            };
+            db.Orders.Add(order);
+            await db.SaveChangesAsync();
+            orderId = order.Id;
+            db.Payments.Add(new Payment
+            {
+                OrderId = order.Id, Amount = 500, Method = PaymentMethod.Bkash,
+                RecordedBy = "tester", CreatedAt = DateTime.UtcNow
+            });
+            await db.SaveChangesAsync();
+        }
+
+        using var work = _fixture.Scope();
+        var report = await work.ServiceProvider.GetRequiredService<IReportService>()
+            .DailyAsync(shop.Id, from, to);
+        Assert.Equal(500, report.Collected);
+        Assert.Equal(report.Collected, report.ByDay.Sum(d => d.Collected));
+    }
+
+    [Fact]
+    public async Task ServiceCatalog_DeletedServicesAreNotReseeded()
+    {
+        var shop = await _fixture.NewShopAsync();
+        using var work = _fixture.Scope();
+        var catalog = work.ServiceProvider.GetRequiredService<IServiceCatalogService>();
+        var services = await catalog.ListAsync(shop.Id);
+        Assert.Equal(3, services.Count);
+        foreach (var s in services) await catalog.DeleteAsync(shop.Id, s.Id);
+        Assert.Empty(await catalog.ListAsync(shop.Id));
     }
 }

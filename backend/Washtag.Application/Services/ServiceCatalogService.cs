@@ -29,9 +29,9 @@ public sealed class ServiceCatalogService : IServiceCatalogService
         var initializing = await _db.Shops.FirstAsync(s => s.Id == shopId, cancellationToken);
         initializing.CatalogueInitialized = true;
         _db.ShopServices.AddRange(
-            new ShopService { ShopId = shopId, Name = "Wash & Fold", DefaultPrice = 120, SortOrder = 0 },
-            new ShopService { ShopId = shopId, Name = "Dry Clean", DefaultPrice = 250, SortOrder = 1 },
-            new ShopService { ShopId = shopId, Name = "Ironing", DefaultPrice = 80, SortOrder = 2 });
+            new ShopService { ShopId = shopId, Name = "Wash & Fold", NormalizedName = "wash & fold", DefaultPrice = 120, SortOrder = 0 },
+            new ShopService { ShopId = shopId, Name = "Dry Clean", NormalizedName = "dry clean", DefaultPrice = 250, SortOrder = 1 },
+            new ShopService { ShopId = shopId, Name = "Ironing", NormalizedName = "ironing", DefaultPrice = 80, SortOrder = 2 });
         try { await _db.SaveChangesAsync(cancellationToken); }
         catch (DbUpdateConcurrencyException) { /* another request seeded first */ }
         return await _db.ShopServices.AsNoTracking().Where(s => s.ShopId == shopId)
@@ -53,8 +53,8 @@ public sealed class ServiceCatalogService : IServiceCatalogService
             throw new AppException("A service with this name already exists.");
         var service = new ShopService
         {
-            ShopId = shopId, Name = name, DefaultPrice = request.DefaultPrice,
-            SortOrder = request.SortOrder
+            ShopId = shopId, Name = name, NormalizedName = name.ToLowerInvariant(),
+            DefaultPrice = request.DefaultPrice, SortOrder = request.SortOrder
         };
         _db.ShopServices.Add(service);
         await _db.SaveChangesAsync(cancellationToken);
@@ -72,6 +72,7 @@ public sealed class ServiceCatalogService : IServiceCatalogService
                 s.Name.ToLower() == name.ToLower(), cancellationToken))
             throw new AppException("A service with this name already exists.");
         service.Name = name;
+        service.NormalizedName = name.ToLowerInvariant();
         service.DefaultPrice = request.DefaultPrice;
         service.IsActive = request.IsActive;
         service.SortOrder = request.SortOrder;

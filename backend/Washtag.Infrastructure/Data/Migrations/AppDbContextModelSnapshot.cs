@@ -495,6 +495,11 @@ namespace Washtag.Infrastructure.Data.Migrations
                         .HasMaxLength(100)
                         .HasColumnType("character varying(100)");
 
+                    b.Property<string>("NormalizedName")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
                     b.Property<Guid>("ShopId")
                         .HasColumnType("uuid");
 
@@ -504,6 +509,9 @@ namespace Washtag.Infrastructure.Data.Migrations
                     b.HasKey("Id");
 
                     b.HasIndex("ShopId", "Name")
+                        .IsUnique();
+
+                    b.HasIndex("ShopId", "NormalizedName")
                         .IsUnique();
 
                     b.ToTable("ShopServices");
