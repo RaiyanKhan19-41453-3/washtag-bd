@@ -26,12 +26,19 @@ export default function Reports() {
   const [report, setReport] = useState(null);
   const [busy, setBusy] = useState(false);
 
+  // An empty <input type="date"> yields '' and would throw "Invalid time value"
+  // from the UTC helpers — validate before building the request.
+  const rangeOrWarn = () => {
+    if (!from || !to) { toast.error('Choose both a start and end date.'); return null; }
+    return { from: dayStartUtc(from), to: exclusiveEndUtc(to) };
+  };
+
   const load = async () => {
+    const params = rangeOrWarn();
+    if (!params) return;
     setBusy(true);
     try {
-      const { data } = await api.get('/reports/daily', {
-        params: { from: dayStartUtc(from), to: exclusiveEndUtc(to) }
-      });
+      const { data } = await api.get('/reports/daily', { params });
       setReport(data);
     } catch (error) { toast.error(error.message); }
     finally { setBusy(false); }
@@ -39,17 +46,17 @@ export default function Reports() {
   useEffect(() => { load(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const download = async () => {
+    const params = rangeOrWarn();
+    if (!params) return;
     try {
-      const response = await api.get('/reports/orders.csv', {
-        params: { from: dayStartUtc(from), to: exclusiveEndUtc(to) },
-        responseType: 'blob'
-      });
+      const response = await api.get('/reports/orders.csv', { params, responseType: 'blob' });
       const url = URL.createObjectURL(new Blob([response.data], { type: 'text/csv' }));
       const link = document.createElement('a');
       link.href = url;
       link.download = `orders-${from}-${to}.csv`;
       link.click();
-      URL.revokeObjectURL(url);
+      // Revoke on the next tick; some browsers cancel a download revoked synchronously.
+      setTimeout(() => URL.revokeObjectURL(url), 0);
     } catch (error) { toast.error(error.message); }
   };
 
