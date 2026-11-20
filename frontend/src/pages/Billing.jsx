@@ -25,9 +25,19 @@ export default function Billing() {
   const [busy, setBusy] = useState(false);
   const isOwner = user?.role === 'Owner';
 
+  const lastStatusRef = useRef(null);
+  const planDirtyRef = useRef(false);
+
   const load = useCallback(() => {
     setLoadError('');
-    api.get('/billing').then(({ data: result }) => { setData(result); setPlan(result.plan); })
+    api.get('/billing').then(({ data: result }) => {
+      // Seed the baseline only once so a webhook renewal before the first poll
+      // is still detected; later loads must not erase an already-seen status.
+      if (lastStatusRef.current == null) lastStatusRef.current = result.status;
+      setData(result);
+      setPlan(result.plan);
+      planDirtyRef.current = false;
+    })
       .catch((error) => { setLoadError(error.message); toast.error(error.message); });
   }, [toast]);
 
@@ -40,7 +50,6 @@ export default function Billing() {
 
   // A verified gateway webhook settles invoices server-side; poll so a locked
   // owner sees the renewed state without a manual reload.
-  const lastStatusRef = useRef(null);
   useEffect(() => {
     const timer = window.setInterval(async () => {
       try {
@@ -49,8 +58,9 @@ export default function Billing() {
         lastStatusRef.current = data.status;
         setData(data);
         setLoadError('');
-        // Never overwrite an unsaved plan selection made in the dropdown.
-        setPlan((current) => (current ? current : data.plan));
+        // Preserve an unsaved dropdown selection, but re-sync when untouched so
+        // an admin's plan change while this page is open is still reflected.
+        if (!planDirtyRef.current) setPlan(data.plan);
         if (statusChanged) void refreshShop();
       } catch { /* transient poll failure — keep the last state */ }
     }, 30000);
@@ -62,6 +72,7 @@ export default function Billing() {
     try {
       const { data: result } = await api.put('/billing/plan', { plan });
       setData(result);
+      planDirtyRef.current = false;
       await refreshShop();
       toast.success(`Plan changed to ${result.plan}.`);
     } catch (error) { toast.error(error.message); }
@@ -124,7 +135,7 @@ export default function Billing() {
             <div className="plan-change">
               <label className="field">
                 <span>Change plan</span>
-                <select value={plan} onChange={(e) => setPlan(e.target.value)}>
+                <select value={plan} onChange={(e) => { planDirtyRef.current = true; setPlan(e.target.value); }}>
                   {PLANS.map((item) => <option key={item.name} value={item.name}>{item.name} — ৳{item.price}/mo</option>)}
                 </select>
               </label>
@@ -174,7 +185,7 @@ export default function Billing() {
             {Object.entries(PAYMENT_METHOD_LABELS).map(([key, label]) => <option key={key} value={key}>{label}</option>)}
           </select></label>
           <label className="field"><span>Reference <em>(optional)</em></span><input value={reference} onChange={(e) => setReference(e.target.value)} placeholder="bKash / bank reference" /></label>
-          <p className="tiny-note">Record manual settlement here. Online gateway collection can be added later.</p>
+          <p className="tiny-note">Record a manual settlement here. Verified gateway payments settle invoices automatically via webhook.</p>
         </form>
       </Modal>
     </div>
