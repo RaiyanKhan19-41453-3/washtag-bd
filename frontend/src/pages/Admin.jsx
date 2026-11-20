@@ -1,15 +1,52 @@
 import { useCallback, useEffect, useState } from 'react';
-import { Store, Users, Package, Wallet, ShieldAlert, Ban, CheckCircle2, RotateCcw, RefreshCw } from 'lucide-react';
+import {
+  App as AntApp, Alert, Button, Card, Col, ConfigProvider, Descriptions,
+  Row, Space, Spin, Statistic, Table, Tag, Typography
+} from 'antd';
+import {
+  Store, Users, Package, Wallet, ShieldAlert, Ban, CheckCircle2,
+  RotateCcw, RefreshCw, MoreHorizontal
+} from 'lucide-react';
 import api from '../api/client';
 import { useAuth } from '../context/AuthContext';
-import { useToast } from '../context/ToastContext';
-import StatCard from '../components/StatCard';
-import Loader from '../components/Loader';
 import { money, formatDate } from '../utils/helpers';
 
-export default function Admin() {
+const { Title, Text, Paragraph } = Typography;
+
+// Ant Design's dense, token-driven layout gives this page a deliberately
+// "enterprise admin" feel rather than a generic card grid. Teal keeps it in
+// the same family as the rest of WashTag; CSS-in-JS is scoped to this page.
+const theme = {
+  token: {
+    colorPrimary: '#0d9488',
+    colorInfo: '#0d9488',
+    colorSuccess: '#16a34a',
+    colorWarning: '#d97706',
+    colorError: '#dc2626',
+    borderRadius: 6,
+    fontSize: 13,
+    controlHeight: 32,
+    colorText: '#1e293b',
+    colorTextSecondary: '#64748b'
+  },
+  components: {
+    Table: {
+      headerBg: '#f8fafc',
+      headerColor: '#475569',
+      headerSplitColor: '#e2e8f0',
+      rowHoverBg: '#f1f5f9',
+      cellPaddingBlock: 12
+    },
+    Card: { paddingLG: 20 },
+    Statistic: { contentFontSize: 26 }
+  }
+};
+
+const STATUS_COLOR = { Active: 'green', Trial: 'blue', PastDue: 'orange', Cancelled: 'red' };
+
+function AdminInner() {
   const { user } = useAuth();
-  const toast = useToast();
+  const { message, modal } = AntApp.useApp();
   const [stats, setStats] = useState(null);
   const [error, setError] = useState('');
   const [busyId, setBusyId] = useState(null);
@@ -25,14 +62,14 @@ export default function Admin() {
     if (user?.isAdmin) load();
   }, [user?.isAdmin, load]);
 
-  const mutate = async (shop, path, message, method = 'PATCH', body) => {
+  const mutate = async (shop, path, successMessage, method = 'PATCH', body) => {
     setBusyId(shop.shopId);
     try {
       await api.request({ url: `/admin/shops/${path}`, method, data: body });
-      toast.success(message);
+      message.success(successMessage);
       window.dispatchEvent(new CustomEvent('washtag:subscription-locked'));
       load();
-    } catch (err) { toast.error(err.message); }
+    } catch (err) { message.error(err.message); }
     finally { setBusyId(null); }
   };
 
@@ -41,97 +78,208 @@ export default function Admin() {
     try {
       const { data } = await api.post('/admin/maintenance/run');
       setMaintenance(data);
-      toast.success(data.errors?.length ? 'Maintenance finished with errors.' : 'Maintenance finished.');
-    } catch (err) { toast.error(err.message); }
+      data.errors?.length
+        ? message.warning('Maintenance finished with errors.')
+        : message.success('Maintenance finished.');
+    } catch (err) { message.error(err.message); }
     finally { setRunningMaintenance(false); }
   };
 
-  const confirmCancel = (shop) => {
-    if (window.confirm(`Cancel the subscription for ${shop.shopName}? This locks the shop until an admin restores its plan.`)) {
-      mutate(shop, `${shop.shopId}/cancel`, 'Subscription cancelled.');
-    }
-  };
-
   if (!user?.isAdmin) {
-    return <div className="card error-card"><ShieldAlert size={22} /><p>Platform admin access is required for this page.</p></div>;
+    return (
+      <Alert
+        type="warning"
+        showIcon
+        icon={<ShieldAlert size={18} />}
+        message="Platform admin access required"
+        description="This page is restricted to platform administrators."
+      />
+    );
   }
-  if (!stats && !error) return <Loader full label="Loading platform overview…" />;
-  if (error) return <div className="card error-card"><p>{error}</p><button className="btn btn-outline btn-sm" onClick={load}>Retry</button></div>;
+  if (error) {
+    return (
+      <Alert
+        type="error"
+        showIcon
+        message="Could not load platform overview"
+        description={error}
+        action={<Button size="small" onClick={load}>Retry</Button>}
+      />
+    );
+  }
+  if (!stats) {
+    return <div style={{ display: 'grid', placeItems: 'center', minHeight: 320 }}><Spin size="large" /></div>;
+  }
+
+  const columns = [
+    {
+      title: 'Shop', key: 'shop', width: 190,
+      render: (_, s) => (
+        <div>
+          <Text strong>{s.shopName}</Text>
+          <div><Text type="secondary" style={{ fontSize: 12 }}>{s.city}</Text></div>
+        </div>
+      )
+    },
+    {
+      title: 'Owner', key: 'owner', width: 210,
+      render: (_, s) => (
+        <div>
+          <div>{s.ownerName}</div>
+          <Text type="secondary" style={{ fontSize: 12 }}>{s.email}</Text>
+        </div>
+      )
+    },
+    {
+      title: 'Plan', dataIndex: 'plan', key: 'plan', width: 90,
+      render: (plan) => <Tag bordered={false}>{plan}</Tag>
+    },
+    {
+      title: 'Subscription', dataIndex: 'subscriptionStatus', key: 'status', width: 120,
+      render: (status) => <Tag bordered={false} color={STATUS_COLOR[status] || 'default'}>{status}</Tag>
+    },
+    {
+      title: 'Orders', dataIndex: 'orderCount', key: 'orders', width: 80, align: 'right',
+      sorter: (a, b) => a.orderCount - b.orderCount
+    },
+    {
+      title: 'Collected', dataIndex: 'collected', key: 'collected', width: 120, align: 'right',
+      render: (value) => <Text strong>{money(value)}</Text>,
+      sorter: (a, b) => a.collected - b.collected
+    },
+    {
+      title: 'Renews', dataIndex: 'renewalDate', key: 'renews', width: 130,
+      render: (value) => <Text type="secondary">{formatDate(value)}</Text>
+    },
+    {
+      title: 'Actions', key: 'actions',
+      render: (_, s) => {
+        const busy = busyId === s.shopId;
+        return (
+          <Space size={4} wrap>
+            {s.isActive ? (
+              <Button
+                size="small" type="text" icon={<Ban size={14} />} loading={busy}
+                onClick={() => modal.confirm({
+                  title: `Suspend ${s.shopName}?`,
+                  content: 'Its owners will lose access to daily operations until an admin reactivates it.',
+                  okText: 'Suspend', okButtonProps: { danger: true },
+                  onOk: () => mutate(s, `${s.shopId}/active`, 'Shop suspended.', 'PATCH', { active: false })
+                })}
+              >Suspend</Button>
+            ) : (
+              <Button
+                size="small" type="text" icon={<CheckCircle2 size={14} />} loading={busy}
+                onClick={() => mutate(s, `${s.shopId}/active`, 'Shop reactivated.', 'PATCH', { active: true })}
+              >Activate</Button>
+            )}
+            <Button
+              size="small" type="text" loading={busy} disabled={!s.hasPendingInvoice}
+              title={s.hasPendingInvoice ? 'Settle the oldest unpaid invoice' : 'No unpaid invoice'}
+              onClick={() => mutate(s, `${s.shopId}/settle`, 'Invoice settled.', 'POST')}
+            >Settle invoice</Button>
+            {s.subscriptionStatus === 'Cancelled' || s.subscriptionStatus === 'PastDue' ? (
+              <Button
+                size="small" type="text" icon={<RotateCcw size={14} />} loading={busy}
+                onClick={() => modal.confirm({
+                  title: `Restore the plan for ${s.shopName}?`,
+                  content: 'This starts a fresh subscription term and issues a payable invoice.',
+                  onOk: () => mutate(s, `${s.shopId}/restore`, 'Plan restored.')
+                })}
+              >Restore</Button>
+            ) : (
+              <Button
+                size="small" type="text" danger icon={<MoreHorizontal size={14} />} loading={busy}
+                onClick={() => modal.confirm({
+                  title: `Cancel the plan for ${s.shopName}?`,
+                  content: 'This locks the shop until an admin explicitly restores its plan.',
+                  okText: 'Cancel plan', okButtonProps: { danger: true },
+                  onOk: () => mutate(s, `${s.shopId}/cancel`, 'Subscription cancelled.')
+                })}
+              >Cancel plan</Button>
+            )}
+          </Space>
+        );
+      }
+    }
+  ];
 
   return (
-    <div className="page-stack">
-      <div className="page-heading">
-        <div><h2>Platform overview</h2><p>All shops on your WashTag BD deployment.</p></div>
-        <button className="btn btn-outline btn-sm" disabled={runningMaintenance} onClick={runMaintenance}>
-          <RefreshCw size={15} /> {runningMaintenance ? 'Running…' : 'Run maintenance'}
-        </button>
+    <div style={{ display: 'grid', gap: 20 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 16, flexWrap: 'wrap' }}>
+        <div>
+          <Title level={3} style={{ margin: 0 }}>Platform overview</Title>
+          <Paragraph type="secondary" style={{ margin: '4px 0 0' }}>
+            All shops on your WashTag BD deployment.
+          </Paragraph>
+        </div>
+        <Button icon={<RefreshCw size={14} />} loading={runningMaintenance} onClick={runMaintenance}>
+          Run maintenance
+        </Button>
       </div>
 
       {maintenance && (
-        <section className="card">
-          <div className="card-head"><div><h3>Last maintenance run</h3><p>{new Date(maintenance.ranAt).toLocaleString()}</p></div></div>
-          <p className="muted">
-            {maintenance.overdueInvoices} overdue invoices · {maintenance.expiredSubscriptions} expired · {maintenance.prunedMessages} messages pruned · {maintenance.reindexedShops} shops reindexed
-          </p>
-          {maintenance.errors?.length > 0 && <ul className="error-list">{maintenance.errors.map((e, i) => <li key={i}>{e}</li>)}</ul>}
-        </section>
+        <>
+        <Title level={5} style={{ margin: 0 }}>Last maintenance run</Title>
+        <Alert
+          type={maintenance.errors?.length ? 'warning' : 'success'}
+          showIcon
+          message={new Date(maintenance.ranAt).toLocaleString()}
+          description={
+            <Descriptions size="small" column={{ xs: 1, sm: 2, lg: 4 }} bordered>
+              <Descriptions.Item label="Overdue invoices">{maintenance.overdueInvoices}</Descriptions.Item>
+              <Descriptions.Item label="Expired subscriptions">{maintenance.expiredSubscriptions}</Descriptions.Item>
+              <Descriptions.Item label="Messages pruned">{maintenance.prunedMessages}</Descriptions.Item>
+              <Descriptions.Item label="Shops reindexed">{maintenance.reindexedShops}</Descriptions.Item>
+            </Descriptions>
+          }
+        />
+        </>
+      )}
+      {maintenance?.errors?.length > 0 && (
+        <Alert type="error" showIcon message="Maintenance errors"
+          description={<ul style={{ margin: 0, paddingLeft: 18 }}>{maintenance.errors.map((e, i) => <li key={i}>{e}</li>)}</ul>} />
       )}
 
-      <div className="stat-grid">
-        <StatCard icon={Store} label="Shops" value={stats.shopCount} hint={`${stats.activeShopCount} active`} tone="teal" />
-        <StatCard icon={Users} label="Accounts" value={stats.userCount} hint="Owners + staff" tone="violet" />
-        <StatCard icon={Package} label="Orders" value={stats.orderCount} hint="Across all shops" tone="amber" />
-        <StatCard icon={Wallet} label="Collected" value={money(stats.collected)} hint="All-time payments" tone="emerald" />
-      </div>
+      <Row gutter={[16, 16]}>
+        {[
+          { icon: Store, label: 'Shops', value: stats.shopCount, hint: `${stats.activeShopCount} active` },
+          { icon: Users, label: 'Accounts', value: stats.userCount, hint: 'Owners + staff' },
+          { icon: Package, label: 'Orders', value: stats.orderCount, hint: 'Across all shops' },
+          { icon: Wallet, label: 'Collected', value: money(stats.collected), hint: 'All-time payments' }
+        ].map(({ icon: Icon, label, value, hint }) => (
+          <Col xs={24} sm={12} lg={6} key={label}>
+            <Card size="small" styles={{ body: { padding: 18 } }}>
+              <Statistic
+                title={<Space size={6}><Icon size={15} color="#64748b" />{label}</Space>}
+                value={value}
+              />
+              <Text type="secondary" style={{ fontSize: 12 }}>{hint}</Text>
+            </Card>
+          </Col>
+        ))}
+      </Row>
 
-      <section className="card">
-        <div className="card-head"><div><h3>Shops</h3><p>Subscription and activity by tenant</p></div></div>
-        <div className="table-scroll">
-          <table className="data-table">
-            <thead><tr><th>Shop</th><th>Owner</th><th>Plan</th><th>Subscription</th><th className="align-right">Orders</th><th className="align-right">Collected</th><th>Renews</th><th /></tr></thead>
-            <tbody>
-              {stats.shops.map((shop) => (
-                <tr key={shop.shopId}>
-                  <td><strong>{shop.shopName}</strong><div className="cell-secondary">{shop.city}</div></td>
-                  <td><div className="cell-primary">{shop.ownerName}</div><div className="cell-secondary">{shop.email}</div></td>
-                  <td><span className="soft-chip">{shop.plan}</span></td>
-                  <td><span className={`badge payment-${shop.subscriptionStatus === 'Active' ? 'Paid' : 'Partial'}`}>{shop.subscriptionStatus}</span></td>
-                  <td className="align-right">{shop.orderCount}</td>
-                  <td className="align-right strong">{money(shop.collected)}</td>
-                  <td className="muted">{formatDate(shop.renewalDate)}</td>
-                  <td>
-                    <div className="team-actions">
-                      {shop.isActive ? (
-                        <button className="btn btn-ghost btn-sm" disabled={busyId === shop.shopId}
-                          onClick={() => { if (window.confirm(`Suspend ${shop.shopName}? Its owners will lose access until reactivated.`)) mutate(shop, `${shop.shopId}/active`, 'Shop suspended.', 'PATCH', { active: false }); }}>
-                          <Ban size={15} /> Suspend
-                        </button>
-                      ) : (
-                        <button className="btn btn-ghost btn-sm" disabled={busyId === shop.shopId}
-                          onClick={() => mutate(shop, `${shop.shopId}/active`, 'Shop reactivated.', 'PATCH', { active: true })}>
-                          <CheckCircle2 size={15} /> Activate
-                        </button>
-                      )}
-                      <button className="btn btn-ghost btn-sm" disabled={busyId === shop.shopId || !shop.hasPendingInvoice}
-                        title={shop.hasPendingInvoice ? 'Settle the oldest unpaid invoice' : 'No unpaid invoice'}
-                        onClick={() => mutate(shop, `${shop.shopId}/settle`, 'Invoice settled.', 'POST')}>Settle invoice</button>
-                      {shop.subscriptionStatus === 'Cancelled' || shop.subscriptionStatus === 'PastDue' ? (
-                        <button className="btn btn-ghost btn-sm" disabled={busyId === shop.shopId}
-                          onClick={() => { if (window.confirm(`Restore the plan for ${shop.shopName}?`)) mutate(shop, `${shop.shopId}/restore`, 'Plan restored.'); }}>
-                          <RotateCcw size={15} /> Restore
-                        </button>
-                      ) : (
-                        <button className="btn btn-ghost btn-sm danger-text" disabled={busyId === shop.shopId}
-                          onClick={() => confirmCancel(shop)}>Cancel plan</button>
-                      )}
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </section>
+      <Card size="small" title="Shops" extra={<Text type="secondary">Subscription and activity by tenant</Text>}>
+        <Table
+          rowKey="shopId"
+          columns={columns}
+          dataSource={stats.shops}
+          size="middle"
+          pagination={false}
+          scroll={{ x: 1100 }}
+        />
+      </Card>
     </div>
+  );
+}
+
+export default function Admin() {
+  return (
+    <ConfigProvider theme={theme}>
+      <AntApp>
+        <AdminInner />
+      </AntApp>
+    </ConfigProvider>
   );
 }
