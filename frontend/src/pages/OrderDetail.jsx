@@ -262,7 +262,7 @@ export default function OrderDetail() {
         <form id="payment-form" onSubmit={submitPayment} className="form-stack">
           <label className="field">
             <span>Amount (BDT)</span>
-            <input type="number" min="1" step="1" value={payment.amount} onChange={(e) => setPayment((p) => ({ ...p, amount: e.target.value }))} placeholder="0" required autoFocus />
+            <input type="number" min="1" step="1" value={payment.amount} onChange={(e) => setPayment((p) => ({ ...p, amount: e.target.value }))} placeholder="0" required />
           </label>
           <label className="field">
             <span>Method</span>

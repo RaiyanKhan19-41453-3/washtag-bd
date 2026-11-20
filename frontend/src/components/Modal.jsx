@@ -12,7 +12,13 @@ export default function Modal({ open, onClose, title, subtitle, children, footer
   useEffect(() => {
     if (!open) return undefined;
     previousFocus.current = document.activeElement;
-    dialogRef.current?.focus();
+    // Focus the first form control so it is ready for typing (e.g. the payment
+    // amount field). React's autoFocus prop is consumed before this effect runs,
+    // so it cannot be detected here and would otherwise be blurred by the
+    // dialog-container focus below.
+    const preferred = dialogRef.current?.querySelector(
+      'input:not([type=hidden]):not([disabled]), textarea:not([disabled]), select:not([disabled])');
+    (preferred ?? dialogRef.current)?.focus();
     const handleKey = (event) => {
       if (event.key === 'Escape') { onCloseRef.current?.(); return; }
       if (event.key !== 'Tab') return;
@@ -22,8 +28,16 @@ export default function Modal({ open, onClose, title, subtitle, children, footer
       if (!focusable?.length) return;
       const first = focusable[0];
       const last = focusable[focusable.length - 1];
-      if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last.focus(); }
-      else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first.focus(); }
+      const active = document.activeElement;
+      // Focus on the dialog container (or one that escaped behind the modal)
+      // must be pulled back inside — otherwise Shift+Tab roams the background.
+      if (active === dialogRef.current || !dialogRef.current?.contains(active)) {
+        event.preventDefault();
+        (event.shiftKey ? last : first).focus();
+        return;
+      }
+      if (event.shiftKey && active === first) { event.preventDefault(); last.focus(); }
+      else if (!event.shiftKey && active === last) { event.preventDefault(); first.focus(); }
     };
     document.addEventListener('keydown', handleKey);
     return () => {
