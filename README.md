@@ -116,7 +116,7 @@ The dependency rule points inward: `Api → Infrastructure → Application → D
 
 **Subscription & platform**
 - Subscription state (plan, status, renewal date) with monthly invoices for Starter/Growth/Pro
-- Owners can change plans and record manual invoice settlements (bKash/cash/card/bank); an online gateway can be added later
+- Owners can change plans and record manual invoice settlements (bKash/cash/card/bank); verified gateway payments settle invoices automatically via a signed `invoice.paid` webhook
 - Platform admin view (`/app/admin`) listing every shop, its plan, subscription and revenue, with Suspend / Reactivate / Cancel / Restore controls (cancel is final until explicitly restored)
 - Subscription enforcement: expired, PastDue, Cancelled or suspended shops are locked from daily operations (403) but can still reach auth, billing and shop settings to renew — with a banner directing owners to the Billing page
 - CORS origin allowlist, auth rate limiting (6 attempts/minute) and secure refresh-token rotation

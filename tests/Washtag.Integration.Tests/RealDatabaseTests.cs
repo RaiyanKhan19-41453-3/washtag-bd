@@ -280,7 +280,7 @@ public class RealDatabaseTests
         var db = check.ServiceProvider.GetRequiredService<AppDbContext>();
         var count = await db.ShopServices.CountAsync(s => s.ShopId == shop.Id);
         Assert.Equal(1, count);
-        Assert.Single(results.Where(r => r == "ok"));
+        Assert.Single(results, r => r == "ok");
     }
 
     [Fact]
@@ -325,7 +325,6 @@ public class RealDatabaseTests
         var suffix = Guid.NewGuid().ToString("N");
         static string Hash(string raw) => Convert.ToBase64String(
             System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(raw)));
-        Guid userId;
         using (var seed = _fixture.Scope())
         {
             var db = seed.ServiceProvider.GetRequiredService<AppDbContext>();
@@ -341,12 +340,13 @@ public class RealDatabaseTests
                 ExpiresAt = DateTime.UtcNow.AddDays(30), CreatedAt = DateTime.UtcNow
             });
             await db.SaveChangesAsync();
-            userId = user.Id;
         }
 
         using var work = _fixture.Scope();
         var store = work.ServiceProvider.GetRequiredService<IRefreshTokenStore>();
         Assert.Null(await store.RotateAsync(Hash("r0-" + suffix), Hash("attacker-" + suffix), DateTime.UtcNow.AddDays(30), Hash("attacker")));
+        // A wrong-secret attempt must revoke the victim's bound token and its whole lineage.
+        Assert.False(await store.IsActiveAsync(Hash("r0-" + suffix)));
         Assert.False(await store.IsActiveAsync(Hash("attacker-" + suffix)));
     }
 
