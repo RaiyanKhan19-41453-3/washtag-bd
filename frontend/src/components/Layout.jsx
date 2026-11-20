@@ -2,8 +2,9 @@ import { useState } from 'react';
 import { Link, NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import {
   LayoutDashboard, Package, ScanLine, Users, Settings as SettingsIcon,
-  LogOut, Plus, Menu, Shirt, Sparkles, UserCog, CreditCard, Shield, AlertCircle, BarChart3
+  LogOut, Plus, Menu, Sparkles, UserCog, CreditCard, Shield, AlertCircle, BarChart3
 } from 'lucide-react';
+import LogoMark from './LogoMark';
 import { useAuth } from '../context/AuthContext';
 import { useLanguage } from '../context/LanguageContext';
 import { useToast } from '../context/ToastContext';
@@ -71,7 +72,7 @@ export default function Layout() {
     <div className="app-shell">
       <aside className={`sidebar ${open ? 'is-open' : ''}`}>
         <div className="brand">
-          <div className="brand-mark"><Shirt size={21} /></div>
+          <div className="brand-mark"><LogoMark size={21} /></div>
           <div className="brand-text">
             <strong>WashTag<span>BD</span></strong>
             <small>Smart Laundry OS</small>

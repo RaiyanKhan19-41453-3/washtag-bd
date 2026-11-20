@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Shirt, Store, UserRound, Mail, Phone, Lock, MapPin, ArrowRight, Sparkles } from 'lucide-react';
+import { Store, UserRound, Mail, Phone, Lock, MapPin, ArrowRight, Sparkles } from 'lucide-react';
+import LogoMark from '../components/LogoMark';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 
@@ -33,7 +34,7 @@ export default function Register() {
     <div className="auth-page">
       <div className="auth-hero auth-hero-register">
         <Link to="/" className="brand brand-light">
-          <div className="brand-mark"><Shirt size={21} /></div>
+          <div className="brand-mark"><LogoMark size={21} /></div>
           <div className="brand-text"><strong>WashTag<span>BD</span></strong><small>Smart Laundry OS</small></div>
         </Link>
         <div className="auth-hero-copy">

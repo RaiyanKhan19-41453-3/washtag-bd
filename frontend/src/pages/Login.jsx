@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { Shirt, Mail, Lock, ArrowRight, Eye, EyeOff, Sparkles } from 'lucide-react';
+import { Mail, Lock, ArrowRight, Eye, EyeOff, Sparkles } from 'lucide-react';
+import LogoMark from '../components/LogoMark';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import { useLanguage } from '../context/LanguageContext';
@@ -42,7 +43,7 @@ export default function Login() {
     <div className="auth-page">
       <div className="auth-hero">
         <Link to="/" className="brand brand-light">
-          <div className="brand-mark"><Shirt size={21} /></div>
+          <div className="brand-mark"><LogoMark size={21} /></div>
           <div className="brand-text"><strong>WashTag<span>BD</span></strong><small>Smart Laundry OS</small></div>
         </Link>
         <div className="auth-hero-copy">
