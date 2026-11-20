@@ -67,7 +67,7 @@ To disable demo data, set `SEED_DEMO_DATA=false` **before the first start on a f
 
 | Service | Technology | Purpose |
 | --- | --- | --- |
-| `web` | React 19 + Vite + nginx | Customer tracking page, owner dashboard, QR scanning |
+| `web` | React 19 + Vite + nginx | Customer tracking page, owner dashboard, QR scanning; the platform admin page uses Ant Design (MIT) for its enterprise table/forms |
 | `api` | ASP.NET Core 9 Web API | Clean Architecture host: controllers, SignalR hub, JWT, QR endpoints |
 | `postgres` | PostgreSQL 16 + **pgvector** | Durable tenant/order data (EF Core + Npgsql) and 384-dimension embeddings for RAG |
 | `redis` | Redis 7 | Distributed cache for public tracking lookups |
