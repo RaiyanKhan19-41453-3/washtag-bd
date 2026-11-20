@@ -12,7 +12,7 @@ function extractToken(text) {
   try {
     const url = new URL(text);
     const parts = url.pathname.split('/').filter(Boolean);
-    const index = parts.indexOf('t');
+    const index = parts.findIndex((part) => part === 't' || part === 'track');
     if (index >= 0 && parts[index + 1]) return parts[index + 1];
   } catch { /* not a URL */ }
   const match = String(text).match(/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i);
@@ -161,7 +161,7 @@ export default function Scan() {
               <p>Paste the tracking link or the code printed under the QR.</p>
               <label className="field">
                 <span>Code or link</span>
-                <input value={manual} onChange={(e) => setManual(e.target.value)} placeholder="https://…/t/xxxx-xxxx…" required />
+                <input value={manual} onChange={(e) => setManual(e.target.value)} placeholder="https://…/track/xxxx-xxxx…" required />
               </label>
               <button className="btn btn-primary btn-block" disabled={busy}><ArrowRight size={16} /> Find order</button>
             </form>

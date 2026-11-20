@@ -218,7 +218,7 @@ export default function OrderDetail() {
             <div className="info-list">
               <div><UserRound size={16} /><span>{order.customerName}</span></div>
               <div><Phone size={16} /><span>{order.customerPhone}</span></div>
-              <div><CalendarDays size={16} /><span>{order.deliveryMode === 'Delivery' ? (t('Delivery address') || 'Delivery address') : t('Expected pickup')}: {order.deliveryMode === 'Delivery' ? (order.deliveryAddress || '—') : formatDate(order.dueDate)}</span></div>
+              <div><CalendarDays size={16} /><span>{order.deliveryMode === 'Delivery' ? t('Expected delivery') : t('Expected pickup')}: {formatDate(order.dueDate)}</span></div>
               <div><Store size={16} /><span>{order.deliveryMode === 'Delivery' ? `${t('Delivery address')}: ${order.deliveryAddress || '—'}` : t('Customer pickup')}</span></div>
               {order.notes && <div><StickyNote size={16} /><span>{order.notes}</span></div>}
             </div>

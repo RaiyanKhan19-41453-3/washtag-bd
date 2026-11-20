@@ -31,6 +31,7 @@ export const bn = {
   '(required)': '(আবশ্যক)',
   '(optional)': '(ঐচ্ছিক)',
   'Expected pickup': 'নির্ধারিত তোলার সময়',
+  'Expected delivery': 'নির্ধারিত ডেলিভারি সময়',
   'Create order & QR': 'অর্ডার ও কিউআর তৈরি করুন',
   'Item': 'জিনিস',
   'Qty': 'পরিমাণ',
