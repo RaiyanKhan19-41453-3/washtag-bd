@@ -34,7 +34,15 @@ public sealed class ReportService : IReportService
             .ToListAsync(cancellationToken);
         var paidByOrder = paymentsToDate.GroupBy(p => p.OrderId)
             .ToDictionary(g => g.Key, g => g.Sum(p => p.Amount));
-        var orderDay = orders.ToDictionary(o => o.Id, o => o.CreatedAt.AddHours(6).Date);
+        var collectedByDay = new Dictionary<DateTime, decimal>();
+        foreach (var payment in payments)
+        {
+            var day = payment.CreatedAt.AddHours(6).Date;
+            collectedByDay[day] = collectedByDay.GetValueOrDefault(day) + payment.Amount;
+        }
+        var ordersByDay = orders.GroupBy(o => o.CreatedAt.AddHours(6).Date)
+            .ToDictionary(g => g.Key, g => g.Count());
+        var days = collectedByDay.Keys.Concat(ordersByDay.Keys).Distinct().OrderBy(d => d);
 
         return new DailyReportDto
         {
@@ -44,13 +52,12 @@ public sealed class ReportService : IReportService
             ByMethod = payments.GroupBy(p => p.Method)
                 .Select(g => new PaymentMethodTotalDto { Method = g.Key, Amount = g.Sum(p => p.Amount) })
                 .OrderByDescending(x => x.Amount).ToList(),
-            ByDay = orders.GroupBy(o => o.CreatedAt.AddHours(6).Date)
-                .Select(g => new DayTotalDto
-                {
-                    Date = g.Key, Orders = g.Count(),
-                    Collected = payments.Where(p => orderDay.GetValueOrDefault(p.OrderId) == g.Key)
-                        .Sum(p => p.Amount)
-                }).OrderBy(d => d.Date).ToList()
+            ByDay = days.Select(day => new DayTotalDto
+            {
+                Date = day,
+                Orders = ordersByDay.GetValueOrDefault(day),
+                Collected = collectedByDay.GetValueOrDefault(day)
+            }).ToList()
         };
     }
 
@@ -63,11 +70,12 @@ public sealed class ReportService : IReportService
             .Select(o => new
             {
                 o.OrderNumber, o.CustomerName, o.CustomerPhone, o.Status, o.PaymentStatus,
-                o.TotalAmount, o.PaidAmount, o.CreatedAt, o.DueDate
+                o.TotalAmount, o.PaidAmount, o.CreatedAt, o.DueDate,
+                o.DeliveryMode, o.DeliveryAddress
             }).ToListAsync(cancellationToken);
 
         var sb = new StringBuilder();
-        sb.AppendLine("Order,Customer,Phone,Status,Payment,Total,Paid,Created,Due");
+        sb.AppendLine("Order,Customer,Phone,Status,Payment,Total,Paid,Created (UTC),Due date,Delivery mode,Delivery address");
         foreach (var o in orders)
             sb.AppendLine(string.Join(',',
                 Escape(o.OrderNumber), Escape(o.CustomerName), Escape(o.CustomerPhone),
@@ -75,7 +83,8 @@ public sealed class ReportService : IReportService
                 o.TotalAmount.ToString("0.00", CultureInfo.InvariantCulture),
                 o.PaidAmount.ToString("0.00", CultureInfo.InvariantCulture),
                 o.CreatedAt.ToString("yyyy-MM-dd HH:mm", CultureInfo.InvariantCulture),
-                o.DueDate?.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture) ?? ""));
+                o.DueDate?.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture) ?? "",
+                o.DeliveryMode.ToString(), Escape(o.DeliveryAddress ?? "")));
         // BOM so Excel on Windows decodes Bengali customer names correctly.
         return Encoding.UTF8.GetPreamble().Concat(Encoding.UTF8.GetBytes(sb.ToString())).ToArray();
     }

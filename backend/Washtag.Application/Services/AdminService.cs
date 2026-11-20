@@ -26,6 +26,7 @@ public class AdminService : IAdminService
         var shops = await _db.Shops.AsNoTracking().ToListAsync(cancellationToken);
         var users = await _db.Users.AsNoTracking().ToListAsync(cancellationToken);
         var orders = await _db.Orders.AsNoTracking().ToListAsync(cancellationToken);
+        var invoices = await _db.Invoices.AsNoTracking().ToListAsync(cancellationToken);
 
         var list = shops.Select(shop =>
         {
@@ -40,6 +41,7 @@ public class AdminService : IAdminService
                 Plan = shop.Plan,
                 SubscriptionStatus = shop.SubscriptionStatus,
                 RenewalDate = shop.SubscriptionEndsAt,
+                HasPendingInvoice = invoices.Any(i => i.ShopId == shop.Id && i.Status == InvoiceStatus.Pending),
                 IsActive = shop.IsActive,
                 UserCount = users.Count(u => u.ShopId == shop.Id),
                 OrderCount = shopOrders.Count,

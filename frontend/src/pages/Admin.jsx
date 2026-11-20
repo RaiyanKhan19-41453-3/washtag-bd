@@ -112,7 +112,8 @@ export default function Admin() {
                           <CheckCircle2 size={15} /> Activate
                         </button>
                       )}
-                      <button className="btn btn-ghost btn-sm" disabled={busyId === shop.shopId}
+                      <button className="btn btn-ghost btn-sm" disabled={busyId === shop.shopId || !shop.hasPendingInvoice}
+                        title={shop.hasPendingInvoice ? 'Settle the oldest pending invoice' : 'No pending invoice'}
                         onClick={() => mutate(shop, `${shop.shopId}/settle`, 'Invoice settled.', 'POST')}>Settle invoice</button>
                       {shop.subscriptionStatus === 'Cancelled' || shop.subscriptionStatus === 'PastDue' ? (
                         <button className="btn btn-ghost btn-sm" disabled={busyId === shop.shopId}

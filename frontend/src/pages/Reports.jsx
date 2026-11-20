@@ -11,6 +11,12 @@ const firstOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
 const iso = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 // Business days are UTC+6 (Dhaka); send the day boundaries as UTC instants.
 const dayStartUtc = (day) => new Date(`${day}T00:00:00+06:00`).toISOString();
+// "To" is an inclusive calendar day; the API uses an exclusive upper bound.
+const exclusiveEndUtc = (day) => {
+  const d = new Date(`${day}T00:00:00Z`);
+  d.setUTCDate(d.getUTCDate() + 1);
+  return dayStartUtc(d.toISOString().slice(0, 10));
+};
 
 export default function Reports() {
   const toast = useToast();
@@ -24,7 +30,7 @@ export default function Reports() {
     setBusy(true);
     try {
       const { data } = await api.get('/reports/daily', {
-        params: { from: dayStartUtc(from), to: dayStartUtc(to) }
+        params: { from: dayStartUtc(from), to: exclusiveEndUtc(to) }
       });
       setReport(data);
     } catch (error) { toast.error(error.message); }
@@ -35,7 +41,7 @@ export default function Reports() {
   const download = async () => {
     try {
       const response = await api.get('/reports/orders.csv', {
-        params: { from: dayStartUtc(from), to: dayStartUtc(to) },
+        params: { from: dayStartUtc(from), to: exclusiveEndUtc(to) },
         responseType: 'blob'
       });
       const url = URL.createObjectURL(new Blob([response.data], { type: 'text/csv' }));

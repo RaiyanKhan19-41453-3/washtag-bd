@@ -91,6 +91,7 @@ public class AdminShopDto
     public string Plan { get; set; } = string.Empty;
     public SubscriptionStatus SubscriptionStatus { get; set; }
     public DateTime RenewalDate { get; set; }
+    public bool HasPendingInvoice { get; set; }
     public bool IsActive { get; set; }
     public int UserCount { get; set; }
     public int OrderCount { get; set; }
