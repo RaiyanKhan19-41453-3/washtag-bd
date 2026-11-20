@@ -33,6 +33,11 @@ export default function Billing() {
 
   useEffect(() => { load(); }, [load]);
 
+  const refreshShop = useCallback(async () => {
+    try { const { data } = await api.get('/auth/me'); setShop(data.shop); }
+    catch { /* keep the previous shop state */ }
+  }, [setShop]);
+
   // A verified gateway webhook settles invoices server-side; poll so a locked
   // owner sees the renewed state without a manual reload.
   useEffect(() => {
@@ -40,7 +45,7 @@ export default function Billing() {
       try {
         const { data } = await api.get('/billing');
         setData((previous) => {
-          if (previous && previous.status !== data.status) refreshShop();
+          if (previous && previous.status !== data.status) void refreshShop();
           return data;
         });
         setPlan(data.plan);
@@ -48,11 +53,6 @@ export default function Billing() {
     }, 30000);
     return () => window.clearInterval(timer);
   }, [refreshShop]);
-
-  const refreshShop = useCallback(async () => {
-    try { const { data } = await api.get('/auth/me'); setShop(data.shop); }
-    catch { /* keep the previous shop state */ }
-  }, [setShop]);
 
   const changePlan = async () => {
     setBusy(true);

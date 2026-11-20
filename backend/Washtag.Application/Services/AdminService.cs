@@ -41,7 +41,8 @@ public class AdminService : IAdminService
                 Plan = shop.Plan,
                 SubscriptionStatus = shop.SubscriptionStatus,
                 RenewalDate = shop.SubscriptionEndsAt,
-                HasPendingInvoice = invoices.Any(i => i.ShopId == shop.Id && i.Status == InvoiceStatus.Pending),
+                HasPendingInvoice = invoices.Any(i => i.ShopId == shop.Id &&
+                    (i.Status == InvoiceStatus.Pending || i.Status == InvoiceStatus.Overdue)),
                 IsActive = shop.IsActive,
                 UserCount = users.Count(u => u.ShopId == shop.Id),
                 OrderCount = shopOrders.Count,
@@ -132,7 +133,8 @@ public class AdminService : IAdminService
     public async Task<InvoiceDto?> SettleLatestInvoiceAsync(Guid shopId, CancellationToken cancellationToken = default)
     {
         var invoice = await _db.Invoices.AsNoTracking()
-            .Where(i => i.ShopId == shopId && i.Status == InvoiceStatus.Pending)
+            .Where(i => i.ShopId == shopId &&
+                        (i.Status == InvoiceStatus.Pending || i.Status == InvoiceStatus.Overdue))
             .OrderBy(i => i.PeriodTo).FirstOrDefaultAsync(cancellationToken);
         if (invoice == null) return null;
         return await SettleInvoiceAsync(shopId, invoice.Id, PaymentMethod.Cash, "Admin settlement", cancellationToken);
