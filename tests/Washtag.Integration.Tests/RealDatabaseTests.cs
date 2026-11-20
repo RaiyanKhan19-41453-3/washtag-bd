@@ -68,6 +68,44 @@ public class RealDatabaseTests
     }
 
     [Fact]
+    public async Task ManyConcurrentSettlements_CreateExactlyOneRenewal()
+    {
+        const int count = 8;
+        var shop = await _fixture.NewShopAsync("Pro", DateTime.UtcNow.AddMonths(11));
+        var invoices = new List<Invoice>();
+        using (var scope = _fixture.Scope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+            for (var i = 0; i < count; i++)
+            {
+                invoices.Add(new Invoice
+                {
+                    ShopId = shop.Id, InvoiceNumber = $"INV-STRESS-{Guid.NewGuid():N}",
+                    PeriodFrom = DateTime.UtcNow.AddDays(-10), PeriodTo = DateTime.UtcNow.AddDays(20),
+                    Amount = 800, Status = InvoiceStatus.Pending, CreatedAt = DateTime.UtcNow
+                });
+            }
+            db.Invoices.AddRange(invoices);
+            await db.SaveChangesAsync();
+        }
+
+        using var work = _fixture.Scope();
+        var store = work.ServiceProvider.GetRequiredService<IInvoiceStore>();
+        var results = await Task.WhenAll(invoices.Select(i =>
+            store.SettleAsync(shop.Id, i.Id, PaymentMethod.Cash, null)));
+
+        Assert.All(results, Assert.True);
+        using var check = _fixture.Scope();
+        var dbCheck = check.ServiceProvider.GetRequiredService<AppDbContext>();
+        var updated = await dbCheck.Shops.SingleAsync(s => s.Id == shop.Id);
+        var all = await dbCheck.Invoices.Where(i => i.ShopId == shop.Id).ToListAsync();
+        Assert.Equal(SubscriptionStatus.Active, updated.SubscriptionStatus);
+        Assert.True(updated.SubscriptionEndsAt >= DateTime.UtcNow.AddMonths(10));
+        Assert.Equal(count + 1, all.Count); // all paid + exactly one renewal
+        Assert.Single(all, i => i.Status == InvoiceStatus.Pending);
+    }
+
+    [Fact]
     public async Task ConcurrentPartialPayments_NeverExceedTheOrderBalance()
     {
         var shop = await _fixture.NewShopAsync();
