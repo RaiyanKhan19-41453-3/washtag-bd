@@ -28,7 +28,8 @@ public sealed class ServiceCatalogService : IServiceCatalogService
             if (existing != null && !existing.CatalogueInitialized)
             {
                 existing.CatalogueInitialized = true;
-                await _db.SaveChangesAsync(cancellationToken);
+                try { await _db.SaveChangesAsync(cancellationToken); }
+                catch (DbUpdateConcurrencyException) { /* another request set the flag first */ }
             }
             return services;
         }
