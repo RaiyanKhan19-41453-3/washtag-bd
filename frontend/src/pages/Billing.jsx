@@ -25,15 +25,11 @@ export default function Billing() {
   const [busy, setBusy] = useState(false);
   const isOwner = user?.role === 'Owner';
 
-  const lastStatusRef = useRef(null);
   const planDirtyRef = useRef(false);
 
   const load = useCallback(() => {
     setLoadError('');
     api.get('/billing').then(({ data: result }) => {
-      // Seed the baseline only once so a webhook renewal before the first poll
-      // is still detected; later loads must not erase an already-seen status.
-      if (lastStatusRef.current == null) lastStatusRef.current = result.status;
       setData(result);
       setPlan(result.plan);
       planDirtyRef.current = false;
@@ -48,21 +44,20 @@ export default function Billing() {
     catch { /* keep the previous shop state */ }
   }, [setShop]);
 
-  // A verified gateway webhook settles invoices server-side; poll so a locked
-  // owner sees the renewed state without a manual reload.
+  // Invoices can be settled server-side (webhook) and lock state can change via
+  // an admin suspend/reactivate without the status string changing. Poll both
+  // billing and the profile so the global lock banner never goes stale.
   useEffect(() => {
     const timer = window.setInterval(async () => {
       try {
         const { data } = await api.get('/billing');
-        const statusChanged = lastStatusRef.current != null && lastStatusRef.current !== data.status;
-        lastStatusRef.current = data.status;
         setData(data);
         setLoadError('');
         // Preserve an unsaved dropdown selection, but re-sync when untouched so
         // an admin's plan change while this page is open is still reflected.
         if (!planDirtyRef.current) setPlan(data.plan);
-        if (statusChanged) void refreshShop();
       } catch { /* transient poll failure — keep the last state */ }
+      void refreshShop();
     }, 30000);
     return () => window.clearInterval(timer);
   }, [refreshShop]);
@@ -88,7 +83,12 @@ export default function Billing() {
       setPaying(null);
       setReference('');
       await refreshShop();
-      load();
+      // Refresh invoices only — a full load() would silently discard an unsaved
+      // plan selection the owner made in the dropdown.
+      try {
+        const { data: result } = await api.get('/billing');
+        setData(result);
+      } catch { /* payment succeeded; keep the last invoice list */ }
     } catch (error) { toast.error(error.message); }
     finally { setBusy(false); }
   };
