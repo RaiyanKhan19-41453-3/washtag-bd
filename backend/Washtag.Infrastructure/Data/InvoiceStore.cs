@@ -21,26 +21,6 @@ public class InvoiceStore : IInvoiceStore
         await using var transaction = await connection.BeginTransactionAsync(cancellationToken);
         var now = DateTime.UtcNow;
 
-        // Serialize settlements per shop. Without this, two concurrent payments can
-        // both see the other's invoice as unpaid and neither creates the renewal.
-        await using (var lockShop = new NpgsqlCommand(
-            "SELECT 1 FROM \"Shops\" WHERE \"Id\" = @shop FOR UPDATE", connection, transaction))
-        {
-            lockShop.Parameters.AddWithValue("shop", shopId);
-            await lockShop.ExecuteNonQueryAsync(cancellationToken);
-        }
-
-        // Read the price under the same lock: a concurrent plan change must not be
-        // overtaken by a renewal invoice priced with the old plan.
-        string plan;
-        await using (var readPlan = new NpgsqlCommand(
-            "SELECT \"Plan\" FROM \"Shops\" WHERE \"Id\" = @shop", connection, transaction))
-        {
-            readPlan.Parameters.AddWithValue("shop", shopId);
-            plan = (await readPlan.ExecuteScalarAsync(cancellationToken) as string) ?? "Starter";
-        }
-        var monthlyPrice = Washtag.Domain.Plans.MonthlyPrice(plan);
-
         await using (var update = new NpgsqlCommand(
             """
             UPDATE "Invoices"
@@ -60,58 +40,60 @@ public class InvoiceStore : IInvoiceStore
             }
         }
 
-        await using (var count = new NpgsqlCommand(
+        // Atomic claim — a single conditional UPDATE both decides "is this the last
+        // unpaid invoice?" (via the trigger-maintained counter on this very row) and
+        // extends the term. The invoice UPDATE above already took a row lock on the
+        // shop through the counter trigger, so concurrent settlements serialize on
+        // that counter instead of an explicit SELECT ... FOR UPDATE. RETURNING reads
+        // the plan from the same row version, defeating the stale-plan race. A
+        // cancelled shop (status 3) never matches, so it is never resurrected.
+        string? plan = null;
+        DateTime renewal = now.AddMonths(1);
+        await using (var claim = new NpgsqlCommand(
             """
-            SELECT count(*) FROM "Invoices"
-            WHERE "ShopId" = @shop AND "Id" <> @id AND "Status" IN (0, 2)
+            UPDATE "Shops" AS s
+            SET "SubscriptionStatus" = CASE WHEN s."SubscriptionStatus" = 3 THEN 3 ELSE 1 END,
+                "SubscriptionStartedAt" = CASE
+                    WHEN s."SubscriptionStatus" = 3 OR s."SubscriptionEndsAt" > @now THEN s."SubscriptionStartedAt"
+                    ELSE @now END,
+                "SubscriptionEndsAt" = CASE
+                    WHEN s."SubscriptionStatus" = 3 THEN s."SubscriptionEndsAt"
+                    ELSE GREATEST(s."SubscriptionEndsAt", @now) + interval '1 month' END
+            WHERE s."Id" = @shop
+              AND s."SubscriptionStatus" <> 3
+              AND s."UnpaidInvoiceCount" = 0
+            RETURNING s."Plan", s."SubscriptionEndsAt"
             """, connection, transaction))
         {
-            count.Parameters.AddWithValue("shop", shopId);
-            count.Parameters.AddWithValue("id", invoiceId);
-            var remaining = Convert.ToInt32(await count.ExecuteScalarAsync(cancellationToken));
-            if (remaining == 0)
+            claim.Parameters.AddWithValue("now", now);
+            claim.Parameters.AddWithValue("shop", shopId);
+            await using var reader = await claim.ExecuteReaderAsync(cancellationToken);
+            if (await reader.ReadAsync(cancellationToken))
             {
-                // A cancelled subscription is terminal. Paying an old invoice must not
-                // silently resurrect it or mint a fresh billing period. For an active
-                // shop the term must never shrink: extend from the greater of the current
-                // end and now, so prepaid time is never revoked by a payment.
-                DateTime renewal;
-                await using (var shopUpdate = new NpgsqlCommand(
-                    """
-                    UPDATE "Shops"
-                    SET "SubscriptionStatus" = CASE WHEN "SubscriptionStatus" = 3 THEN 3 ELSE 1 END,
-                        "SubscriptionStartedAt" = CASE
-                            WHEN "SubscriptionStatus" = 3 OR "SubscriptionEndsAt" > @now THEN "SubscriptionStartedAt"
-                            ELSE @now END,
-                        "SubscriptionEndsAt" = CASE
-                            WHEN "SubscriptionStatus" = 3 THEN "SubscriptionEndsAt"
-                            ELSE GREATEST("SubscriptionEndsAt", @now) + interval '1 month' END
-                    WHERE "Id" = @shop
-                    RETURNING "SubscriptionEndsAt"
-                    """, connection, transaction))
-                {
-                    shopUpdate.Parameters.AddWithValue("now", now);
-                    shopUpdate.Parameters.AddWithValue("shop", shopId);
-                    renewal = (DateTime)(await shopUpdate.ExecuteScalarAsync(cancellationToken)
-                        ?? now.AddMonths(1));
-                }
-
-                await using var nextInvoice = new NpgsqlCommand(
-                    """
-                    INSERT INTO "Invoices" ("Id", "ShopId", "InvoiceNumber", "PeriodFrom", "PeriodTo", "Amount", "Status", "Method", "CreatedAt")
-                    SELECT @id, @shop, @number, @from, @to, @amount, 0, @method, @now
-                    FROM "Shops" WHERE "Id" = @shop AND "SubscriptionStatus" <> 3
-                    """, connection, transaction);
-                nextInvoice.Parameters.AddWithValue("id", Guid.NewGuid());
-                nextInvoice.Parameters.AddWithValue("shop", shopId);
-                nextInvoice.Parameters.AddWithValue("number", $"INV-{now:yyyyMM}-{Guid.NewGuid().ToString("N")[..8].ToUpperInvariant()}");
-                nextInvoice.Parameters.AddWithValue("from", now);
-                nextInvoice.Parameters.AddWithValue("to", renewal);
-                nextInvoice.Parameters.AddWithValue("amount", monthlyPrice);
-                nextInvoice.Parameters.AddWithValue("method", (int)PaymentMethod.Cash);
-                nextInvoice.Parameters.AddWithValue("now", now);
-                await nextInvoice.ExecuteNonQueryAsync(cancellationToken);
+                plan = reader["Plan"] as string ?? "Starter";
+                renewal = (DateTime)reader["SubscriptionEndsAt"];
             }
+        }
+
+        // Only the settlement that won the claim mints the renewal, using the
+        // plan and new term it read atomically above.
+        if (plan != null)
+        {
+            var monthlyPrice = Washtag.Domain.Plans.MonthlyPrice(plan);
+            await using var nextInvoice = new NpgsqlCommand(
+                """
+                INSERT INTO "Invoices" ("Id", "ShopId", "InvoiceNumber", "PeriodFrom", "PeriodTo", "Amount", "Status", "Method", "CreatedAt")
+                VALUES (@id, @shop, @number, @from, @to, @amount, 0, @method, @now)
+                """, connection, transaction);
+            nextInvoice.Parameters.AddWithValue("id", Guid.NewGuid());
+            nextInvoice.Parameters.AddWithValue("shop", shopId);
+            nextInvoice.Parameters.AddWithValue("number", $"INV-{now:yyyyMM}-{Guid.NewGuid().ToString("N")[..8].ToUpperInvariant()}");
+            nextInvoice.Parameters.AddWithValue("from", now);
+            nextInvoice.Parameters.AddWithValue("to", renewal);
+            nextInvoice.Parameters.AddWithValue("amount", monthlyPrice);
+            nextInvoice.Parameters.AddWithValue("method", (int)PaymentMethod.Cash);
+            nextInvoice.Parameters.AddWithValue("now", now);
+            await nextInvoice.ExecuteNonQueryAsync(cancellationToken);
         }
 
         await transaction.CommitAsync(cancellationToken);

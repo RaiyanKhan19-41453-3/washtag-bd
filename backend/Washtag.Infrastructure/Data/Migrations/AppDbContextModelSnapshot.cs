@@ -464,6 +464,9 @@ namespace Washtag.Infrastructure.Data.Migrations
                     b.Property<int>("SubscriptionStatus")
                         .HasColumnType("integer");
 
+                    b.Property<int>("UnpaidInvoiceCount")
+                        .HasColumnType("integer");
+
                     b.HasKey("Id");
 
                     b.HasIndex("Email")

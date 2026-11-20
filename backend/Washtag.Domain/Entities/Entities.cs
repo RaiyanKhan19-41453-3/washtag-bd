@@ -21,6 +21,10 @@ public class Shop
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public byte[] RowVersion { get; set; } = Array.Empty<byte>();
     public bool CatalogueInitialized { get; set; }
+    // Maintained by a DB trigger on Invoices. Lets settlement decide "is this the
+    // last unpaid invoice?" from the same row it atomically updates — no lock or
+    // cross-table snapshot read required.
+    public int UnpaidInvoiceCount { get; set; }
 
     public ICollection<AppUser> Users { get; set; } = new List<AppUser>();
     public ICollection<Order> Orders { get; set; } = new List<Order>();
