@@ -195,7 +195,7 @@ export default function Scan() {
                 {remaining.length ? remaining.map((status) => (
                   <button key={status} className={`btn btn-sm btn-block ${status === 'Delivered' ? 'btn-primary' : 'btn-outline'}`} disabled={busy} onClick={() => updateStatus(status)}>
                     {status === 'Delivered' ? <CheckCircle2 size={15} /> : <Clock3 size={15} />}
-                    {status === 'Delivered' ? 'Mark delivered' : `Move to ${STATUS_LABELS[status]}`}
+                    {status === 'Delivered' ? 'Mark delivered' : `Move to ${status === 'ReadyForPickup' && order.deliveryMode === 'Delivery' ? 'Out for delivery' : STATUS_LABELS[status]}`}
                   </button>
                 )) : <p className="muted">This order is complete.</p>}
                 {order.status !== 'Cancelled' && order.paymentStatus !== 'Paid' && (

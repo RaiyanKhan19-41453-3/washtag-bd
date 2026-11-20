@@ -93,7 +93,9 @@ export default function Track() {
           <div className="track-hero-icon"><StatusIcon size={30} /></div>
           <span className="track-eyebrow">{t('CURRENT STATUS')}</span>
           <h2>{t(STATUS_LABELS[order.status])}</h2>
-          <p>{STATUS_MESSAGES[order.status]}</p>
+          <p>{order.deliveryMode === 'Delivery' && order.status === 'ReadyForPickup'
+            ? 'All done! Your order is out for delivery.'
+            : STATUS_MESSAGES[order.status]}</p>
           <div className="track-order-no"><Receipt size={14} /> {order.orderNumber} · Dropped off {formatDate(order.createdAt)}</div>
         </div>
 

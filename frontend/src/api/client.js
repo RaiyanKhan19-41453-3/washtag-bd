@@ -101,8 +101,9 @@ api.interceptors.response.use(
       config.headers.Authorization = `Bearer ${localStorage.getItem('washtag_token')}`;
       return api(config);
     } catch {
-      redirectToLogin();
-      return Promise.reject(new Error('Your session expired. Please log in again.'));
+      // The refresh can fail because the API/database is briefly unavailable. Keep
+      // stored tokens so a transient outage does not log every user out.
+      return Promise.reject(new Error('Could not refresh your session. Please retry in a moment.'));
     }
   }
 );

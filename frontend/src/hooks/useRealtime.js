@@ -30,11 +30,19 @@ export function useRealtime({ token = null, group = { type: 'shop' }, onUpdate, 
     // A reconnect gets a new ConnectionId, so token groups must be rejoined.
     connection.onreconnected(() => { join().catch(() => {}); });
 
-    connection.start()
-      .then(join)
-      .catch(() => { /* Polling fallback keeps the UI fresh. */ });
+    let stopped = false;
+    let retryTimer = null;
+    const connect = () => connection.start().then(join).catch(() => {
+      // withAutomaticReconnect only retries after a successful start. Retry the
+      // initial connection ourselves so a brief hub outage is not permanent.
+      if (!stopped && !retryTimer)
+        retryTimer = window.setTimeout(() => { retryTimer = null; connect(); }, 5000);
+    });
+    connect();
 
     return () => {
+      stopped = true;
+      if (retryTimer) window.clearTimeout(retryTimer);
       connection.stop().catch(() => {});
     };
   }, [token, group?.type, group?.value, enabled]);

@@ -26,6 +26,10 @@ fi
 
 echo "Stopping the API so no writes race the restore..."
 docker compose stop api
+# A dump taken before the vector table existed would otherwise leave stale
+# embeddings behind (pg_dump --clean only drops objects present in the dump).
+docker compose exec -T postgres psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" \
+  -c 'DROP TABLE IF EXISTS shop_documents CASCADE;' >/dev/null
 # --single-transaction prevents a failed restore from leaving a half-restored DB.
 if gzip -dc "$FILE" | docker compose exec -T postgres psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -v ON_ERROR_STOP=1 --single-transaction; then
   docker compose start api

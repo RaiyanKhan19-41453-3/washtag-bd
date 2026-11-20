@@ -27,7 +27,7 @@ export default function NewOrder() {
     api.get('/services').then(({ data }) => {
       const active = data.filter((s) => s.isActive);
       setServiceOptions(active);
-      if (active.length && active[0].name === 'Wash & Fold') {
+      if (active.length) {
         setForm((current) => ({ ...current, items: current.items.map((it, i) => i === 0
           ? { ...it, service: active[0].name, unitPrice: active[0].defaultPrice } : it) }));
       }

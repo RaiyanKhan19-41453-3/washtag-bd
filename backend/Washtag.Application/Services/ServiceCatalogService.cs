@@ -33,7 +33,7 @@ public sealed class ServiceCatalogService : IServiceCatalogService
             new ShopService { ShopId = shopId, Name = "Dry Clean", DefaultPrice = 250, SortOrder = 1 },
             new ShopService { ShopId = shopId, Name = "Ironing", DefaultPrice = 80, SortOrder = 2 });
         try { await _db.SaveChangesAsync(cancellationToken); }
-        catch (DbUpdateException) { /* another request seeded first */ }
+        catch (DbUpdateConcurrencyException) { /* another request seeded first */ }
         return await _db.ShopServices.AsNoTracking().Where(s => s.ShopId == shopId)
             .OrderBy(s => s.SortOrder).ThenBy(s => s.Name)
             .Select(s => new ServiceDto

@@ -69,9 +69,12 @@ public class PaymentWebhookController : ControllerBase
                 return BadRequest(new { message = "Payment amount does not match the invoice." });
 
             var method = PaymentMethod.Cash;
-            if (root.TryGetProperty("method", out var m) && m.ValueKind == JsonValueKind.String &&
-                Enum.TryParse<PaymentMethod>(m.GetString(), true, out var parsed) && Enum.IsDefined(parsed))
+            if (root.TryGetProperty("method", out var m) && m.ValueKind == JsonValueKind.String)
+            {
+                if (!Enum.TryParse<PaymentMethod>(m.GetString(), true, out var parsed) || !Enum.IsDefined(parsed))
+                    return BadRequest(new { message = "Unknown payment method." });
                 method = parsed;
+            }
             var reference = root.TryGetProperty("reference", out var r) && r.ValueKind == JsonValueKind.String
                 ? r.GetString() : null;
             if (reference?.Length > 100) return BadRequest(new { message = "Reference is too long." });

@@ -33,6 +33,22 @@ export default function Billing() {
 
   useEffect(() => { load(); }, [load]);
 
+  // A verified gateway webhook settles invoices server-side; poll so a locked
+  // owner sees the renewed state without a manual reload.
+  useEffect(() => {
+    const timer = window.setInterval(async () => {
+      try {
+        const { data } = await api.get('/billing');
+        setData((previous) => {
+          if (previous && previous.status !== data.status) refreshShop();
+          return data;
+        });
+        setPlan(data.plan);
+      } catch { /* transient poll failure — keep the last state */ }
+    }, 30000);
+    return () => window.clearInterval(timer);
+  }, [refreshShop]);
+
   const refreshShop = useCallback(async () => {
     try { const { data } = await api.get('/auth/me'); setShop(data.shop); }
     catch { /* keep the previous shop state */ }

@@ -16,6 +16,11 @@ namespace Washtag.Infrastructure.Data.Migrations
                 type: "boolean",
                 nullable: false,
                 defaultValue: false);
+
+            // Shops that already have a catalogue must not be re-seeded after a delete.
+            migrationBuilder.Sql(
+                "UPDATE \"Shops\" SET \"CatalogueInitialized\" = true " +
+                "WHERE EXISTS (SELECT 1 FROM \"ShopServices\" s WHERE s.\"ShopId\" = \"Shops\".\"Id\");");
         }
 
         /// <inheritdoc />
