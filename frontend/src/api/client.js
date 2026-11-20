@@ -100,7 +100,14 @@ api.interceptors.response.use(
       await refreshInFlight;
       config.headers.Authorization = `Bearer ${localStorage.getItem('washtag_token')}`;
       return api(config);
-    } catch {
+    } catch (refreshError) {
+      const status = refreshError?.response?.status ?? refreshError?.status;
+      if (status === 400 || status === 401) {
+        // The token itself is rejected (e.g. revoked family) — clear it rather than
+        // leaving the tab stuck retrying a dead token forever.
+        redirectToLogin();
+        return Promise.reject(new Error('Your session expired. Please log in again.'));
+      }
       // The refresh can fail because the API/database is briefly unavailable. Keep
       // stored tokens so a transient outage does not log every user out.
       return Promise.reject(new Error('Could not refresh your session. Please retry in a moment.'));

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { CreditCard, ReceiptText, CheckCircle2, CalendarDays, BadgeCheck, AlertCircle } from 'lucide-react';
 import api from '../api/client';
 import { useAuth } from '../context/AuthContext';
@@ -40,15 +40,18 @@ export default function Billing() {
 
   // A verified gateway webhook settles invoices server-side; poll so a locked
   // owner sees the renewed state without a manual reload.
+  const lastStatusRef = useRef(null);
   useEffect(() => {
     const timer = window.setInterval(async () => {
       try {
         const { data } = await api.get('/billing');
-        setData((previous) => {
-          if (previous && previous.status !== data.status) void refreshShop();
-          return data;
-        });
-        setPlan(data.plan);
+        const statusChanged = lastStatusRef.current != null && lastStatusRef.current !== data.status;
+        lastStatusRef.current = data.status;
+        setData(data);
+        setLoadError('');
+        // Never overwrite an unsaved plan selection made in the dropdown.
+        setPlan((current) => (current ? current : data.plan));
+        if (statusChanged) void refreshShop();
       } catch { /* transient poll failure — keep the last state */ }
     }, 30000);
     return () => window.clearInterval(timer);
