@@ -65,7 +65,8 @@ public sealed class ReportService : IReportService
         CancellationToken cancellationToken = default)
     {
         var orders = await _db.Orders.AsNoTracking()
-            .Where(o => o.ShopId == shopId && o.CreatedAt >= from && o.CreatedAt < to)
+            .Where(o => o.ShopId == shopId && o.CreatedAt >= from && o.CreatedAt < to &&
+                        o.Status != OrderStatus.Cancelled)
             .OrderBy(o => o.CreatedAt)
             .Select(o => new
             {

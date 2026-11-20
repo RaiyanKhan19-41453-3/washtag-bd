@@ -86,7 +86,7 @@ export default function Reports() {
             <div className="card-head"><div><h3>{t('By day')}</h3></div><FileSpreadsheet size={18} /></div>
             <div className="table-scroll"><table className="data-table">
               <thead><tr><th>{t('Date')}</th><th className="align-right">{t('Orders')}</th><th className="align-right">{t('Collected')}</th></tr></thead>
-              <tbody>{report.byDay.map((d) => <tr key={d.date}><td>{formatDate(d.date)}</td><td className="align-right">{d.orders}</td><td className="align-right">{money(d.collected)}</td></tr>)}</tbody>
+              <tbody>{report.byDay.map((d) => <tr key={d.date}><td>{String(d.date).slice(0, 10)}</td><td className="align-right">{d.orders}</td><td className="align-right">{money(d.collected)}</td></tr>)}</tbody>
             </table></div>
           </section>
         </>
