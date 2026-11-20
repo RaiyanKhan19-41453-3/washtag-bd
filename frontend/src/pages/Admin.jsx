@@ -27,7 +27,10 @@ const theme = {
     fontSize: 13,
     controlHeight: 32,
     colorText: '#1e293b',
-    colorTextSecondary: '#64748b'
+    colorTextSecondary: '#64748b',
+    // Flat design: Ant Design's default elevation is disabled everywhere.
+    boxShadow: 'none',
+    boxShadowSecondary: 'none'
   },
   components: {
     Table: {
@@ -38,7 +41,8 @@ const theme = {
       cellPaddingBlock: 12
     },
     Card: { paddingLG: 20 },
-    Statistic: { contentFontSize: 26 }
+    Statistic: { contentFontSize: 26 },
+    Button: { defaultShadow: 'none', primaryShadow: 'none', dangerShadow: 'none' }
   }
 };
 

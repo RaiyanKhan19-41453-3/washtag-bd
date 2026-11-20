@@ -57,16 +57,16 @@ export default function Dashboard() {
 
   const maxCount = Math.max(1, ...data.weeklyTrend.map((day) => day.count));
   const total = Math.max(1, data.totalOrders);
-  let cursor = 0;
-  const gradientStops = data.statusBreakdown.map((item) => {
-    const start = (cursor / total) * 100;
-    cursor += item.count;
-    const end = (cursor / total) * 100;
-    return `${COLORS[item.status] || '#cbd5e1'} ${start}% ${end}%`;
+  // Solid-colour SVG ring instead of a CSS gradient — each segment is a plain
+  // stroke, so the chart still reads correctly with a flat palette.
+  const donutRadius = 15.91549430918954; // circumference = 100
+  let donutOffset = 0;
+  const donutSegments = data.statusBreakdown.filter((item) => item.count > 0).map((item) => {
+    const pct = (item.count / total) * 100;
+    const segment = { color: COLORS[item.status] || '#cbd5e1', pct, offset: donutOffset };
+    donutOffset += pct;
+    return segment;
   });
-  const donut = data.totalOrders > 0
-    ? `conic-gradient(${gradientStops.join(', ')})`
-    : 'conic-gradient(#e2e8f0 0% 100%)';
 
   return (
     <div className="page-stack">
@@ -118,7 +118,19 @@ export default function Dashboard() {
             </div>
           </div>
           <div className="breakdown-body">
-            <div className="donut" style={{ background: donut }}>
+            <div className="donut">
+              <svg viewBox="0 0 42 42" aria-hidden="true">
+                <circle cx="21" cy="21" r={donutRadius} fill="none" stroke="#e2e8f0" strokeWidth="8" />
+                {donutSegments.map((seg, i) => (
+                  <circle
+                    key={i} cx="21" cy="21" r={donutRadius} fill="none"
+                    stroke={seg.color} strokeWidth="8"
+                    strokeDasharray={`${seg.pct} ${100 - seg.pct}`}
+                    strokeDashoffset={-seg.offset}
+                    transform="rotate(-90 21 21)"
+                  />
+                ))}
+              </svg>
               <div className="donut-hole">
                 <strong>{data.totalOrders}</strong>
                 <span>{t('orders')}</span>
