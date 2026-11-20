@@ -54,6 +54,18 @@ public class AuthServiceTests
     }
 
     [Fact]
+    public async Task StolenBoundTokenCannotBeRotatedBeforeTheOwner()
+    {
+        var service = Create(out _, out var store);
+        var login = await service.RegisterAsync(Register("owner@test.com"));
+        store.Seed(login.RefreshToken, login.User.Id, Hash("owner-session"));
+
+        await Assert.ThrowsAsync<AppException>(() =>
+            service.RefreshAsync(login.RefreshToken, "attacker-session"));
+        Assert.True(store.IsRevoked(login.RefreshToken));
+    }
+
+    [Fact]
     public async Task Register_CreatesShopOwnerAndReturnsToken()
     {
         var service = Create(out var db, out _);

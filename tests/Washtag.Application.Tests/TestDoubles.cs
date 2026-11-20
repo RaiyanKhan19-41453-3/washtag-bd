@@ -198,6 +198,18 @@ public sealed class FakeRefreshTokenStore : IRefreshTokenStore
             }
             return Task.FromResult<Guid?>(null);
         }
+        if (old.SessionHash != null && old.SessionHash != sessionHash)
+        {
+            // Wrong browser secret on an unrevoked bound token: theft attempt.
+            _tokens[oldHash] = old with { Revoked = true, RevokedAt = DateTime.UtcNow };
+            var cursor = old.ReplacedBy;
+            while (cursor != null && _tokens.TryGetValue(cursor, out var next))
+            {
+                _tokens[cursor] = next with { Revoked = true, RevokedAt = DateTime.UtcNow };
+                cursor = next.ReplacedBy;
+            }
+            return Task.FromResult<Guid?>(null);
+        }
         _tokens[oldHash] = old with { Revoked = true, ReplacedBy = newHash, RevokedAt = DateTime.UtcNow };
         _tokens[newHash] = new Entry(old.UserId, false, null, SessionHash: sessionHash);
         return Task.FromResult<Guid?>(old.UserId);

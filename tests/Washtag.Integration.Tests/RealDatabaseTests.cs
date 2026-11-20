@@ -319,6 +319,38 @@ public class RealDatabaseTests
     }
 
     [Fact]
+    public async Task RefreshStore_WrongSessionRevokesBoundTokenOnRealPostgres()
+    {
+        var shop = await _fixture.NewShopAsync();
+        var suffix = Guid.NewGuid().ToString("N");
+        static string Hash(string raw) => Convert.ToBase64String(
+            System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(raw)));
+        Guid userId;
+        using (var seed = _fixture.Scope())
+        {
+            var db = seed.ServiceProvider.GetRequiredService<AppDbContext>();
+            var user = new AppUser
+            {
+                Shop = db.Shops.First(s => s.Id == shop.Id), Name = "Owner",
+                Email = $"bound-{Guid.NewGuid()}@test.com", PasswordHash = "hash", IsActive = true
+            };
+            db.Users.Add(user);
+            db.RefreshTokens.Add(new RefreshToken
+            {
+                UserId = user.Id, TokenHash = Hash("r0-" + suffix), SessionHash = Hash("owner-session"),
+                ExpiresAt = DateTime.UtcNow.AddDays(30), CreatedAt = DateTime.UtcNow
+            });
+            await db.SaveChangesAsync();
+            userId = user.Id;
+        }
+
+        using var work = _fixture.Scope();
+        var store = work.ServiceProvider.GetRequiredService<IRefreshTokenStore>();
+        Assert.Null(await store.RotateAsync(Hash("r0-" + suffix), Hash("attacker-" + suffix), DateTime.UtcNow.AddDays(30), Hash("attacker")));
+        Assert.False(await store.IsActiveAsync(Hash("attacker-" + suffix)));
+    }
+
+    [Fact]
     public async Task ServiceCatalog_DeletedServicesAreNotReseeded()
     {
         var shop = await _fixture.NewShopAsync();
