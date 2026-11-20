@@ -54,8 +54,9 @@ public class PaymentWebhookController : ControllerBase
             if (root.ValueKind != JsonValueKind.Object) return BadRequest(new { message = "Invalid payload." });
             var evt = root.TryGetProperty("event", out var e) && e.ValueKind == JsonValueKind.String ? e.GetString() : null;
             if (evt != "invoice.paid") return Ok(new { accepted = false, reason = "unsupported event" });
-            if (!Guid.TryParse(root.TryGetProperty("shopId", out var s) ? s.GetString() : null, out var shopId) ||
-                !Guid.TryParse(root.TryGetProperty("invoiceId", out var i) ? i.GetString() : null, out var invoiceId))
+            var shopRaw = root.TryGetProperty("shopId", out var s) && s.ValueKind == JsonValueKind.String ? s.GetString() : null;
+            var invoiceRaw = root.TryGetProperty("invoiceId", out var i) && i.ValueKind == JsonValueKind.String ? i.GetString() : null;
+            if (!Guid.TryParse(shopRaw, out var shopId) || !Guid.TryParse(invoiceRaw, out var invoiceId))
                 return BadRequest(new { message = "shopId and invoiceId are required." });
 
             var invoice = await _db.Invoices.AsNoTracking()
@@ -71,7 +72,9 @@ public class PaymentWebhookController : ControllerBase
             var method = PaymentMethod.Cash;
             if (root.TryGetProperty("method", out var m) && m.ValueKind == JsonValueKind.String)
             {
-                if (!Enum.TryParse<PaymentMethod>(m.GetString(), true, out var parsed) || !Enum.IsDefined(parsed))
+                var methodName = m.GetString();
+                if (int.TryParse(methodName, out _) ||
+                    !Enum.TryParse<PaymentMethod>(methodName, true, out var parsed) || !Enum.IsDefined(parsed))
                     return BadRequest(new { message = "Unknown payment method." });
                 method = parsed;
             }

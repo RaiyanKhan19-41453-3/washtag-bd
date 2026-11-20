@@ -156,7 +156,7 @@ If you need multiple replicas: add a shared secret, a Postgres advisory lock aro
 
 ## 8. Known product limitations
 
-- Production disables self-service invoice settlement (`MANUAL_PAYMENT_ENABLED=false`). For automated verification, configure `PAYMENT_WEBHOOK_SECRET` and have your gateway POST signed `invoice.paid` events to `/api/public/payments/webhook` (base64 HMAC-SHA256 in `X-WashTag-Signature`). Without a gateway, a platform admin settles invoices via the admin page's "Settle invoice" action.
+- Production disables self-service invoice settlement (`MANUAL_PAYMENT_ENABLED=false`). For automated verification, configure `PAYMENT_WEBHOOK_SECRET` and have your gateway POST signed `invoice.paid` events to `/api/public/payments/webhook` (base64 HMAC-SHA256 in `X-WashTag-Signature`). The signed body must include `shopId`, `invoiceId` and `amount` (equal to the invoice amount); `method` and `reference` are optional. Without a gateway, a platform admin settles invoices via the admin page's "Settle invoice" action.
 - Tokens are stored in `localStorage`; XSS is mitigated by a strict CSP but HttpOnly cookie auth with CSRF protection would be stronger.
 - Bengali translations are partial (English fallback per string).
 - The assistant uses deterministic local embeddings by default; an LLM is optional. Reindexing is a synchronous, one-embedding-per-document operation capped at 500 orders and 500 customers per shop (newest first), so very large shops should reindex off-peak. Mixing embedding models/providers without rebuilding the index degrades retrieval quality (facts are still computed from the database).

@@ -309,7 +309,7 @@ AI_GATEWAY_CHAT_MODEL=gpt-4o-mini
 - Browser camera and microphone access (Scan QR / Assistant voice input) require `localhost` or HTTPS in production.
 - Production defaults `MANUAL_PAYMENT_ENABLED=false`: owners cannot mark their own invoices paid (there is no gateway verification). A platform admin settles invoices from the admin page instead. Keep it `true` only for a local demo.
 - Optional `NOTIFICATION_WEBHOOK_URL` / `NOTIFICATION_WEBHOOK_TOKEN` send best-effort SMS/WhatsApp messages on new orders and ready/delivered transitions.
-- Optional `PAYMENT_WEBHOOK_SECRET` enables verified gateway settlements: `POST /api/public/payments/webhook` requires `X-WashTag-Signature` (base64 HMAC-SHA256 of the raw body) and accepts `{"event":"invoice.paid","shopId":"…","invoiceId":"…","reference":"…"}`.
+- Optional `PAYMENT_WEBHOOK_SECRET` enables verified gateway settlements: `POST /api/public/payments/webhook` requires `X-WashTag-Signature` (base64 HMAC-SHA256 of the raw body) and accepts `{"event":"invoice.paid","shopId":"…","invoiceId":"…","amount":123.45,"method":"Bkash","reference":"…"}` — `amount` must equal the invoice amount.
 - Schedule `scripts/backup.sh` and store dumps off-server.
 - Run **one API replica** — the maintenance worker, SignalR groups and rate limits are per-process.
 
