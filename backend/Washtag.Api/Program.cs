@@ -255,14 +255,14 @@ var normalizedSeed = seedFlagRaw.Trim();
 var seedDemo = normalizedSeed.Equals("true", StringComparison.OrdinalIgnoreCase) ||
                normalizedSeed is "1" or "yes" or "on";
 
-if (app.Environment.IsProduction() && seedDemo &&
+if (app.Environment.IsProduction() &&
     app.Configuration.GetValue("ADMIN_EMAILS", string.Empty).Contains("demo@washtagbd.com", StringComparison.OrdinalIgnoreCase) &&
     !app.Configuration.GetValue("ALLOW_DEMO_IN_PRODUCTION", false))
 {
     throw new InvalidOperationException(
-        "Refusing to start: Production is configured with demo seeding and the public demo admin address. " +
-        "Use docker-compose.prod.yml with a fresh pgdata volume, an empty ADMIN_EMAILS for bootstrap, " +
-        "and your own owner account. Set ALLOW_DEMO_IN_PRODUCTION=true only for an intentionally public demo.");
+        "Refusing to start: Production grants platform admin to the public demo address (seeding flag: " +
+        seedDemo + "). Use docker-compose.prod.yml with a fresh pgdata volume, an empty ADMIN_EMAILS for " +
+        "bootstrap, and your own owner account. Set ALLOW_DEMO_IN_PRODUCTION=true only for an intentionally public demo.");
 }
 var configuredAdmins = (app.Configuration["ADMIN_EMAILS"] ?? string.Empty)
     .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).Length;

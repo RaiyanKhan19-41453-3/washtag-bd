@@ -70,13 +70,15 @@ public class PaymentWebhookController : ControllerBase
                 return BadRequest(new { message = "Payment amount does not match the invoice." });
 
             var method = PaymentMethod.Cash;
-            if (root.TryGetProperty("method", out var m) && m.ValueKind == JsonValueKind.String)
+            if (root.TryGetProperty("method", out var m))
             {
-                var methodName = m.GetString();
-                if (int.TryParse(methodName, out _) ||
-                    !Enum.TryParse<PaymentMethod>(methodName, true, out var parsed) || !Enum.IsDefined(parsed))
+                if (m.ValueKind != JsonValueKind.String)
                     return BadRequest(new { message = "Unknown payment method." });
-                method = parsed;
+                var methodName = m.GetString();
+                var match = Enum.GetNames<PaymentMethod>()
+                    .FirstOrDefault(n => string.Equals(n, methodName, StringComparison.OrdinalIgnoreCase));
+                if (match == null) return BadRequest(new { message = "Unknown payment method." });
+                method = Enum.Parse<PaymentMethod>(match);
             }
             var reference = root.TryGetProperty("reference", out var r) && r.ValueKind == JsonValueKind.String
                 ? r.GetString() : null;

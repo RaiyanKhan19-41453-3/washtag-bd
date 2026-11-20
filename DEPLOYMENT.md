@@ -138,7 +138,7 @@ git pull origin main
 docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
 ```
 
-EF migrations run automatically at API startup. Use the two-file Compose command for **every** restart and upgrade: the base file alone re-enables demo seeding, the public demo admin and a weak JWT secret.
+EF migrations run automatically at API startup. The `AddRefreshSessionBinding` migration deletes all refresh tokens, so **every user must log in once after upgrading** — access tokens keep working until they expire, but refresh needs a fresh login. Deploy frontend and backend together; a mixed old-frontend/new-backend pair can force a re-login. Use the two-file Compose command for **every** restart and upgrade: the base file alone re-enables demo seeding, the public demo admin and a weak JWT secret.
 
 For rollback, check out a **recent** patch tag (v1.7.2 or later) and rebuild with the same two-file command, keeping the database volume intact. Older tags (v1.6.1 and earlier) lack several security fixes and do not contain `docker-compose.prod.yml` — use the base file with explicit `.env` hardening if you must go that far. EF does not reverse migrations: the extra indexes from a newer version are harmless, but **never delete rows from `__EFMigrationsHistory`** while rolled back, or a later upgrade will try to recreate indexes that still exist.
 

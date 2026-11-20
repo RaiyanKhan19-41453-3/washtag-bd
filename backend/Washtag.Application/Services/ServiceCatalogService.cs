@@ -21,7 +21,17 @@ public sealed class ServiceCatalogService : IServiceCatalogService
                 Id = s.Id, Name = s.Name, DefaultPrice = s.DefaultPrice,
                 IsActive = s.IsActive, SortOrder = s.SortOrder
             }).ToListAsync(cancellationToken);
-        if (services.Count > 0) return services;
+        if (services.Count > 0)
+        {
+            // Upgraded shops may already have a catalogue but still carry the old flag.
+            var existing = await _db.Shops.FirstOrDefaultAsync(s => s.Id == shopId, cancellationToken);
+            if (existing != null && !existing.CatalogueInitialized)
+            {
+                existing.CatalogueInitialized = true;
+                await _db.SaveChangesAsync(cancellationToken);
+            }
+            return services;
+        }
         var shop = await _db.Shops.AsNoTracking().FirstOrDefaultAsync(s => s.Id == shopId, cancellationToken);
         if (shop == null || shop.CatalogueInitialized) return services;
 
