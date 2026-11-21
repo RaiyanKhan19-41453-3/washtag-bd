@@ -1,0 +1,76 @@
+# Free demo deployment for WashTag BD.
+# Render web service (API) + Render static site (SPA), with Neon Postgres and
+# Upstash Redis supplied through the two sync:false secrets below.
+# See docs/free-demo-deploy.md for the full setup order.
+services:
+  - type: web
+    name: washtag-api
+    runtime: docker
+    plan: free
+    region: singapore
+    dockerfilePath: ./backend/Dockerfile
+    dockerContext: ./backend
+    healthCheckPath: /health
+    envVars:
+      # A deliberately public demo. The production Compose profile would never
+      # enable these; this blueprint is for a shareable demo link only.
+      - key: ASPNETCORE_ENVIRONMENT
+        value: Production
+      - key: ASPNETCORE_HTTP_PORTS
+        value: "10000"
+      - key: JWT_SECRET
+        generateValue: true
+      - key: JWT_ISSUER
+        value: WashtagBD
+      - key: JWT_AUDIENCE
+        value: WashtagBDClient
+      - key: ConnectionStrings__Postgres
+        sync: false
+      - key: ConnectionStrings__Redis
+        sync: false
+      - key: SEED_DEMO_DATA
+        value: "true"
+      - key: ALLOW_DEMO_IN_PRODUCTION
+        value: "true"
+      - key: MANUAL_PAYMENT_ENABLED
+        value: "true"
+      - key: ADMIN_EMAILS
+        value: demo@washtagbd.com
+      - key: PUBLIC_BASE_URL
+        fromService:
+          type: web
+          name: washtag-web
+          property: url
+      - key: ALLOWED_ORIGINS
+        fromService:
+          type: web
+          name: washtag-web
+          property: url
+      - key: ENABLE_SWAGGER
+        value: "false"
+      - key: MAINTENANCE_ENABLED
+        value: "true"
+      - key: MAINTENANCE_INTERVAL_MINUTES
+        value: "60"
+      - key: MAINTENANCE_CHAT_RETENTION_DAYS
+        value: "90"
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: AI_GATEWAY_TOKEN
+        sync: false
+      - key: PAYMENT_WEBHOOK_SECRET
+        sync: false
+
+  - type: web
+    name: washtag-web
+    runtime: static
+    plan: free
+    buildCommand: npm ci && npm run build
+    staticPublishPath: dist
+    rootDir: frontend
+    envVars:
+      - key: VITE_API_URL
+        fromService:
+          type: web
+          name: washtag-api
+          property: url

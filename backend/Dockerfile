@@ -17,4 +17,6 @@ WORKDIR /app
 ENV ASPNETCORE_HTTP_PORTS=8080
 EXPOSE 8080
 COPY --from=build /app/publish .
-ENTRYPOINT ["dotnet", "Washtag.Api.dll"]
+# Honour a platform-assigned PORT (Render uses 10000) while keeping 8080 for
+# Docker Compose. The app reads ASPNETCORE_HTTP_PORTS at startup.
+ENTRYPOINT ["sh", "-c", "export ASPNETCORE_HTTP_PORTS=${PORT:-8080}; exec dotnet Washtag.Api.dll"]

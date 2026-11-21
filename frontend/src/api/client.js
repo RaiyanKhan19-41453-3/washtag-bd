@@ -1,13 +1,20 @@
 import axios from 'axios';
 
+// Same-origin by default (local Docker Compose through nginx). On platforms
+// where the SPA and API are separate services, set VITE_API_URL to the API
+// origin, for example https://washtag-api.onrender.com. Trailing slashes are
+// removed so both forms work.
+export const API_ORIGIN = (import.meta.env.VITE_API_URL || '').replace(/\/+$/, '');
+const baseURL = API_ORIGIN ? `${API_ORIGIN}/api` : '/api';
+
 const api = axios.create({
-  baseURL: '/api',
+  baseURL,
   timeout: 30000,
   headers: { 'Content-Type': 'application/json' }
 });
 
 const authApi = axios.create({
-  baseURL: '/api',
+  baseURL,
   timeout: 15000,
   headers: { 'Content-Type': 'application/json' }
 });

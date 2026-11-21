@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react';
 import * as signalR from '@microsoft/signalr';
+import { API_ORIGIN } from '../api/client';
 
 /**
  * Subscribes to the server's realtime order events.
@@ -17,7 +18,7 @@ export function useRealtime({ token = null, group = { type: 'shop' }, onUpdate, 
       ? { accessTokenFactory: () => localStorage.getItem('washtag_token') ?? token ?? '' }
       : {};
     const connection = new signalR.HubConnectionBuilder()
-      .withUrl('/hubs/orders', options)
+      .withUrl(`${API_ORIGIN}/hubs/orders`, options)
       .withAutomaticReconnect()
       .build();
 

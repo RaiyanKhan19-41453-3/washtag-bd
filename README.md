@@ -300,6 +300,12 @@ AI_GATEWAY_CHAT_MODEL=gpt-4o-mini
 
 ---
 
+## Free public demo link
+
+Want a live URL to share without paying or owning a card? [docs/free-demo-deploy.md](docs/free-demo-deploy.md) walks through a no-card setup using Render (SPA and API), Neon (Postgres with pgvector) and Upstash (Redis). The root `render.yaml` blueprint provisions both Render services. This is a demo profile with seeded accounts and self-settlement enabled, not a production deployment.
+
+---
+
 ## Production checklist
 
 **Do not expose the default Compose setup publicly.** The base `docker-compose.yml` is a Development demo profile (seeded demo admin, self-settlement enabled); the strict Production profile is `docker-compose.prod.yml` and must be selected explicitly. See [DEPLOYMENT.md](DEPLOYMENT.md) for the full procedure; the short version:
