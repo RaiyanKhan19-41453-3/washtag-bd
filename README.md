@@ -8,11 +8,13 @@ Everything runs in Docker. You do **not** need Node, .NET, Postgres or Redis ins
 
 ## See it in action
 
-![WashTag BD demo — dashboard to AI assistant](docs/demo.gif)
+![WashTag BD demo — dashboard, assistant, admin, billing and customer tracking](docs/demo.gif)
 
-| Owner dashboard | Customer tracking (mobile) | AI Shop Assistant |
-| --- | --- | --- |
-| ![Owner dashboard](docs/screenshots/dashboard.png) | ![Customer tracking page](docs/screenshots/customer-tracking.png) | ![AI assistant](docs/screenshots/assistant.png) |
+| Owner dashboard | Customer tracking (mobile) | AI Shop Assistant | Platform admin |
+| --- | --- | --- | --- |
+| ![Owner dashboard](docs/screenshots/dashboard.png) | ![Customer tracking page](docs/screenshots/customer-tracking.png) | ![AI assistant](docs/screenshots/assistant.png) | ![Platform admin](docs/screenshots/admin.png) |
+
+Screenshots show the flat, solid-colour interface and the custom WashTag line-art mark. Regenerate them with `node frontend/capture-docs.mjs` against a running demo stack.
 
 ### Architecture
 
@@ -136,7 +138,7 @@ The dependency rule points inward: `Api → Infrastructure → Application → D
 - Index rebuilds automatically on every order/status/payment change, with a manual "Rebuild index" button
 
 **Bengali UI**
-- `EN / বাং` toggle in the sidebar, login and customer tracking page; persists per browser
+- `EN / বাং` toggle in the app header, login and customer tracking page; persists per browser
 - Navigation, dashboard, order statuses, assistant chrome and the customer tracking page are translated; other screens still use English with automatic fallback per string (contributions to `frontend/src/i18n/translations.js` welcome)
 
 **Platform**
