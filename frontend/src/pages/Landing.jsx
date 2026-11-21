@@ -1,7 +1,7 @@
 import { Link } from 'react-router-dom';
 import {
-  Shirt, QrCode, Smartphone, Clock3, BarChart3, ShieldCheck,
-  ArrowRight, CheckCircle2, MapPin, Sparkles
+  QrCode, ArrowRight, ArrowUpRight, Check, MapPin,
+  ReceiptText, Smartphone, ScanLine, BarChart3
 } from 'lucide-react';
 import QRCode from '../components/QRCode';
 import LogoMark from '../components/LogoMark';
@@ -9,31 +9,37 @@ import { STATUS_ORDER, STATUS_LABELS, trackingUrl } from '../utils/helpers';
 
 const features = [
   {
-    icon: QrCode,
-    title: 'One QR, zero paperwork',
-    text: 'Print or show a single QR receipt at drop-off. No more faded tokens or torn slips.'
+    title: 'One QR at drop-off. Nothing to lose.',
+    text: 'Print or show a single QR receipt. No faded paper tokens, no torn slips, no "which ticket was mine?".',
+    Icon: QrCode
   },
   {
-    icon: Smartphone,
-    title: 'Customers scan, no app needed',
-    text: 'A phone camera opens a beautiful live status page. Nothing to install, nothing to explain.'
+    title: 'Customers just point their camera.',
+    text: 'No app, no sign-up, no explanation. The receipt opens a live page they can check from anywhere.',
+    Icon: Smartphone
   },
   {
-    icon: Clock3,
-    title: 'Every step, transparent',
-    text: 'Received → Washing → Ironing → Ready → Delivered. Disputes drop before they start.'
+    title: 'Every step is visible, before they ask.',
+    text: 'Received → Washing → Ironing → Ready → Delivered. The counter stops being a black box.',
+    Icon: ScanLine
   },
   {
-    icon: BarChart3,
-    title: 'Know your counter at a glance',
-    text: 'See pending items, unpaid customers and daily revenue without opening a khata.'
+    title: 'Your counter, in numbers.',
+    text: 'Pending items, unpaid customers, daily collections — without opening a khata or a spreadsheet.',
+    Icon: BarChart3
   }
 ];
 
+const steps = [
+  { n: '01', title: 'Drop-off', text: 'Create the order, hand over one QR receipt.' },
+  { n: '02', title: 'In the shop', text: 'Scan it at each stage to move the order forward.' },
+  { n: '03', title: 'On the customer phone', text: 'Live status and payment, always up to date.' }
+];
+
 const plans = [
-  { name: 'Starter', price: 500, desc: 'For a single counter just getting started.', perks: ['1 shop · 2 staff', 'Unlimited orders', 'QR tracking & payments'] },
-  { name: 'Growth', price: 800, desc: 'For busy shops with a steady flow.', perks: ['Up to 5 staff', 'Customer directory', 'Realtime updates'], featured: true },
-  { name: 'Pro', price: 1000, desc: 'For multi-branch operations.', perks: ['Unlimited staff', 'Priority support', 'Custom branding'] }
+  { name: 'Starter', price: 500, desc: 'A single counter finding its feet.', perks: ['1 shop · 2 staff', 'Unlimited orders', 'QR tracking & payments'] },
+  { name: 'Growth', price: 800, desc: 'For a steady, busy flow.', perks: ['Up to 5 staff', 'Customer directory', 'Realtime updates'], featured: true },
+  { name: 'Pro', price: 1000, desc: 'More branches, more hands.', perks: ['Unlimited staff', 'Priority support', 'Custom branding'] }
 ];
 
 export default function Landing() {
@@ -50,95 +56,130 @@ export default function Landing() {
           </div>
         </Link>
         <nav>
+          <a href="#how">How it works</a>
           <a href="#features">Features</a>
           <a href="#pricing">Pricing</a>
-          <Link to="/login" className="btn btn-ghost btn-sm">Log in</Link>
+          <Link to="/login" className="landing-login">Log in</Link>
           <Link to="/register" className="btn btn-primary btn-sm">Start free <ArrowRight size={15} /></Link>
         </nav>
       </header>
 
+      {/* Asymmetric hero: oversized type on the left, a real ticket on the right. */}
       <section className="hero">
-        <div className="hero-glow" />
         <div className="hero-copy">
-          <span className="eyebrow"><Sparkles size={14} /> Built for Bangladesh</span>
-          <h1>Paper tokens? <em>Gone.</em></h1>
+          <div className="hero-index"><span>01 — SMART LAUNDRY OS</span><span>MADE IN DHAKA</span></div>
+          <h1>Paper tokens<br /><em>are finished.</em></h1>
           <p className="hero-lead">
-            WashTag BD turns every laundry, dry-cleaning and tailor order into a live,
-            QR-tracked experience. Your customers always know where their clothes are —
-            and you always know what's pending and who hasn't paid.
+            Every order becomes a QR receipt your customer can track from their own phone.
+            No app to install, no tickets to lose, no arguments at pickup.
           </p>
           <div className="hero-actions">
             <Link to="/register" className="btn btn-primary btn-lg">Set up your shop <ArrowRight size={18} /></Link>
             <Link to="/login" className="btn btn-outline btn-lg">See the demo</Link>
           </div>
           <div className="hero-proof">
-            <span><CheckCircle2 size={16} /> No app download</span>
-            <span><CheckCircle2 size={16} /> Works on any phone</span>
-            <span><CheckCircle2 size={16} /> BDT-friendly pricing</span>
+            <span><Check size={14} /> No app download</span>
+            <span><Check size={14} /> Works on any phone</span>
+            <span><Check size={14} /> BDT pricing</span>
           </div>
         </div>
 
         <div className="hero-visual">
-          <div className="phone-mock">
-            <div className="phone-notch" />
-            <div className="phone-shop">
-              <span className="shop-avatar"><Shirt size={18} /></span>
-              <div><strong>Shine & Fold Laundry</strong><small><MapPin size={11} /> Dhanmondi, Dhaka</small></div>
+          <div className="ticket">
+            <div className="ticket-top">
+              <div className="ticket-shop">
+                <span className="ticket-shop-icon"><ReceiptText size={17} /></span>
+                <div><strong>Shine &amp; Fold Laundry</strong><small><MapPin size={10} /> Dhanmondi, Dhaka</small></div>
+              </div>
+              <span className="ticket-no">#WT-00042</span>
             </div>
-            <div className="phone-qr">
-              <QRCode value={trackingUrl(demoToken)} size={132} />
-              <span>Order #WT-00042</span>
+            <div className="ticket-qr">
+              <QRCode value={trackingUrl(demoToken)} size={148} />
+              <span>Scan to track this order</span>
             </div>
-            <div className="phone-status">
-              {STATUS_ORDER.map((status, index) => (
-                <div key={status} className={`mini-step ${index <= 2 ? 'done' : ''} ${index === 2 ? 'current' : ''}`}>
-                  <span className="mini-dot" />
-                  {STATUS_LABELS[status]}
-                </div>
-              ))}
+            <div className="ticket-perf" aria-hidden="true" />
+            <div className="ticket-status">
+              <span className="ticket-label">CURRENT STATUS</span>
+              <strong>Ironing</strong>
+              <div className="ticket-steps">
+                {STATUS_ORDER.map((status, i) => (
+                  <div key={status} className={`ticket-step ${i <= 2 ? 'is-done' : ''}`}>
+                    <span className="ticket-dot" />
+                    <small>{STATUS_LABELS[status]}</small>
+                  </div>
+                ))}
+              </div>
             </div>
-            <div className="phone-pill">Live updates via QR ✨</div>
           </div>
-          <div className="floating-card floating-card-a"><ShieldCheck size={18} /> Dispute-free counter</div>
-          <div className="floating-card floating-card-b"><CheckCircle2 size={18} /> Paid · ৳450</div>
+          <div className="hero-facts">
+            <div><strong>5</strong><span>steps, visible to the customer</span></div>
+            <div><strong>0</strong><span>apps to install</span></div>
+          </div>
         </div>
       </section>
 
-      <section id="features" className="landing-section">
-        <div className="section-head">
-          <span className="eyebrow">WHY SHOPS SWITCH</span>
-          <h2>Less arguing. More flow.</h2>
-          <p>Everything a modern counter needs, without the complexity of an enterprise system.</p>
+      {/* Numbered, ruled rows instead of a grid of icon tiles. */}
+      <section id="how" className="landing-section">
+        <div className="section-label"><span>02</span> THE FLOW</div>
+        <div className="section-lead">
+          <h2>Three steps. No friction.</h2>
+          <p>From the counter to the customer's pocket, in under a minute.</p>
         </div>
-        <div className="feature-grid">
-          {features.map(({ icon: Icon, title, text }) => (
-            <div key={title} className="feature-card">
-              <div className="feature-icon"><Icon size={22} /></div>
-              <h3>{title}</h3>
-              <p>{text}</p>
+        <div className="step-list">
+          {steps.map((step) => (
+            <div key={step.n} className="step-row">
+              <span className="step-n">{step.n}</span>
+              <h3>{step.title}</h3>
+              <p>{step.text}</p>
             </div>
           ))}
         </div>
       </section>
 
+      <section id="features" className="landing-section features-section">
+        <div className="section-label"><span>03</span> WHY SHOPS SWITCH</div>
+        <div className="section-lead">
+          <h2>Less arguing. More flow.</h2>
+          <p>Everything a modern counter needs, without enterprise complexity.</p>
+        </div>
+        <div className="feature-list">
+          {features.map(({ title, text, Icon }, i) => (
+            <div key={title} className="feature-row">
+              <span className="feature-no">0{i + 1}</span>
+              <Icon size={22} className="feature-icon" />
+              <div>
+                <h3>{title}</h3>
+                <p>{text}</p>
+              </div>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* Pricing as a ruled comparison table; the featured row is a solid block. */}
       <section id="pricing" className="landing-section pricing-section">
-        <div className="section-head">
-          <span className="eyebrow">SIMPLE PRICING</span>
-          <h2>Less than a few coffees a month</h2>
+        <div className="section-label"><span>04</span> PRICING</div>
+        <div className="section-lead">
+          <h2>Less than a few coffees a month.</h2>
           <p>Monthly plans in BDT. Cancel anytime. No setup fee, no hardware lock-in.</p>
         </div>
-        <div className="pricing-grid">
+        <div className="price-table">
+          <div className="price-head">
+            <span>PLAN</span><span>WHO IT'S FOR</span><span>PER MONTH</span><span />
+          </div>
           {plans.map((plan) => (
-            <div key={plan.name} className={`price-card ${plan.featured ? 'featured' : ''}`}>
-              {plan.featured && <span className="price-tag">Most popular</span>}
-              <h3>{plan.name}</h3>
-              <p>{plan.desc}</p>
-              <div className="price">৳{plan.price}<small>/month</small></div>
-              <ul>
-                {plan.perks.map((perk) => <li key={perk}><CheckCircle2 size={16} /> {perk}</li>)}
-              </ul>
-              <Link to="/register" className={`btn ${plan.featured ? 'btn-primary' : 'btn-outline'} btn-block`}>
-                Get started
+            <div key={plan.name} className={`price-row ${plan.featured ? 'is-featured' : ''}`}>
+              <div className="price-name">
+                <strong>{plan.name}</strong>
+                {plan.featured && <span className="price-flag">MOST POPULAR</span>}
+              </div>
+              <span className="price-desc">{plan.desc}</span>
+              <div className="price-amount"><strong>৳{plan.price}</strong><small>/month</small></div>
+              <div className="price-perks">
+                {plan.perks.map((perk) => <span key={perk}><Check size={13} /> {perk}</span>)}
+              </div>
+              <Link to="/register" className={`btn btn-sm ${plan.featured ? 'btn-light' : 'btn-outline'}`}>
+                Start {plan.name} <ArrowUpRight size={14} />
               </Link>
             </div>
           ))}
@@ -146,11 +187,14 @@ export default function Landing() {
       </section>
 
       <section className="cta-band">
-        <div>
-          <h2>Your counter deserves better than paper.</h2>
-          <p>Join the shops making the switch to live, QR-based tracking.</p>
+        <div className="cta-inner">
+          <div>
+            <span className="cta-kicker">READY WHEN YOU ARE</span>
+            <h2>Your counter deserves better than paper.</h2>
+            <p>Set up in minutes. No hardware, no contract, no looking back.</p>
+          </div>
+          <Link to="/register" className="btn btn-light btn-lg">Open your workspace <ArrowRight size={18} /></Link>
         </div>
-        <Link to="/register" className="btn btn-light btn-lg">Open your workspace <ArrowRight size={18} /></Link>
       </section>
 
       <footer className="landing-footer">
@@ -158,7 +202,7 @@ export default function Landing() {
           <div className="brand-mark"><LogoMark /></div>
           <strong>WashTag<span>BD</span></strong>
         </div>
-        <p>© {new Date().getFullYear()} WashTag BD. Made for the neighbourhood shops of Bangladesh.</p>
+        <p>© {new Date().getFullYear()} WashTag BD · Built for the neighbourhood shops of Bangladesh.</p>
       </footer>
     </div>
   );
