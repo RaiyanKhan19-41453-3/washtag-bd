@@ -43,7 +43,7 @@ export default function Landing() {
     <div className="landing">
       <header className="landing-nav">
         <Link to="/" className="brand">
-          <div className="brand-mark"><LogoMark size={21} /></div>
+          <div className="brand-mark"><LogoMark /></div>
           <div className="brand-text">
             <strong>WashTag<span>BD</span></strong>
             <small>Smart Laundry OS</small>
@@ -155,7 +155,7 @@ export default function Landing() {
 
       <footer className="landing-footer">
         <div className="brand">
-          <div className="brand-mark"><LogoMark size={20} /></div>
+          <div className="brand-mark"><LogoMark /></div>
           <strong>WashTag<span>BD</span></strong>
         </div>
         <p>© {new Date().getFullYear()} WashTag BD. Made for the neighbourhood shops of Bangladesh.</p>

@@ -1,7 +1,7 @@
-// WashTag BD brand mark: a price tag containing a bold "W", with the tag's
-// punch-hole doubling as a water drop. Single solid colour via currentColor so
-// it inherits the teal tile's white foreground everywhere it is used.
-export default function LogoMark({ size = 21, className }) {
+// WashTag BD brand mark — bare line art, no tile or fill. A price tag whose
+// punch-hole reads as a water drop, with a bold "W" in the body. Every part is
+// a stroke in currentColor, so the mark inherits the surrounding brand colour.
+export default function LogoMark({ size = 26, className }) {
   return (
     <svg
       className={className}
@@ -10,15 +10,18 @@ export default function LogoMark({ size = 21, className }) {
       viewBox="0 0 24 24"
       fill="none"
       stroke="currentColor"
-      strokeWidth="1.7"
+      strokeWidth="1.6"
       strokeLinecap="round"
       strokeLinejoin="round"
       aria-hidden="true"
       focusable="false"
     >
-      <path d="M13.3 3.3 3.3 13.3a2 2 0 0 0 0 2.8l4.6 4.6a2 2 0 0 0 2.8 0l10-10a2 2 0 0 0 0-2.8l-4.6-4.6a2 2 0 0 0-2.8 0Z" />
-      <circle cx="7.6" cy="7.6" r="1.25" fill="currentColor" stroke="none" />
-      <path d="m8.2 12 1.7 3.8L12 12.6l2.1 3.2 1.7-3.8" strokeWidth="1.9" />
+      {/* tag outline — pointed at bottom-left, flat shoulder at top-right */}
+      <path d="M13.4 2.6H19a2.4 2.4 0 0 1 2.4 2.4v5.6a2.4 2.4 0 0 1-.7 1.7L11 22.4a2.4 2.4 0 0 1-3.4 0L2 16.8a2.4 2.4 0 0 1 0-3.4L11.7 3.3a2.4 2.4 0 0 1 1.7-.7Z" />
+      {/* punch-hole / drop */}
+      <circle cx="17.1" cy="7.1" r="1.35" />
+      {/* W in the tag body */}
+      <path d="m7.4 11.6 1.9 4.1 2.1-4.1 2.1 4.1 1.9-4.1" strokeWidth="1.9" />
     </svg>
   );
 }

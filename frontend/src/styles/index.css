@@ -201,11 +201,14 @@ button:disabled { cursor: not-allowed; opacity: .55; }
   width: 246px; flex: 0 0 246px; background: #0b1f27; color: #cbd5e1;
   display: flex; flex-direction: column; padding: 22px 16px; position: sticky; top: 0; height: 100vh;
 }
-.brand { display: flex; align-items: center; gap: 11px; }
+.brand { display: flex; align-items: center; gap: 10px; }
+/* Bare line-art mark: no tile, no fill. The stroke inherits the surrounding
+   brand colour — white in the sidebar/auth hero, dark ink on the landing page. */
 .brand-mark {
-  width: 38px; height: 38px; border-radius: 11px; background: var(--teal);
-  color: #fff; display: grid; place-items: center; flex: 0 0 auto;
+  display: grid; place-items: center; flex: 0 0 auto;
+  color: var(--teal);
 }
+.sidebar .brand-mark, .brand-light .brand-mark { color: #fff; }
 .brand-text strong { display: block; font-family: var(--font-head); font-size: 17px; color: #fff; letter-spacing: -.03em; }
 .brand-text strong span { color: #5eead4; }
 .brand-text small { display: block; font-size: 10px; color: #7f9ba4; letter-spacing: .06em; text-transform: uppercase; }
@@ -457,7 +460,6 @@ button:disabled { cursor: not-allowed; opacity: .55; }
   right: -260px; bottom: -220px; border: 80px solid rgba(94, 234, 212, .06);
 }
 .auth-hero-register { background: #4c1d95; }
-.brand-light .brand-mark { background: rgba(255, 255, 255, .15); }
 .brand-light .brand-text strong { color: #fff; }
 .auth-hero-copy { margin: auto 0; max-width: 440px; position: relative; z-index: 1; }
 .eyebrow {

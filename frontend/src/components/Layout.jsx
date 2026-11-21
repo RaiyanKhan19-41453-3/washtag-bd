@@ -72,7 +72,7 @@ export default function Layout() {
     <div className="app-shell">
       <aside className={`sidebar ${open ? 'is-open' : ''}`}>
         <div className="brand">
-          <div className="brand-mark"><LogoMark size={21} /></div>
+          <div className="brand-mark"><LogoMark /></div>
           <div className="brand-text">
             <strong>WashTag<span>BD</span></strong>
             <small>Smart Laundry OS</small>

@@ -43,7 +43,7 @@ export default function Login() {
     <div className="auth-page">
       <div className="auth-hero">
         <Link to="/" className="brand brand-light">
-          <div className="brand-mark"><LogoMark size={21} /></div>
+          <div className="brand-mark"><LogoMark /></div>
           <div className="brand-text"><strong>WashTag<span>BD</span></strong><small>Smart Laundry OS</small></div>
         </Link>
         <div className="auth-hero-copy">
