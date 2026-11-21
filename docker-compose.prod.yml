@@ -1,4 +1,4 @@
-# Production overrides — use together with the base compose file:
+# Production overrides - use together with the base compose file:
 #   docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
 #
 # All ${...} values come from .env. See DEPLOYMENT.md for the bootstrap sequence.

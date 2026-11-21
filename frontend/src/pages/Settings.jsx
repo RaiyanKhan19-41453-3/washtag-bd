@@ -84,7 +84,7 @@ export default function Settings() {
     try {
       await api.post('/auth/change-password', passwords);
       setPasswords({ currentPassword: '', newPassword: '' });
-      // Changing the password invalidates the current token too — sign in again.
+      // Changing the password invalidates the current token too - sign in again.
       logout();
       navigate('/login', { replace: true, state: { from: '/app/settings' } });
       toast.success('Password changed. Please sign in again with your new password.');
@@ -180,10 +180,10 @@ export default function Settings() {
           <section className="card info-panel">
             <div className="panel-heading"><BadgeCheck size={20} /><h3>Subscription</h3></div>
             <div className="plan-badge">{shop?.plan || 'Starter'} plan</div>
-            <p className="muted">{shopLocked(shop) ? 'Access is locked' : 'Renews'} {shop?.subscriptionEndsAt ? formatDate(shop.subscriptionEndsAt) : '—'}</p>
+            <p className="muted">{shopLocked(shop) ? 'Access is locked' : 'Renews'} {shop?.subscriptionEndsAt ? formatDate(shop.subscriptionEndsAt) : '-'}</p>
             <div className={`plan-line ${shopLocked(shop) ? 'danger-text' : ''}`}>
               {!shopLocked(shop) && <ShieldCheck size={16} />}
-              {shopLocked(shop) ? (shop?.isActive === false ? 'Shop suspended' : `${shop?.subscriptionStatus || 'Inactive'} — renew to continue`) : 'Active & verified'}
+              {shopLocked(shop) ? (shop?.isActive === false ? 'Shop suspended' : `${shop?.subscriptionStatus || 'Inactive'}, renew to continue`) : 'Active & verified'}
             </div>
             <Link to="/app/billing" className="text-link">Manage plan &amp; invoices →</Link>
           </section>
@@ -208,7 +208,7 @@ export default function Settings() {
             <div className="panel-heading"><Info size={20} /><h3>How QR tracking works</h3></div>
             <ol className="how-list">
               <li>Create an order and show the QR to the customer.</li>
-              <li>They scan it with their phone camera — no app needed.</li>
+              <li>They scan it with their phone camera, no app needed.</li>
               <li>You scan the same QR to update status and payments.</li>
             </ol>
           </section>

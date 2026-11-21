@@ -56,7 +56,7 @@ export default function Billing() {
         // Preserve an unsaved dropdown selection, but re-sync when untouched so
         // an admin's plan change while this page is open is still reflected.
         if (!planDirtyRef.current) setPlan(data.plan);
-      } catch { /* transient poll failure — keep the last state */ }
+      } catch { /* transient poll failure - keep the last state */ }
       void refreshShop();
     }, 30000);
     return () => window.clearInterval(timer);
@@ -83,7 +83,7 @@ export default function Billing() {
       setPaying(null);
       setReference('');
       await refreshShop();
-      // Refresh invoices only — a full load() would silently discard an unsaved
+      // Refresh invoices only - a full load() would silently discard an unsaved
       // plan selection the owner made in the dropdown.
       try {
         const { data: result } = await api.get('/billing');
@@ -128,7 +128,7 @@ export default function Billing() {
           </div>
           {data.status === 'Cancelled' && (
             <div className="subscription-banner">
-              <AlertCircle size={17} /> <span>This plan was cancelled by the platform admin. Paying an invoice cannot restore access — contact support to have it restored.</span>
+              <AlertCircle size={17} /> <span>This plan was cancelled by the platform admin. Paying an invoice cannot restore access. Contact support to have it restored.</span>
             </div>
           )}
           {isOwner && data.status !== 'Cancelled' && (
@@ -136,7 +136,7 @@ export default function Billing() {
               <label className="field">
                 <span>Change plan</span>
                 <select value={plan} onChange={(e) => { planDirtyRef.current = true; setPlan(e.target.value); }}>
-                  {PLANS.map((item) => <option key={item.name} value={item.name}>{item.name} — ৳{item.price}/mo</option>)}
+                  {PLANS.map((item) => <option key={item.name} value={item.name}>{item.name} - ৳{item.price}/mo</option>)}
                 </select>
               </label>
               <button className="btn btn-primary" onClick={changePlan} disabled={busy || plan === data.plan}>Update plan</button>
@@ -156,7 +156,7 @@ export default function Billing() {
                 {data.invoices.map((invoice) => (
                   <tr key={invoice.id}>
                     <td className="mono strong">{invoice.invoiceNumber}</td>
-                    <td className="muted">{formatDate(invoice.periodFrom)} – {formatDate(invoice.periodTo)}</td>
+                    <td className="muted">{formatDate(invoice.periodFrom)} to {formatDate(invoice.periodTo)}</td>
                     <td className="align-right strong">{money(invoice.amount)}</td>
                     <td><span className={`badge payment-${invoice.status}`}>{invoice.status}</span></td>
                     <td className="align-right">

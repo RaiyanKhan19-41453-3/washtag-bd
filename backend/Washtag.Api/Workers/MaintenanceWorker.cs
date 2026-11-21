@@ -50,7 +50,7 @@ public sealed class MaintenanceWorker : BackgroundService
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
-            // Shutting down — nothing to report.
+            // Shutting down - nothing to report.
         }
         catch (Exception ex)
         {

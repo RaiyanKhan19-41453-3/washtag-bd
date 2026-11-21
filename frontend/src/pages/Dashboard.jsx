@@ -57,7 +57,7 @@ export default function Dashboard() {
 
   const maxCount = Math.max(1, ...data.weeklyTrend.map((day) => day.count));
   const total = Math.max(1, data.totalOrders);
-  // Solid-colour SVG ring instead of a CSS gradient — each segment is a plain
+  // Solid-colour SVG ring instead of a CSS gradient - each segment is a plain
   // stroke, so the chart still reads correctly with a flat palette.
   const donutRadius = 15.91549430918954; // circumference = 100
   let donutOffset = 0;

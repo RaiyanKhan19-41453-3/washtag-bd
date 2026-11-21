@@ -27,7 +27,7 @@ export default function Reports() {
   const [busy, setBusy] = useState(false);
 
   // An empty <input type="date"> yields '' and would throw "Invalid time value"
-  // from the UTC helpers — validate before building the request.
+  // from the UTC helpers - validate before building the request.
   const rangeOrWarn = () => {
     if (!from || !to) { toast.error('Choose both a start and end date.'); return null; }
     return { from: dayStartUtc(from), to: exclusiveEndUtc(to) };

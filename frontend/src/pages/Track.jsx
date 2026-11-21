@@ -16,7 +16,7 @@ import { STATUS_LABELS, STATUS_ORDER, formatDateTime, formatDate } from '../util
 const STATUS_MESSAGES = {
   Received: 'We have your clothes safely. They will enter the wash queue soon.',
   Washing: 'Your clothes are being cleaned right now.',
-  Ironing: 'Clean and fresh — we are pressing them to perfection.',
+  Ironing: 'Clean and fresh. We are pressing them to perfection.',
   ReadyForPickup: 'All done! Your order is packed and waiting for you.',
   Delivered: 'Delivered. Thank you for trusting us!',
   Cancelled: 'This order was cancelled. Please contact the shop for details.'
@@ -141,7 +141,7 @@ export default function Track() {
           </div>
           <div className="track-payment-row">
             <Wallet size={16} />
-            <span>{order.paymentStatus === 'Paid' ? 'All settled — thank you!' : (order.deliveryMode === 'Delivery' ? 'Payment is collected on delivery.' : 'Settle your payment at pickup.')}</span>
+            <span>{order.paymentStatus === 'Paid' ? 'All settled, thank you!' : (order.deliveryMode === 'Delivery' ? 'Payment is collected on delivery.' : 'Settle your payment at pickup.')}</span>
           </div>
         </section>
 
@@ -151,9 +151,9 @@ export default function Track() {
         </section>
 
         <footer className="track-footer">
-          <p>{order.deliveryMode === 'Delivery' ? (t('Delivery address') || 'Delivery address') : t('Expected pickup')}: <strong>{order.deliveryMode === 'Delivery' ? (order.deliveryAddress || '—') : (order.dueDate ? formatDate(order.dueDate) : '—')}</strong></p>
+          <p>{order.deliveryMode === 'Delivery' ? (t('Delivery address') || 'Delivery address') : t('Expected pickup')}: <strong>{order.deliveryMode === 'Delivery' ? (order.deliveryAddress || '-') : (order.dueDate ? formatDate(order.dueDate) : '-')}</strong></p>
           {order.deliveredAt && <p>Delivered on <strong>{formatDateTime(order.deliveredAt)}</strong></p>}
-          <p>{t('Questions? Call the shop at')} <strong>{shop.phone ? <a href={`tel:${shop.phone.replace(/[^\d+]/g, '')}`}>{shop.phone}</a> : '—'}</strong></p>
+          <p>{t('Questions? Call the shop at')} <strong>{shop.phone ? <a href={`tel:${shop.phone.replace(/[^\d+]/g, '')}`}>{shop.phone}</a> : '-'}</strong></p>
         </footer>
       </div>
       <p className="track-power">{t('Powered by')} <strong>WashTag BD</strong> · {t('Live QR tracking')}</p>

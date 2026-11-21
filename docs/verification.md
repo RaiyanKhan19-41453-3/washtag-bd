@@ -1,6 +1,6 @@
 # Verification beyond unit tests
 
-These are the manual/repeatable experiments used to close the gaps that unit tests cannot cover. None of them require installing tools on the host — everything runs through Docker.
+These are the manual/repeatable experiments used to close the gaps that unit tests cannot cover. None of them require installing tools on the host - everything runs through Docker.
 
 ## 1. Realistic load
 
@@ -26,7 +26,7 @@ No errors. The dashboard is the heaviest path because it aggregates orders in SQ
 Two API containers were started against the same Postgres/Redis with one shared `JWT_SECRET`:
 
 - A token signed by replica 1 was accepted by replica 2 (`200`), confirming a shared secret prevents random 401s.
-- After six logins exhausted the per-IP limit on replica 1 (`200×5, 429×2`), a seventh login on replica 2 succeeded (`200`). **Rate limits are per-process** — the effective limit doubles with two replicas.
+- After six logins exhausted the per-IP limit on replica 1 (`200×5, 429×2`), a seventh login on replica 2 succeeded (`200`). **Rate limits are per-process** - the effective limit doubles with two replicas.
 - SignalR groups and the maintenance worker are likewise process-local; a second replica would duplicate maintenance work and miss cross-replica notifications.
 
 Conclusion: the supported deployment remains **one API replica**. Scaling out requires a distributed rate limiter, a SignalR backplane and a distributed maintenance lock.
@@ -38,9 +38,9 @@ Conclusion: the supported deployment remains **one API replica**. Scaling out re
 3. Dumped the database with `pg_dump --clean --if-exists`.
 4. Restored that dump into a fresh database for the current code, then started the current stack.
 
-Result: the v1.6.1 dump restored cleanly and the then-current migrations applied; all 17 orders and 11 customers survived, billing and public tracking worked, and a repeated idempotency key returned `201` then `200` with the same order. The later `AddServicesAndDelivery` migration was verified separately with populated data (new columns defaulted to `Pickup`/nullable address, empty catalogue table). Re-run the drill for the current tag before an actual production upgrade — the migration count grows with each release.
+Result: the v1.6.1 dump restored cleanly and the then-current migrations applied; all 17 orders and 11 customers survived, billing and public tracking worked, and a repeated idempotency key returned `201` then `200` with the same order. The later `AddServicesAndDelivery` migration was verified separately with populated data (new columns defaulted to `Pickup`/nullable address, empty catalogue table). Re-run the drill for the current tag before an actual production upgrade - the migration count grows with each release.
 
-Do not delete rows from `__EFMigrationsHistory` when rolling back — a later upgrade would try to recreate indexes that still exist.
+Do not delete rows from `__EFMigrationsHistory` when rolling back - a later upgrade would try to recreate indexes that still exist.
 
 ## 4. Payment/SMS provider
 

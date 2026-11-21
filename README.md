@@ -1,14 +1,14 @@
-# WashTag BD — Smart Laundry & Tailor SaaS
+# WashTag BD: Smart Laundry & Tailor SaaS
 
 [![CI](https://github.com/RaiyanKhan19-41453-3/washtag-bd/actions/workflows/ci.yml/badge.svg)](https://github.com/RaiyanKhan19-41453-3/washtag-bd/actions/workflows/ci.yml)
 
-A QR-code based order tracking platform built for laundry, dry-cleaning and tailor shops in Bangladesh. Customers scan a QR receipt with their phone camera and see the live status of their clothes — no app download required. Shop owners scan the same QR to move orders through the workflow and record payments.
+A QR-code based order tracking platform built for laundry, dry-cleaning and tailor shops in Bangladesh. Customers scan a QR receipt with their phone camera and see the live status of their clothes, no app download required. Shop owners scan the same QR to move orders through the workflow and record payments.
 
 Everything runs in Docker. You do **not** need Node, .NET, Postgres or Redis installed locally.
 
 ## See it in action
 
-![WashTag BD demo — dashboard, assistant, admin, billing and customer tracking](docs/demo.gif)
+![WashTag BD demo: dashboard, assistant, admin, billing and customer tracking](docs/demo.gif)
 
 | Owner dashboard | Customer tracking (mobile) | AI Shop Assistant | Platform admin |
 | --- | --- | --- | --- |
@@ -61,7 +61,7 @@ The first build downloads base images and NuGet/npm packages, so it can take a f
 
 The demo shop comes preloaded with customers, orders in every status, payment history and status timelines, so the dashboard looks alive on first login.
 
-To disable demo data, set `SEED_DEMO_DATA=false` **before the first start on a fresh volume**. Changing the flag later does not remove existing demo users — delete those rows manually if needed. Never recreate `pgdata` on a deployment that has real data: `docker compose down -v` deletes the entire database.
+To disable demo data, set `SEED_DEMO_DATA=false` **before the first start on a fresh volume**. Changing the flag later does not remove existing demo users. Delete those rows manually if needed. Never recreate `pgdata` on a deployment that has real data: `docker compose down -v` deletes the entire database.
 
 ---
 
@@ -81,15 +81,15 @@ Browser ──> web (nginx :8081) ──> /api/*  ──> api (:8080) ──> po
                               └─> /hubs/* ──> api (SignalR)
 ```
 
-Every API request from the dashboard is scoped by the `shopId` claim embedded in the signed JWT. Public tracking is scoped by a per-order, unguessable GUID token — no shop data leaks.
+Every API request from the dashboard is scoped by the `shopId` claim embedded in the signed JWT. Public tracking is scoped by a per-order, unguessable GUID token, so no shop data leaks.
 
 ### Backend structure (Clean Architecture)
 
 ```
 backend/
-├── Washtag.Domain/         Entities, enums, domain exceptions — zero dependencies
+├── Washtag.Domain/         Entities, enums, domain exceptions - zero dependencies
 ├── Washtag.Application/    DTOs, service interfaces, use-case services (incl. RAG orchestration)
-├── Washtag.Infrastructure/ EF Core/Postgres, Redis, QRCoder, pgvector store, embeddings — implements interfaces
+├── Washtag.Infrastructure/ EF Core/Postgres, Redis, QRCoder, pgvector store, embeddings - implements interfaces
 └── Washtag.Api/            Controllers, SignalR hub, JWT/auth, DI composition root
 ```
 
@@ -120,7 +120,7 @@ The dependency rule points inward: `Api → Infrastructure → Application → D
 - Subscription state (plan, status, renewal date) with monthly invoices for Starter/Growth/Pro
 - Owners can change plans and record manual invoice settlements (bKash/cash/card/bank); verified gateway payments settle invoices automatically via a signed `invoice.paid` webhook
 - Platform admin view (`/app/admin`) listing every shop, its plan, subscription and revenue, with Suspend / Reactivate / Cancel / Restore controls (cancel is final until explicitly restored)
-- Subscription enforcement: expired, PastDue, Cancelled or suspended shops are locked from daily operations (403) but can still reach auth, billing and shop settings to renew — with a banner directing owners to the Billing page
+- Subscription enforcement: expired, PastDue, Cancelled or suspended shops are locked from daily operations (403) but can still reach auth, billing and shop settings to renew - with a banner directing owners to the Billing page
 - CORS origin allowlist, auth rate limiting (6 attempts/minute) and secure refresh-token rotation
 
 **Customer**
@@ -132,7 +132,7 @@ The dependency rule points inward: `Api → Infrastructure → Application → D
 - Ask in English or Banglish: *"Show me customers who haven't picked up their clothes in 5 days"*, *"What is the total unpaid bill for Mr. Rahman?"*
 - Type or **speak** (browser Web Speech API; mic button)
 - **RAG pipeline:** every order and customer becomes a vector document embedded into pgvector; questions are embedded and matched with cosine distance, then combined with deterministic database facts before answering
-- Answers are grounded in real data — date ranges (`today`, `yesterday`, `this month`, `last week`) and revenue-by-payment-date are supported; offline mode suppresses weak vector citations and an LLM, when enabled, is instructed to treat computed facts as authoritative
+- Answers are grounded in real data - date ranges (`today`, `yesterday`, `this month`, `last week`) and revenue-by-payment-date are supported; offline mode suppresses weak vector citations and an LLM, when enabled, is instructed to treat computed facts as authoritative
 - **Conversation history** is saved per user, with thumbs up/down feedback and a clear-history action
 - Works fully **offline** with deterministic local embeddings and a grounded answer composer; optionally enable an `OPENAI_API_KEY` or `AI_GATEWAY_TOKEN` for LLM-phrased answers
 - Index rebuilds automatically on every order/status/payment change, with a manual "Rebuild index" button
@@ -146,8 +146,8 @@ The dependency rule points inward: `Api → Infrastructure → Application → D
 - QR receipts generated server-side with QRCoder (data URL + printable PNG); they encode the real public `/track/{token}` URL of whatever host serves the app, so they work on localhost, a VPS IP or a custom domain
 - Real-time push to both the owner dashboard and the customer tracking page
 - Health-checked dependencies with automatic restarts, EF connection resiliency and retried startup/background indexing
-- Database-backed idempotency keys stored on the order itself, so duplicate submissions are rejected atomically — even across API crashes and restarts — and replays return the original order
-- Scheduled maintenance worker: marks overdue invoices and expired subscriptions, prunes old chat messages and refresh tokens, and reindexes shops so stale vector documents are removed — all idempotent and configurable with `MAINTENANCE_*` variables
+- Database-backed idempotency keys stored on the order itself, so duplicate submissions are rejected atomically, even across API crashes and restarts, and replays return the original order
+- Scheduled maintenance worker: marks overdue invoices and expired subscriptions, prunes old chat messages and refresh tokens, and reindexes shops so stale vector documents are removed. All idempotent and configurable with `MAINTENANCE_*` variables
 - Swagger UI at `/swagger` (disabled by default; set `ENABLE_SWAGGER=true` to explore the API)
 
 ---
@@ -178,7 +178,7 @@ docker compose up --build -d
 
 Both scripts read `POSTGRES_USER` / `POSTGRES_DB` from `.env` (with the compose defaults as fallback). Schedule `backup.sh` with cron on the host for real deployments, and store the dumps off-server.
 
-`GET /health` returns `200 {"status":"healthy"}` when the API can reach the database, or `503` otherwise — useful for monitoring and load balancers.
+`GET /health` returns `200 {"status":"healthy"}` when the API can reach the database, or `503` otherwise - useful for monitoring and load balancers.
 
 ### Tests and migrations
 
@@ -187,7 +187,7 @@ Everything is in one solution; .NET and Node are only needed if you want to deve
 ```bash
 dotnet test tests/Washtag.Application.Tests/Washtag.Application.Tests.csproj   # 66 unit tests
 dotnet test tests/Washtag.Api.Tests/Washtag.Api.Tests.csproj                   # 17 unit tests
-# Integration tests (real Postgres + pgvector via Testcontainers — requires a running Docker daemon)
+# Integration tests (real Postgres + pgvector via Testcontainers - requires a running Docker daemon)
 dotnet test tests/Washtag.Integration.Tests/Washtag.Integration.Tests.csproj   # 13 real-database tests
 node scripts/load-test.mjs                                                   # optional load probe against a running stack
 
@@ -289,7 +289,7 @@ OPENAI_BASE_URL=https://api.openai.com/v1
 OPENAI_EMBEDDING_MODEL=text-embedding-3-small
 OPENAI_CHAT_MODEL=gpt-4o-mini
 
-# Option B: AI Gateway (Vercel by default) — used when OPENAI_API_KEY is blank
+# Option B: AI Gateway (Vercel by default) - used when OPENAI_API_KEY is blank
 AI_GATEWAY_TOKEN=...
 AI_GATEWAY_URL=https://ai.gateway.vercel.app/v1
 AI_GATEWAY_EMBEDDING_MODEL=text-embedding-3-small
@@ -304,16 +304,16 @@ AI_GATEWAY_CHAT_MODEL=gpt-4o-mini
 
 **Do not expose the default Compose setup publicly.** The base `docker-compose.yml` is a Development demo profile (seeded demo admin, self-settlement enabled); the strict Production profile is `docker-compose.prod.yml` and must be selected explicitly. See [DEPLOYMENT.md](DEPLOYMENT.md) for the full procedure; the short version:
 
-- Copy `.env.example` to `.env` and set a strong `JWT_SECRET` (32+ characters), a strong `POSTGRES_PASSWORD`, `SEED_DEMO_DATA=false`, `ALLOWED_ORIGINS=https://your.domain` and `PUBLIC_BASE_URL=https://your.domain` **before the first start**. Leave `ADMIN_EMAILS` empty initially — see the bootstrap step below. Without a real JWT secret, every restart logs all users out.
-- Set DB credentials before the first start — changing `POSTGRES_PASSWORD` later does not change the existing volume's password but does break the API connection.
+- Copy `.env.example` to `.env` and set a strong `JWT_SECRET` (32+ characters), a strong `POSTGRES_PASSWORD`, `SEED_DEMO_DATA=false`, `ALLOWED_ORIGINS=https://your.domain` and `PUBLIC_BASE_URL=https://your.domain` **before the first start**. Leave `ADMIN_EMAILS` empty initially - see the bootstrap step below. Without a real JWT secret, every restart logs all users out.
+- Set DB credentials before the first start - changing `POSTGRES_PASSWORD` later does not change the existing volume's password but does break the API connection.
 - Start with `docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build`, register your owner account, then set `ADMIN_EMAILS` to that address, restart the API and **log out and back in** so the new `isAdmin` claim is minted into the token.
 - Use a TLS proxy on 80/443 and forward `X-Forwarded-For` / `X-Forwarded-Proto`; the web container binds only to `127.0.0.1:8081`.
 - Browser camera and microphone access (Scan QR / Assistant voice input) require `localhost` or HTTPS in production.
 - Production defaults `MANUAL_PAYMENT_ENABLED=false`: owners cannot mark their own invoices paid (there is no gateway verification). A platform admin settles invoices from the admin page instead. Keep it `true` only for a local demo.
 - Optional `NOTIFICATION_WEBHOOK_URL` / `NOTIFICATION_WEBHOOK_TOKEN` send best-effort SMS/WhatsApp messages on new orders and ready/delivered transitions.
-- Optional `PAYMENT_WEBHOOK_SECRET` enables verified gateway settlements: `POST /api/public/payments/webhook` requires `X-WashTag-Signature` (base64 HMAC-SHA256 of the raw body) and accepts `{"event":"invoice.paid","shopId":"…","invoiceId":"…","amount":123.45,"method":"Bkash","reference":"…"}` — `amount` must equal the invoice amount.
+- Optional `PAYMENT_WEBHOOK_SECRET` enables verified gateway settlements: `POST /api/public/payments/webhook` requires `X-WashTag-Signature` (base64 HMAC-SHA256 of the raw body) and accepts `{"event":"invoice.paid","shopId":"…","invoiceId":"…","amount":123.45,"method":"Bkash","reference":"…"}` - `amount` must equal the invoice amount.
 - Schedule `scripts/backup.sh` and store dumps off-server.
-- Run **one API replica** — the maintenance worker, SignalR groups and rate limits are per-process.
+- Run **one API replica** - the maintenance worker, SignalR groups and rate limits are per-process.
 
 ### Troubleshooting
 
@@ -321,4 +321,4 @@ AI_GATEWAY_CHAT_MODEL=gpt-4o-mini
 - **Blank page after code changes:** `docker compose up --build -d` rebuilds both images.
 - **Start completely fresh:** `docker compose down -v && docker compose up -d`.
 
-Built with care for Dhaka, Gulshan, Uttara, Chittagong — and every neighbourhood shop that deserves a paper-free counter.
+Built with care for Dhaka, Gulshan, Uttara, Chittagong - and every neighbourhood shop that deserves a paper-free counter.

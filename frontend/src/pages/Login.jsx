@@ -49,7 +49,7 @@ export default function Login() {
         <div className="auth-hero-copy">
           <span className="eyebrow"><Sparkles size={14} /> Welcome back</span>
           <h1>Your counter, under control.</h1>
-          <p>Pick up right where you left off — pending orders, payments and live QR updates, all in one place.</p>
+          <p>Pick up right where you left off, with pending orders, payments and live QR updates in one place.</p>
           <div className="auth-hero-points">
             <span>✓ Live order tracking</span>
             <span>✓ QR scanning built in</span>

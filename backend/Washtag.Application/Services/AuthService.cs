@@ -65,7 +65,7 @@ public class AuthService : IAuthService
         _db.Users.Add(user);
 
         // A new shop must have a payable invoice from day one. Otherwise it has no way
-        // to renew once the trial ends — settlement is the only self-service renewal.
+        // to renew once the trial ends - settlement is the only self-service renewal.
         var now = DateTime.UtcNow;
         var periodFrom = new DateTime(now.Year, now.Month, 1, 0, 0, 0, DateTimeKind.Utc);
         _db.Invoices.Add(new Invoice

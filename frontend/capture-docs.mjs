@@ -30,12 +30,12 @@ async function login(page) {
 const desktop = await browser.newPage({ viewport: { width: 1400, height: 900 }, deviceScaleFactor: 1 });
 await login(desktop);
 
-// Dashboard — wait for the SVG donut so all data is loaded.
+// Dashboard - wait for the SVG donut so all data is loaded.
 await desktop.waitForSelector('.donut svg circle', { timeout: 15000 });
 await desktop.waitForTimeout(500);
 await desktop.screenshot({ path: path.join(shots, 'dashboard.png') });
 
-// Assistant — wait for the index status, ask a question, then blur the input.
+// Assistant - wait for the index status, ask a question, then blur the input.
 await desktop.goto(`${BASE}/app/assistant`);
 await desktop.waitForSelector('.chat-input input', { timeout: 15000 });
 await desktop.waitForFunction(() => !document.body.innerText.includes('Checking index'), null, { timeout: 15000 });
@@ -45,7 +45,7 @@ await desktop.waitForTimeout(3500);
 await desktop.locator('.chat-input input').evaluate((el) => el.blur());
 await desktop.screenshot({ path: path.join(shots, 'assistant.png') });
 
-// Admin — wait for the Ant Design table.
+// Admin - wait for the Ant Design table.
 await desktop.goto(`${BASE}/app/admin`);
 await desktop.waitForSelector('.ant-table-tbody tr.ant-table-row', { timeout: 15000 });
 await desktop.screenshot({ path: path.join(shots, 'admin.png') });
@@ -56,7 +56,7 @@ await desktop.waitForSelector('.billing-grid', { timeout: 15000 });
 await desktop.waitForTimeout(400);
 await desktop.screenshot({ path: path.join(frames, 'billing.png') });
 
-// Public tracking — mobile viewport, full page.
+// Public tracking - mobile viewport, full page.
 const token = await desktop.evaluate(async () => {
   const login = await fetch('/api/auth/login', {
     method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -89,7 +89,7 @@ try {
   ], { stdio: 'inherit' });
   console.log(`Wrote ${gif}`);
 } catch {
-  console.warn('magick not found — screenshots were updated but the GIF was not rebuilt.');
+  console.warn('magick not found - screenshots were updated but the GIF was not rebuilt.');
 }
 fs.rmSync(frames, { recursive: true, force: true });
 console.log('Screenshots written to', shots);

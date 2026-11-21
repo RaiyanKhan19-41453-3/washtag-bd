@@ -60,7 +60,7 @@ public class OrdersController : ControllerBase
     public async Task<IActionResult> UpdateStatus(Guid id, [FromBody] UpdateStatusRequest request)
     {
         if (!ModelState.IsValid) return ValidationProblem(ModelState);
-        // Cancelling an order also refunds it. Only owners may do that — the same
+        // Cancelling an order also refunds it. Only owners may do that - the same
         // restriction as the dedicated DELETE endpoint (which this route must not bypass).
         if (request.Status == OrderStatus.Cancelled && !User.IsInRole("Owner")) return Forbid();
         return Ok(await _orders.UpdateStatusAsync(ShopId, id, request, Actor));

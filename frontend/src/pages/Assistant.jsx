@@ -113,7 +113,7 @@ export default function Assistant() {
   const reindex = async () => {
     try {
       const { data } = await api.post('/assistant/reindex', null, { timeout: 120000 });
-      toast.success(`Index refreshed — ${data.documents} document(s) ready.`);
+      toast.success(`Index refreshed. ${data.documents} document(s) ready.`);
       const { data: fresh } = await api.get('/assistant/status');
       setStatus(fresh);
     } catch (error) {
@@ -146,7 +146,7 @@ export default function Assistant() {
       <div className="page-heading">
         <div>
           <h2>{t('AI Shop Assistant')}</h2>
-          <p>{t("Ask questions in English or Banglish — answers come from your shop's own data.")}</p>
+          <p>{t("Ask questions in English or Banglish. Answers come from your shop's own data.")}</p>
         </div>
       </div>
 
@@ -267,15 +267,15 @@ export default function Assistant() {
             <div className="panel-heading"><Database size={19} /><h3>Knowledge base</h3></div>
             <div className="assistant-stat">
               <span>Indexed documents</span>
-              <strong>{status?.documentCount ?? '—'}</strong>
+              <strong>{status?.documentCount ?? '-'}</strong>
             </div>
             <div className="assistant-stat">
               <span>Embeddings</span>
-              <strong className="small-value">{status?.embeddingModel || '—'}</strong>
+              <strong className="small-value">{status?.embeddingModel || '-'}</strong>
             </div>
             <div className="assistant-stat">
               <span>Answer engine</span>
-              <strong className="small-value">{status?.provider || '—'}</strong>
+              <strong className="small-value">{status?.provider || '-'}</strong>
             </div>
             <div className={`assistant-health ${status?.vectorReady ? 'healthy' : ''}`}>
               {status?.vectorReady ? <CircleCheck size={16} /> : <CircleAlert size={16} />}
@@ -305,7 +305,7 @@ export default function Assistant() {
             <ol className="how-list">
               <li>Orders and customers are embedded into PostgreSQL with pgvector.</li>
               <li>Your question is matched against those records (RAG retrieval).</li>
-              <li>Answers are grounded in real database facts — never guessed.</li>
+              <li>Answers are grounded in real database facts, never guessed.</li>
             </ol>
             <p className="tiny-note">No API key needed. Add OPENAI_API_KEY in .env for LLM-phrased answers.</p>
           </section>

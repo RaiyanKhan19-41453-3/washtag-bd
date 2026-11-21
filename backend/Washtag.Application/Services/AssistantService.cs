@@ -428,7 +428,7 @@ public class AssistantService : IAssistantService
         match = Regex.Match(question, @"\b(?:for|of|customer)\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)?)",
             RegexOptions.IgnoreCase);
         if (match.Success) return match.Groups[1].Value;
-        // Banglish: "Tasnim Rahman er baki?" — name appears before the Bengali possessive.
+        // Banglish: "Tasnim Rahman er baki?" - name appears before the Bengali possessive.
         match = Regex.Match(question, @"^([A-Z][a-z]+(?:\s+[A-Z][a-z]+)?)\s+er\b");
         return match.Success ? match.Groups[1].Value : null;
     }

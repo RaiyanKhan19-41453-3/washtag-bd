@@ -147,7 +147,7 @@ public class RealDatabaseTests
             Items = new List<CreateOrderItemRequest> { new() { Name = "Shirt", Quantity = 1, UnitPrice = 250 } }
         };
 
-        // Each HTTP request gets its own DI scope in ASP.NET Core — model that here.
+        // Each HTTP request gets its own DI scope in ASP.NET Core - model that here.
         var responses = await Task.WhenAll(Enumerable.Range(0, 20).Select(async _ =>
         {
             using var scope = _fixture.Scope();

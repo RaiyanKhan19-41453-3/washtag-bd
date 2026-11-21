@@ -60,7 +60,7 @@ if (usingWeakSecret && builder.Environment.IsProduction())
     builder.Configuration["JWT_SECRET"] = configuredSecret;
 }
 var jwtSecret = configuredSecret ?? defaultSecret;
-// The token generator reads configuration directly — keep it in sync with the
+// The token generator reads configuration directly - keep it in sync with the
 // value the validation key actually uses (including trimming).
 builder.Configuration["JWT_SECRET"] = jwtSecret;
 

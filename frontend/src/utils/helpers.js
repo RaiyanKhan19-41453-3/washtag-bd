@@ -32,7 +32,7 @@ export function money(value) {
 }
 
 export function formatDate(value, options = {}) {
-  if (!value) return '—';
+  if (!value) return '-';
   return new Date(value).toLocaleDateString('en-GB', {
     day: '2-digit',
     month: 'short',
@@ -42,7 +42,7 @@ export function formatDate(value, options = {}) {
 }
 
 export function formatDateTime(value) {
-  if (!value) return '—';
+  if (!value) return '-';
   return new Date(value).toLocaleString('en-GB', {
     day: '2-digit',
     month: 'short',

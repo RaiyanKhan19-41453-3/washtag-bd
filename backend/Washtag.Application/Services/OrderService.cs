@@ -67,7 +67,7 @@ public class OrderService : IOrderService
         }
 
         var total = await query.CountAsync();
-        // Guard against int overflow on extreme page numbers — without this the skip
+        // Guard against int overflow on extreme page numbers - without this the skip
         // wraps negative and silently returns the first page.
         var skip = page > int.MaxValue / pageSize ? int.MaxValue : (page - 1) * pageSize;
         var orders = await query.OrderByDescending(o => o.CreatedAt).ThenBy(o => o.Id)

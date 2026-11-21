@@ -40,7 +40,7 @@ public class InvoiceStore : IInvoiceStore
             }
         }
 
-        // Atomic claim — a single conditional UPDATE both decides "is this the last
+        // Atomic claim - a single conditional UPDATE both decides "is this the last
         // unpaid invoice?" (via the trigger-maintained counter on this very row) and
         // extends the term. The invoice UPDATE above already took a row lock on the
         // shop through the counter trigger, so concurrent settlements serialize on

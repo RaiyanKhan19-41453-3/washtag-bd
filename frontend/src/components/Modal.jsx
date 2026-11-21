@@ -30,7 +30,7 @@ export default function Modal({ open, onClose, title, subtitle, children, footer
       const last = focusable[focusable.length - 1];
       const active = document.activeElement;
       // Focus on the dialog container (or one that escaped behind the modal)
-      // must be pulled back inside — otherwise Shift+Tab roams the background.
+      // must be pulled back inside - otherwise Shift+Tab roams the background.
       if (active === dialogRef.current || !dialogRef.current?.contains(active)) {
         event.preventDefault();
         (event.shiftKey ? last : first).focus();

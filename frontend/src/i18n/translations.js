@@ -172,8 +172,8 @@ export const bn = {
 
   // Assistant
   'AI Shop Assistant': 'এআই শপ অ্যাসিস্ট্যান্ট',
-  'Ask questions in English or Banglish — answers come from your shop\'s own data.':
-    'ইংরেজি বা বাংলিশে প্রশ্ন করুন — উত্তর আসবে আপনার দোকানের নিজস্ব ডেটা থেকে।',
+  'Ask questions in English or Banglish. Answers come from your shop\'s own data.':
+    'ইংরেজি বা বাংলিশে প্রশ্ন করুন। উত্তর আসবে আপনার দোকানের নিজস্ব ডেটা থেকে।',
   'Vector index online': 'ভেক্টর ইনডেক্স চালু',
   'Using database facts': 'ডেটাবেস তথ্য ব্যবহার করছে',
   'Knowledge base': 'জ্ঞান ভান্ডার',

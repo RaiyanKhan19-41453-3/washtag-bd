@@ -107,7 +107,7 @@ export default function Layout() {
           <div className="upgrade-card">
             <Sparkles size={17} />
             <strong>{shop?.plan || 'Starter'} Plan</strong>
-            <p>Active until {shop?.subscriptionEndsAt ? new Date(shop.subscriptionEndsAt).toLocaleDateString('en-GB') : '—'}</p>
+            <p>Active until {shop?.subscriptionEndsAt ? new Date(shop.subscriptionEndsAt).toLocaleDateString('en-GB') : '-'}</p>
           </div>
           <button className="nav-link logout-link" onClick={handleLogout}>
             <LogOut size={19} />

@@ -53,7 +53,7 @@ export default function PrintReceipt() {
         <div className="receipt-line"><span>Order</span><strong>#{order.orderNumber}</strong></div>
         <div className="receipt-line"><span>Customer</span><strong>{order.customerName}</strong></div>
         <div className="receipt-line"><span>Received</span><strong>{formatDate(order.createdAt)}</strong></div>
-        <div className="receipt-line"><span>{order.deliveryMode === 'Delivery' ? 'Delivery' : 'Pickup'}</span><strong>{order.deliveryMode === 'Delivery' ? (order.deliveryAddress || '—') : (order.dueDate ? formatDate(order.dueDate) : '—')}</strong></div>
+        <div className="receipt-line"><span>{order.deliveryMode === 'Delivery' ? 'Delivery' : 'Pickup'}</span><strong>{order.deliveryMode === 'Delivery' ? (order.deliveryAddress || '-') : (order.dueDate ? formatDate(order.dueDate) : '-')}</strong></div>
 
         <div className="receipt-divider" />
 

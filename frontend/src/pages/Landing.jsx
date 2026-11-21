@@ -25,7 +25,7 @@ const features = [
   },
   {
     title: 'Your counter, in numbers.',
-    text: 'Pending items, unpaid customers, daily collections — without opening a khata or a spreadsheet.',
+    text: 'Pending items, unpaid customers, daily collections, without opening a khata or a spreadsheet.',
     Icon: BarChart3
   }
 ];
@@ -67,7 +67,7 @@ export default function Landing() {
       {/* Asymmetric hero: oversized type on the left, a real ticket on the right. */}
       <section className="hero">
         <div className="hero-copy">
-          <div className="hero-index"><span>01 — SMART LAUNDRY OS</span><span>MADE IN DHAKA</span></div>
+          <div className="hero-index"><span>01 / SMART LAUNDRY OS</span><span>MADE IN DHAKA</span></div>
           <h1>Paper tokens<br /><em>are finished.</em></h1>
           <p className="hero-lead">
             Every order becomes a QR receipt your customer can track from their own phone.

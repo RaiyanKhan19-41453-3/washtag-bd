@@ -86,7 +86,7 @@ api.interceptors.response.use(
       return Promise.reject(failure);
     }
 
-    // Never replay a non-idempotent write after a 401 — it may have committed.
+    // Never replay a non-idempotent write after a 401 - it may have committed.
     if (!['get', 'head', 'options'].includes((config.method || 'get').toLowerCase())) {
       redirectToLogin();
       return Promise.reject(new Error('Your session expired. Please log in again.'));
@@ -103,7 +103,7 @@ api.interceptors.response.use(
     } catch (refreshError) {
       const status = refreshError?.response?.status ?? refreshError?.status;
       if (status === 400 || status === 401) {
-        // The token itself is rejected (e.g. revoked family) — clear it rather than
+        // The token itself is rejected (e.g. revoked family) - clear it rather than
         // leaving the tab stuck retrying a dead token forever.
         redirectToLogin();
         return Promise.reject(new Error('Your session expired. Please log in again.'));

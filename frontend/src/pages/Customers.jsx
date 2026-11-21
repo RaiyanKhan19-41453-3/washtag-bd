@@ -71,7 +71,7 @@ export default function Customers() {
                     <td className="muted">{customer.phone}</td>
                     <td className="align-right">{customer.orderCount}</td>
                     <td className="align-right strong">{money(customer.totalSpent)}</td>
-                    <td className="align-right">{customer.unpaidAmount > 0 ? <span className="due-text">{money(customer.unpaidAmount)}</span> : <span className="muted">—</span>}</td>
+                    <td className="align-right">{customer.unpaidAmount > 0 ? <span className="due-text">{money(customer.unpaidAmount)}</span> : <span className="muted">-</span>}</td>
                     <td className="muted">{formatDate(customer.lastOrderAt)}</td>
                   </tr>
                 ))}
